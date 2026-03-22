@@ -7,7 +7,6 @@ import 'package:order_tracker/widgets/custom_text_field.dart';
 import 'package:order_tracker/widgets/gradient_button.dart';
 import 'package:provider/provider.dart';
 
-
 class SendAlertScreen extends StatefulWidget {
   const SendAlertScreen({super.key});
 

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -71,8 +71,7 @@ class _StationInspectionFormScreenState
         _customRegionController.text = inspection.region;
       }
       final cities = saudiCities[_selectedRegion] ?? <String>[];
-      if (_selectedRegion != _otherOption &&
-          cities.contains(inspection.city)) {
+      if (_selectedRegion != _otherOption && cities.contains(inspection.city)) {
         _selectedCity = inspection.city;
       } else {
         _selectedCity = _otherOption;
@@ -116,9 +115,8 @@ class _StationInspectionFormScreenState
   void _addPump() {
     showDialog<void>(
       context: context,
-      builder: (_) => _PumpDialog(
-        onSave: (pump) => setState(() => _pumps.add(pump)),
-      ),
+      builder: (_) =>
+          _PumpDialog(onSave: (pump) => setState(() => _pumps.add(pump))),
     );
   }
 
@@ -191,9 +189,7 @@ class _StationInspectionFormScreenState
     try {
       final position = await _determinePosition();
       if (position == null) return;
-      _updateLocation(
-        LatLng(position.latitude, position.longitude),
-      );
+      _updateLocation(LatLng(position.latitude, position.longitude));
       if (!kIsWeb) {
         await _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(
@@ -250,9 +246,9 @@ class _StationInspectionFormScreenState
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String? _mapLink() {
@@ -267,13 +263,14 @@ class _StationInspectionFormScreenState
     return defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
   }
+
   Future<void> _openExternalMap({bool directions = false}) async {
     final latLng = _selectedLatLng;
     final url = latLng == null
         ? 'https://www.google.com/maps'
         : directions
-            ? 'https://www.google.com/maps/dir/?api=1&destination=${latLng.latitude},${latLng.longitude}'
-            : 'https://www.google.com/maps?q=${latLng.latitude},${latLng.longitude}';
+        ? 'https://www.google.com/maps/dir/?api=1&destination=${latLng.latitude},${latLng.longitude}'
+        : 'https://www.google.com/maps?q=${latLng.latitude},${latLng.longitude}';
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _showSnackBar('تعذر فتح الخرائط');
@@ -400,9 +397,7 @@ class _StationInspectionFormScreenState
     if (!_formKey.currentState!.validate()) return;
     if (_pumps.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يجب إضافة مضخة واحدة على الأقل'),
-        ),
+        const SnackBar(content: Text('يجب إضافة مضخة واحدة على الأقل')),
       );
       return;
     }
@@ -455,11 +450,9 @@ class _StationInspectionFormScreenState
     }
 
     if (_audioAttachment != null) {
-      final uploaded = await provider.uploadAttachments(
-        result.id,
-        [_audioAttachment!],
-        type: 'audio',
-      );
+      final uploaded = await provider.uploadAttachments(result.id, [
+        _audioAttachment!,
+      ], type: 'audio');
       attachmentsToUpload.addAll(uploaded);
     }
 
@@ -472,6 +465,7 @@ class _StationInspectionFormScreenState
       Navigator.pop(context, true);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= 900;
@@ -504,13 +498,9 @@ class _StationInspectionFormScreenState
             isWide
                 ? Row(
                     children: [
-                      Expanded(
-                        child: _buildRegionDropdown(),
-                      ),
+                      Expanded(child: _buildRegionDropdown()),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCityDropdown(cities),
-                      ),
+                      Expanded(child: _buildCityDropdown(cities)),
                     ],
                   )
                 : Column(
@@ -757,9 +747,7 @@ class _StationInspectionFormScreenState
             ElevatedButton.icon(
               onPressed: _saving ? null : _submit,
               icon: const Icon(Icons.send),
-              label: Text(
-                _saving ? 'جارٍ الإرسال...' : 'إرسال المعاينة',
-              ),
+              label: Text(_saving ? 'جارٍ الإرسال...' : 'إرسال المعاينة'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -770,6 +758,7 @@ class _StationInspectionFormScreenState
       ),
     );
   }
+
   Widget _sectionTitle(String title) {
     return Text(
       title,
@@ -810,15 +799,9 @@ class _StationInspectionFormScreenState
       value: _selectedCity,
       items: [
         ...cities.map(
-          (city) => DropdownMenuItem(
-            value: city,
-            child: Text(city),
-          ),
+          (city) => DropdownMenuItem(value: city, child: Text(city)),
         ),
-        const DropdownMenuItem(
-          value: _otherOption,
-          child: Text(_otherOption),
-        ),
+        const DropdownMenuItem(value: _otherOption, child: Text(_otherOption)),
       ],
       onChanged: _selectedRegion == null
           ? null
@@ -852,15 +835,9 @@ class _StationInspectionFormScreenState
       value: _selectedRegion,
       items: [
         ...saudiCities.keys.map(
-          (region) => DropdownMenuItem(
-            value: region,
-            child: Text(region),
-          ),
+          (region) => DropdownMenuItem(value: region, child: Text(region)),
         ),
-        const DropdownMenuItem(
-          value: _otherOption,
-          child: Text(_otherOption),
-        ),
+        const DropdownMenuItem(value: _otherOption, child: Text(_otherOption)),
       ],
       onChanged: (value) {
         setState(() {
@@ -1043,9 +1020,9 @@ class _PumpDialogState extends State<_PumpDialog> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     if (_nozzles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('حدد عدد الليّات أولاً')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('حدد عدد الليّات أولاً')));
       return;
     }
 
@@ -1099,17 +1076,13 @@ class _PumpDialogState extends State<_PumpDialog> {
             children: [
               TextFormField(
                 controller: _typeController,
-                decoration: const InputDecoration(
-                  labelText: 'نوع المضخة',
-                ),
+                decoration: const InputDecoration(labelText: 'نوع المضخة'),
                 validator: _required,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _nozzleCountController,
-                decoration: const InputDecoration(
-                  labelText: 'عدد الليّات',
-                ),
+                decoration: const InputDecoration(labelText: 'عدد الليّات'),
                 keyboardType: TextInputType.number,
                 validator: _required,
                 onChanged: (_) => _applyNozzleCount(),
@@ -1255,10 +1228,7 @@ class _PumpDialogState extends State<_PumpDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('إلغاء'),
         ),
-        ElevatedButton(
-          onPressed: _save,
-          child: const Text('حفظ المضخة'),
-        ),
+        ElevatedButton(onPressed: _save, child: const Text('حفظ المضخة')),
       ],
     );
   }

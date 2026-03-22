@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/station_models.dart';
+import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/widgets/stations/inventory_filter_dialog.dart';
@@ -30,6 +32,9 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   Map<String, double> _columnWidths = {};
   ScrollController _horizontalScrollController = ScrollController();
   ScrollController _verticalScrollController = ScrollController();
+
+  User? get _currentUser => context.read<AuthProvider>().user;
+  bool get _isOwnerStation => _currentUser?.role == 'owner_station';
 
   Future<void> _approveInventory(DailyInventory inventory) async {
     final confirmed = await showDialog<bool>(
@@ -90,7 +95,9 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorRed,
+            ),
             child: const Text('حذف'),
           ),
         ],
@@ -123,18 +130,22 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   }
 
   Future<void> _editInventory(DailyInventory inventory) async {
-    final prevCtrl =
-        TextEditingController(text: inventory.previousBalance.toStringAsFixed(2));
-    final receivedCtrl =
-        TextEditingController(text: inventory.receivedQuantity.toStringAsFixed(2));
-    final salesCtrl =
-        TextEditingController(text: inventory.totalSales.toStringAsFixed(2));
+    final prevCtrl = TextEditingController(
+      text: inventory.previousBalance.toStringAsFixed(2),
+    );
+    final receivedCtrl = TextEditingController(
+      text: inventory.receivedQuantity.toStringAsFixed(2),
+    );
+    final salesCtrl = TextEditingController(
+      text: inventory.totalSales.toStringAsFixed(2),
+    );
     final actualCtrl = TextEditingController(
       text: inventory.actualBalance?.toStringAsFixed(2) ?? '',
     );
     final notesCtrl = TextEditingController(text: inventory.notes ?? '');
-    final diffReasonCtrl =
-        TextEditingController(text: inventory.differenceReason ?? '');
+    final diffReasonCtrl = TextEditingController(
+      text: inventory.differenceReason ?? '',
+    );
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -146,22 +157,30 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
             children: [
               TextField(
                 controller: prevCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'الرصيد السابق'),
               ),
               TextField(
                 controller: receivedCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'الواردات'),
               ),
               TextField(
                 controller: salesCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'المبيعات'),
               ),
               TextField(
                 controller: actualCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'الرصيد الفعلي'),
               ),
               TextField(
@@ -194,16 +213,17 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     final previousBalance = double.tryParse(prevCtrl.text.trim()) ?? 0;
     final receivedQuantity = double.tryParse(receivedCtrl.text.trim()) ?? 0;
     final totalSales = double.tryParse(salesCtrl.text.trim()) ?? 0;
-    final actualBalance =
-        actualCtrl.text.trim().isEmpty ? null : double.tryParse(actualCtrl.text.trim());
+    final actualBalance = actualCtrl.text.trim().isEmpty
+        ? null
+        : double.tryParse(actualCtrl.text.trim());
 
     final calculatedBalance = previousBalance + receivedQuantity - totalSales;
-    final difference =
-        actualBalance != null ? (actualBalance - calculatedBalance) : null;
-    final differencePercentage =
-        (difference != null && calculatedBalance != 0)
-            ? (difference / calculatedBalance) * 100
-            : null;
+    final difference = actualBalance != null
+        ? (actualBalance - calculatedBalance)
+        : null;
+    final differencePercentage = (difference != null && calculatedBalance != 0)
+        ? (difference / calculatedBalance) * 100
+        : null;
 
     final updates = {
       'previousBalance': previousBalance,
@@ -246,8 +266,17 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadInventories();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final stationProvider = context.read<StationProvider>();
+      final user = _currentUser;
+
+      if (user?.role == 'station_boy' && user?.stationId != null) {
+        await stationProvider.fetchStations(forceStationId: user!.stationId);
+      } else {
+        await stationProvider.fetchStations();
+      }
+
+      await _loadInventories();
       _initializeTableColumns();
     });
     _liveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -342,17 +371,18 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     _loadInventories();
   }
 
-
   String _normalizeFuelType(String value) {
     var normalized = value;
     normalized = normalized.replaceAll(RegExp(r'[‎‏]'), '');
     normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
     final lower = normalized.toLowerCase();
 
-    if (lower.contains('\u0627\u0644\u0641\u0631\u0642') && lower.contains('91')) {
+    if (lower.contains('\u0627\u0644\u0641\u0631\u0642') &&
+        lower.contains('91')) {
       return '\u0628\u0646\u0632\u064a\u0646 91';
     }
-    if (lower.contains('\u0627\u0644\u0641\u0631\u0642') && lower.contains('95')) {
+    if (lower.contains('\u0627\u0644\u0641\u0631\u0642') &&
+        lower.contains('95')) {
       return '\u0628\u0646\u0632\u064a\u0646 95';
     }
     if (lower.contains('\u062f\u064a\u0632\u0644') ||
@@ -393,8 +423,20 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
     final dates = provider.inventories.map((inv) => inv.inventoryDate).toList();
     dates.sort();
-    final start = DateTime(dates.first.year, dates.first.month, dates.first.day);
-    final end = DateTime(dates.last.year, dates.last.month, dates.last.day, 23, 59, 59, 999);
+    final start = DateTime(
+      dates.first.year,
+      dates.first.month,
+      dates.first.day,
+    );
+    final end = DateTime(
+      dates.last.year,
+      dates.last.month,
+      dates.last.day,
+      23,
+      59,
+      59,
+      999,
+    );
 
     final filters = <String, dynamic>{
       'startDate': start.toIso8601String(),
@@ -444,17 +486,23 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   }
 
   String _getColumnValue(DailyInventory inventory, String column) {
-    final salesColumn = _tableColumns.length > 6 ? _tableColumns[6] : 'المبيعات';
-    final calculatedColumn =
-        _tableColumns.length > 7 ? _tableColumns[7] : 'الرصيد المحسوب';
-    final differenceColumn =
-        _tableColumns.length > 9 ? _tableColumns[9] : 'الفرق';
+    final salesColumn = _tableColumns.length > 6
+        ? _tableColumns[6]
+        : 'المبيعات';
+    final calculatedColumn = _tableColumns.length > 7
+        ? _tableColumns[7]
+        : 'الرصيد المحسوب';
+    final differenceColumn = _tableColumns.length > 9
+        ? _tableColumns[9]
+        : 'الفرق';
 
-    final liveSales = _liveSalesByKey[_inventoryKey(
-      inventory.stationId,
-      inventory.fuelType,
-      inventory.inventoryDate,
-    )] ?? inventory.totalSales;
+    final liveSales =
+        _liveSalesByKey[_inventoryKey(
+          inventory.stationId,
+          inventory.fuelType,
+          inventory.inventoryDate,
+        )] ??
+        inventory.totalSales;
 
     final calculatedLive =
         inventory.previousBalance + inventory.receivedQuantity - liveSales;
@@ -511,7 +559,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     }
   }
 
-Color _getColumnColor(DailyInventory inventory, String column) {
+  Color _getColumnColor(DailyInventory inventory, String column) {
     switch (column) {
       case 'الحالة':
         switch (inventory.status) {
@@ -583,12 +631,13 @@ Color _getColumnColor(DailyInventory inventory, String column) {
               icon: const Icon(Icons.filter_alt_off),
               tooltip: 'مسح الفلاتر',
             ),
-          IconButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/inventory/create');
-            },
-            icon: const Icon(Icons.add),
-          ),
+          if (!_isOwnerStation)
+            IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/inventory/create');
+              },
+              icon: const Icon(Icons.add),
+            ),
         ],
       ),
       body: Column(
@@ -763,21 +812,25 @@ Color _getColumnColor(DailyInventory inventory, String column) {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/inventory/create');
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _isOwnerStation
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/inventory/create');
+              },
+              child: const Icon(Icons.add),
+            ),
     );
   }
 
   Widget _buildMobileInventoryCard(DailyInventory inventory) {
-    final liveSales = _liveSalesByKey[_inventoryKey(
-      inventory.stationId,
-      inventory.fuelType,
-      inventory.inventoryDate,
-    )] ?? inventory.totalSales;
+    final liveSales =
+        _liveSalesByKey[_inventoryKey(
+          inventory.stationId,
+          inventory.fuelType,
+          inventory.inventoryDate,
+        )] ??
+        inventory.totalSales;
 
     final calculatedLive =
         inventory.previousBalance + inventory.receivedQuantity - liveSales;
@@ -810,9 +863,7 @@ Color _getColumnColor(DailyInventory inventory, String column) {
     }
 
     final differenceColor = differenceLive != null
-        ? (differenceLive >= 0
-              ? AppColors.successGreen
-              : AppColors.errorRed)
+        ? (differenceLive >= 0 ? AppColors.successGreen : AppColors.errorRed)
         : AppColors.mediumGray;
 
     return Card(
@@ -918,7 +969,7 @@ Color _getColumnColor(DailyInventory inventory, String column) {
                 differenceLive,
               ),
               // Actions
-              if (inventory.status == 'مسودة')
+              if (inventory.status == 'مسودة' && !_isOwnerStation)
                 Column(
                   children: [
                     const SizedBox(height: 12),
@@ -1122,18 +1173,26 @@ Color _getColumnColor(DailyInventory inventory, String column) {
               label: const Text('عرض'),
             ),
             const SizedBox(width: 8),
-            if (inventory.status == 'مسودة')
+            if (inventory.status == 'مسودة' && !_isOwnerStation)
               TextButton.icon(
                 onPressed: () => _editInventory(inventory),
                 icon: const Icon(Icons.edit, size: 18),
                 label: const Text('تعديل'),
               ),
             const Spacer(),
-            TextButton.icon(
-              onPressed: () => _deleteInventory(inventory),
-              icon: const Icon(Icons.delete, size: 18, color: AppColors.errorRed),
-              label: const Text('حذف', style: TextStyle(color: AppColors.errorRed)),
-            ),
+            if (!_isOwnerStation)
+              TextButton.icon(
+                onPressed: () => _deleteInventory(inventory),
+                icon: const Icon(
+                  Icons.delete,
+                  size: 18,
+                  color: AppColors.errorRed,
+                ),
+                label: const Text(
+                  'حذف',
+                  style: TextStyle(color: AppColors.errorRed),
+                ),
+              ),
           ],
         ),
       ],
@@ -1159,12 +1218,13 @@ Color _getColumnColor(DailyInventory inventory, String column) {
               icon: const Icon(Icons.filter_alt_off),
               tooltip: 'مسح الفلاتر',
             ),
-          IconButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/inventory/create');
-            },
-            icon: const Icon(Icons.add),
-          ),
+          if (!_isOwnerStation)
+            IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/inventory/create');
+              },
+              icon: const Icon(Icons.add),
+            ),
         ],
       ),
       body: Column(
@@ -1420,8 +1480,8 @@ Color _getColumnColor(DailyInventory inventory, String column) {
                                                 tooltip: 'عرض التفاصيل',
                                                 iconSize: 20,
                                               ),
-                                              if (inventory.status ==
-                                                  'مسودة') ...[
+                                              if (inventory.status == 'مسودة' &&
+                                                  !_isOwnerStation) ...[
                                                 IconButton(
                                                   onPressed: () {
                                                     _approveInventory(
@@ -1518,12 +1578,14 @@ Color _getColumnColor(DailyInventory inventory, String column) {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/inventory/create');
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _isOwnerStation
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/inventory/create');
+              },
+              child: const Icon(Icons.add),
+            ),
     );
   }
 

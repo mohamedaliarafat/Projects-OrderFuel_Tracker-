@@ -5,10 +5,7 @@ import 'package:order_tracker/utils/constants.dart';
 class ManualAttendanceDialog extends StatefulWidget {
   final ValueChanged<Map<String, dynamic>> onSave;
 
-  const ManualAttendanceDialog({
-    super.key,
-    required this.onSave,
-  });
+  const ManualAttendanceDialog({super.key, required this.onSave});
 
   @override
   State<ManualAttendanceDialog> createState() => _ManualAttendanceDialogState();
@@ -40,7 +37,9 @@ class _ManualAttendanceDialogState extends State<ManualAttendanceDialog> {
               controller: _employeeController,
               decoration: InputDecoration(
                 labelText: 'رقم الموظف أو الاسم',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 filled: true,
                 fillColor: AppColors.glassBlue.withOpacity(0.1),
               ),
@@ -50,7 +49,9 @@ class _ManualAttendanceDialogState extends State<ManualAttendanceDialog> {
               controller: _statusController,
               decoration: InputDecoration(
                 labelText: 'الحالة (حاضر، متأخر، غائب)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 filled: true,
                 fillColor: AppColors.glassBlue.withOpacity(0.1),
               ),
@@ -61,7 +62,9 @@ class _ManualAttendanceDialogState extends State<ManualAttendanceDialog> {
               child: InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'التاريخ',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   filled: true,
                   fillColor: AppColors.glassBlue.withOpacity(0.1),
                 ),
@@ -74,7 +77,9 @@ class _ManualAttendanceDialogState extends State<ManualAttendanceDialog> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'ملاحظات',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 filled: true,
                 fillColor: AppColors.glassBlue.withOpacity(0.1),
               ),

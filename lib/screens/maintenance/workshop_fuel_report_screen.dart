@@ -26,8 +26,8 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final args = ModalRoute.of(context)?.settings.arguments
-          as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final provider = context.read<WorkshopFuelProvider>();
       _stationId = (args?['stationId'] ?? provider.settings?['stationId'])
           ?.toString();
@@ -66,23 +66,21 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
   }
 
   List<Map<String, dynamic>> _groupRefuelsByDay(
-      List<Map<String, dynamic>> refuels) {
+    List<Map<String, dynamic>> refuels,
+  ) {
     final grouped = <String, Map<String, dynamic>>{};
     for (final refuel in refuels) {
-      final date = DateTime.tryParse(refuel['createdAt']?.toString() ?? '') ??
+      final date =
+          DateTime.tryParse(refuel['createdAt']?.toString() ?? '') ??
           DateTime.now();
       final key = DateFormat('yyyy/MM/dd').format(date);
       grouped.putIfAbsent(key, () {
-        return {
-          'date': key,
-          'liters': 0.0,
-          'totalAmount': 0.0,
-          'count': 0,
-        };
+        return {'date': key, 'liters': 0.0, 'totalAmount': 0.0, 'count': 0};
       });
       grouped[key]!['liters'] =
           (grouped[key]!['liters'] as double) + _readNum(refuel['liters']);
-      grouped[key]!['totalAmount'] = (grouped[key]!['totalAmount'] as double) +
+      grouped[key]!['totalAmount'] =
+          (grouped[key]!['totalAmount'] as double) +
           _readNum(refuel['totalAmount']);
       grouped[key]!['count'] = (grouped[key]!['count'] as int) + 1;
     }
@@ -104,7 +102,8 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
   }
 
   List<Map<String, dynamic>> _filterRefuelsByRange(
-      List<Map<String, dynamic>> refuels) {
+    List<Map<String, dynamic>> refuels,
+  ) {
     return refuels.where((refuel) {
       final date = DateTime.tryParse(refuel['createdAt']?.toString() ?? '');
       if (date == null) return false;
@@ -113,7 +112,8 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
   }
 
   List<Map<String, dynamic>> _filterReadingsByRange(
-      List<Map<String, dynamic>> readings) {
+    List<Map<String, dynamic>> readings,
+  ) {
     return readings.where((reading) {
       final date = DateTime.tryParse(reading['readingDate']?.toString() ?? '');
       if (date == null) return false;
@@ -140,9 +140,9 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
     final filteredRefuels = _filterRefuelsByRange(provider.refuels);
     final filteredReadings = _filterReadingsByRange(provider.readings);
     if (filteredRefuels.isEmpty && filteredReadings.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد بيانات للتصدير')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للتصدير')));
       return;
     }
 
@@ -220,9 +220,11 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
     );
 
     readings.sort((a, b) {
-      final ad = DateTime.tryParse(a['readingDate']?.toString() ?? '') ??
+      final ad =
+          DateTime.tryParse(a['readingDate']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
-      final bd = DateTime.tryParse(b['readingDate']?.toString() ?? '') ??
+      final bd =
+          DateTime.tryParse(b['readingDate']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
       return ad.compareTo(bd);
     });
@@ -241,10 +243,7 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
       appBar: AppBar(
         title: Text('تقرير وقود الورشة - ${_stationName ?? ''}'),
         actions: [
-          IconButton(
-            onPressed: _pickRange,
-            icon: const Icon(Icons.date_range),
-          ),
+          IconButton(onPressed: _pickRange, icon: const Icon(Icons.date_range)),
           IconButton(
             onPressed: () => _exportPdf(provider),
             icon: const Icon(Icons.picture_as_pdf),
@@ -258,45 +257,48 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
           children: [
             Row(
               children: [
-                _buildSummaryChip('سعر اللتر',
-                    provider.unitPrice > 0
-                        ? '${provider.unitPrice.toStringAsFixed(2)} ريال'
-                        : 'غير محدد'),
+                _buildSummaryChip(
+                  'سعر اللتر',
+                  provider.unitPrice > 0
+                      ? '${provider.unitPrice.toStringAsFixed(2)} ريال'
+                      : 'غير محدد',
+                ),
                 const SizedBox(width: 12),
-                _buildSummaryChip('إجمالي اللترات',
-                    totalLiters.toStringAsFixed(2)),
+                _buildSummaryChip(
+                  'إجمالي اللترات',
+                  totalLiters.toStringAsFixed(2),
+                ),
                 const SizedBox(width: 12),
-                _buildSummaryChip('إجمالي المبلغ',
-                    totalAmount.toStringAsFixed(2)),
+                _buildSummaryChip(
+                  'إجمالي المبلغ',
+                  totalAmount.toStringAsFixed(2),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
               'التجميع اليومي',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             _buildDailySummaryTableUi(dailySummary),
             const SizedBox(height: 16),
             Text(
               'تفاصيل التعبئة',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             _buildRefuelTableUi(refuels),
             const SizedBox(height: 16),
             Text(
               'قراءات العداد',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             _buildReadingTableUi(
@@ -347,16 +349,23 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
           DataColumn(label: Text('المبلغ')),
         ],
         rows: refuels.map((refuel) {
-          final date = DateTime.tryParse(refuel['createdAt']?.toString() ?? '') ??
+          final date =
+              DateTime.tryParse(refuel['createdAt']?.toString() ?? '') ??
               DateTime.now();
-          return DataRow(cells: [
-            DataCell(Text(DateFormat('yyyy/MM/dd').format(date))),
-            DataCell(Text(refuel['driverName']?.toString() ?? 'سائق غير معروف')),
-            DataCell(Text(refuel['vehicleNumber']?.toString() ?? '--')),
-            DataCell(Text(_readNum(refuel['liters']).toStringAsFixed(2))),
-            DataCell(Text(_readNum(refuel['unitPrice']).toStringAsFixed(2))),
-            DataCell(Text(_readNum(refuel['totalAmount']).toStringAsFixed(2))),
-          ]);
+          return DataRow(
+            cells: [
+              DataCell(Text(DateFormat('yyyy/MM/dd').format(date))),
+              DataCell(
+                Text(refuel['driverName']?.toString() ?? 'سائق غير معروف'),
+              ),
+              DataCell(Text(refuel['vehicleNumber']?.toString() ?? '--')),
+              DataCell(Text(_readNum(refuel['liters']).toStringAsFixed(2))),
+              DataCell(Text(_readNum(refuel['unitPrice']).toStringAsFixed(2))),
+              DataCell(
+                Text(_readNum(refuel['totalAmount']).toStringAsFixed(2)),
+              ),
+            ],
+          );
         }).toList(),
       ),
     );
@@ -376,12 +385,14 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
           DataColumn(label: Text('عدد التعبئات')),
         ],
         rows: dailySummary.map((row) {
-          return DataRow(cells: [
-            DataCell(Text(row['date'].toString())),
-            DataCell(Text((row['liters'] as double).toStringAsFixed(2))),
-            DataCell(Text((row['totalAmount'] as double).toStringAsFixed(2))),
-            DataCell(Text(row['count'].toString())),
-          ]);
+          return DataRow(
+            cells: [
+              DataCell(Text(row['date'].toString())),
+              DataCell(Text((row['liters'] as double).toStringAsFixed(2))),
+              DataCell(Text((row['totalAmount'] as double).toStringAsFixed(2))),
+              DataCell(Text(row['count'].toString())),
+            ],
+          );
         }).toList(),
       ),
     );
@@ -403,12 +414,14 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
           DataColumn(label: Text('رصيد الخزان')),
         ],
         rows: [
-          DataRow(cells: [
-            DataCell(Text(prevReading.toStringAsFixed(2))),
-            DataCell(Text(currentReading.toStringAsFixed(2))),
-            DataCell(Text(totalLiters.toStringAsFixed(2))),
-            DataCell(Text(currentBalance.toStringAsFixed(2))),
-          ]),
+          DataRow(
+            cells: [
+              DataCell(Text(prevReading.toStringAsFixed(2))),
+              DataCell(Text(currentReading.toStringAsFixed(2))),
+              DataCell(Text(totalLiters.toStringAsFixed(2))),
+              DataCell(Text(currentBalance.toStringAsFixed(2))),
+            ],
+          ),
         ],
       ),
     );
@@ -451,7 +464,8 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
       headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
       cellAlignment: pw.Alignment.center,
       data: refuels.map((refuel) {
-        final date = DateTime.tryParse(refuel['createdAt']?.toString() ?? '') ??
+        final date =
+            DateTime.tryParse(refuel['createdAt']?.toString() ?? '') ??
             DateTime.now();
         return [
           DateFormat('yyyy/MM/dd').format(date),
@@ -469,10 +483,14 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
     WorkshopFuelProvider provider,
     List<Map<String, dynamic>> refuels,
   ) {
-    final totalLiters = refuels
-        .fold<double>(0, (sum, r) => sum + _readNum(r['liters']));
-    final totalAmount = refuels
-        .fold<double>(0, (sum, r) => sum + _readNum(r['totalAmount']));
+    final totalLiters = refuels.fold<double>(
+      0,
+      (sum, r) => sum + _readNum(r['liters']),
+    );
+    final totalAmount = refuels.fold<double>(
+      0,
+      (sum, r) => sum + _readNum(r['totalAmount']),
+    );
 
     return pw.Table.fromTextArray(
       headers: const ['سعر اللتر', 'إجمالي اللترات', 'إجمالي المبلغ'],
@@ -488,7 +506,7 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
           provider.unitPrice.toStringAsFixed(2),
           totalLiters.toStringAsFixed(2),
           totalAmount.toStringAsFixed(2),
-        ]
+        ],
       ],
     );
   }
@@ -499,9 +517,11 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
   }) {
     final sortedReadings = [...readings];
     sortedReadings.sort((a, b) {
-      final ad = DateTime.tryParse(a['readingDate']?.toString() ?? '') ??
+      final ad =
+          DateTime.tryParse(a['readingDate']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
-      final bd = DateTime.tryParse(b['readingDate']?.toString() ?? '') ??
+      final bd =
+          DateTime.tryParse(b['readingDate']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
       return ad.compareTo(bd);
     });
@@ -536,7 +556,7 @@ class _WorkshopFuelReportScreenState extends State<WorkshopFuelReportScreen> {
           currentReading.toStringAsFixed(2),
           totalLiters.toStringAsFixed(2),
           currentBalance.toStringAsFixed(2),
-        ]
+        ],
       ],
     );
   }

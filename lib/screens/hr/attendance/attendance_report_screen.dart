@@ -16,9 +16,7 @@ class AttendanceReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('تقرير الحضور'),
-      ),
+      appBar: AppBar(title: const Text('تقرير الحضور')),
       body: Center(
         child: Text('تقرير الحضور للموظف $employeeId - $month/$year'),
       ),

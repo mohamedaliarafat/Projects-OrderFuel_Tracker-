@@ -38,15 +38,17 @@ class _MarketingStationDetailsScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MarketingStationProvider>().fetchStationById(widget.stationId);
+      context.read<MarketingStationProvider>().fetchStationById(
+        widget.stationId,
+      );
     });
   }
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   MarketingStation? _getStation(MarketingStationProvider provider) {
@@ -72,29 +74,31 @@ class _MarketingStationDetailsScreenState
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => MarketingStationFormScreen(
-          stationToEdit: station,
-        ),
+        builder: (_) => MarketingStationFormScreen(stationToEdit: station),
       ),
     );
 
     if (result == true && mounted) {
-      await context
-          .read<MarketingStationProvider>()
-          .fetchStationById(station.id);
+      await context.read<MarketingStationProvider>().fetchStationById(
+        station.id,
+      );
     }
   }
 
-  void _openLeaseDialog({required MarketingStation station, bool isTransfer = false}) {
+  void _openLeaseDialog({
+    required MarketingStation station,
+    bool isTransfer = false,
+  }) {
     showDialog<void>(
       context: context,
       builder: (_) => _LeaseDialog(
         initialLease: station.lease,
         accounting: station.accounting,
         onSave: (lease) async {
-          await context
-              .read<MarketingStationProvider>()
-              .setLease(station.id, lease);
+          await context.read<MarketingStationProvider>().setLease(
+            station.id,
+            lease,
+          );
         },
         title: isTransfer ? 'تغيير المستأجر' : 'تأجير المحطة',
       ),
@@ -113,8 +117,8 @@ class _MarketingStationDetailsScreenState
 
     if (updated == null) return;
     await context.read<MarketingStationProvider>().updateStation(
-          station.copyWith(pumps: updated),
-        );
+      station.copyWith(pumps: updated),
+    );
   }
 
   void _openHandoverReport(MarketingStation station) {
@@ -135,9 +139,9 @@ class _MarketingStationDetailsScreenState
     );
 
     if (result != null && mounted) {
-      await context
-          .read<MarketingStationProvider>()
-          .fetchStationById(station.id);
+      await context.read<MarketingStationProvider>().fetchStationById(
+        station.id,
+      );
     }
   }
 
@@ -182,9 +186,9 @@ class _MarketingStationDetailsScreenState
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذر فتح الرابط')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
       }
     }
   }
@@ -242,8 +246,10 @@ class _MarketingStationDetailsScreenState
 
         return Scaffold(
           appBar: AppBar(
-            title:
-                const Text('تفاصيل المحطة', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'تفاصيل المحطة',
+              style: TextStyle(color: Colors.white),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.assignment_add),
@@ -252,12 +258,15 @@ class _MarketingStationDetailsScreenState
               ),
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf),
-                onPressed: hasReport ? () => _printHandoverReport(station) : null,
+                onPressed: hasReport
+                    ? () => _printHandoverReport(station)
+                    : null,
               ),
               IconButton(
                 icon: const Icon(Icons.download),
-                onPressed:
-                    hasReport ? () => _downloadHandoverReport(station) : null,
+                onPressed: hasReport
+                    ? () => _downloadHandoverReport(station)
+                    : null,
               ),
               IconButton(
                 icon: const Icon(Icons.edit),
@@ -302,9 +311,8 @@ class _MarketingStationDetailsScreenState
   }
 
   Widget _headerSection(MarketingStation station) {
-    final tenantLabel = station.tenantName ??
-        station.handoverReport?.companyName ??
-        'غير محدد';
+    final tenantLabel =
+        station.tenantName ?? station.handoverReport?.companyName ?? 'غير محدد';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -355,8 +363,7 @@ class _MarketingStationDetailsScreenState
                     if (station.handoverReport != null)
                       _infoChip(
                         icon: Icons.assignment_turned_in,
-                        label:
-                            'تم عمل محضر تسليم للمستأجر: $tenantLabel',
+                        label: 'تم عمل محضر تسليم للمستأجر: $tenantLabel',
                       ),
                   ],
                 ),
@@ -369,7 +376,8 @@ class _MarketingStationDetailsScreenState
   }
 
   Widget _actionsSection(MarketingStation station) {
-    final isRented = station.status == StationMarketingStatus.rented ||
+    final isRented =
+        station.status == StationMarketingStatus.rented ||
         station.status == StationMarketingStatus.rentedToNasserMotairi;
     final hasReport = station.handoverReport != null;
     return Wrap(
@@ -511,10 +519,7 @@ class _MarketingStationDetailsScreenState
           else ...[
             _detailRow('اسم المالك', owner.name.isEmpty ? '-' : owner.name),
             const SizedBox(height: 8),
-            _detailRow(
-              'رقم الجوال',
-              owner.phone.isEmpty ? '-' : owner.phone,
-            ),
+            _detailRow('رقم الجوال', owner.phone.isEmpty ? '-' : owner.phone),
             const SizedBox(height: 8),
             _detailRow(
               'رقم الهوية',
@@ -560,18 +565,20 @@ class _MarketingStationDetailsScreenState
       );
     }
 
-    final stationName =
-        report.stationName.trim().isNotEmpty ? report.stationName : station.name;
-    final city =
-        report.city.trim().isNotEmpty ? report.city : station.city;
-    final street =
-        report.street.trim().isNotEmpty ? report.street : station.address;
+    final stationName = report.stationName.trim().isNotEmpty
+        ? report.stationName
+        : station.name;
+    final city = report.city.trim().isNotEmpty ? report.city : station.city;
+    final street = report.street.trim().isNotEmpty
+        ? report.street
+        : station.address;
 
     final contractText = report.contractReference.trim().isEmpty
         ? ''
         : ' حسب العقد المبرم ${_reportValue(report.contractReference)}';
 
-    final paragraph = 'انه في يوم ${_reportValue(report.dayName)} بتاريخ '
+    final paragraph =
+        'انه في يوم ${_reportValue(report.dayName)} بتاريخ '
         '${_reportValue(report.hijriDate)} هـ الموافق '
         '${_reportValue(report.gregorianDate)} تم الوقوف على محطة المحروقات '
         'المسماة بمحطة ${_reportValue(stationName)} مدينة ${_reportValue(city)} '
@@ -606,7 +613,10 @@ class _MarketingStationDetailsScreenState
             style: TextStyle(color: AppColors.mediumGray),
           ),
           const SizedBox(height: 12),
-          Text('1) طرمبات الوقود', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            '1) طرمبات الوقود',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           _buildReportTable(
             headers: const [
@@ -631,7 +641,10 @@ class _MarketingStationDetailsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          Text('2) الخزانات', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            '2) الخزانات',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           _buildReportTable(
             headers: const [
@@ -656,7 +669,10 @@ class _MarketingStationDetailsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          Text('3) الطرمبات الغاطسة', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            '3) الطرمبات الغاطسة',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           _buildReportTable(
             headers: const [
@@ -681,7 +697,10 @@ class _MarketingStationDetailsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          Text('4) المعدات', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            '4) المعدات',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           _buildReportTable(
             headers: const [
@@ -741,8 +760,7 @@ class _MarketingStationDetailsScreenState
         children: [
           _sectionTitle('المضخات'),
           const SizedBox(height: 12),
-          if (station.pumps.isEmpty)
-            const Text('لا توجد مضخات مسجلة'),
+          if (station.pumps.isEmpty) const Text('لا توجد مضخات مسجلة'),
           if (station.pumps.isNotEmpty)
             ...station.pumps.map((pump) {
               return Card(
@@ -835,14 +853,16 @@ class _MarketingStationDetailsScreenState
                             child: Image.network(
                               url,
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: AppColors.backgroundGray,
-                                  child:
-                                      const Center(child: CircularProgressIndicator()),
-                                );
-                              },
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: AppColors.backgroundGray,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  },
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   color: AppColors.backgroundGray,
@@ -939,8 +959,9 @@ class _MarketingStationDetailsScreenState
     final priceGap = accounting.leaseAmount - accounting.stationCost;
     final profitAfterExpenses =
         accounting.leaseAmount - accounting.stationCost - accounting.expenses;
-    final planBase =
-        accounting.leaseAmount > 0 ? accounting.leaseAmount : suggestedPrice;
+    final planBase = accounting.leaseAmount > 0
+        ? accounting.leaseAmount
+        : suggestedPrice;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -996,18 +1017,15 @@ class _MarketingStationDetailsScreenState
             children: [
               _infoChip(
                 icon: Icons.calendar_month,
-                label:
-                    'شهري: ${(planBase / 12).toStringAsFixed(2)} ر.س',
+                label: 'شهري: ${(planBase / 12).toStringAsFixed(2)} ر.س',
               ),
               _infoChip(
                 icon: Icons.calendar_view_month,
-                label:
-                    'ربع سنوي: ${(planBase / 4).toStringAsFixed(2)} ر.س',
+                label: 'ربع سنوي: ${(planBase / 4).toStringAsFixed(2)} ر.س',
               ),
               _infoChip(
                 icon: Icons.calendar_today,
-                label:
-                    'نصف سنوي: ${(planBase / 2).toStringAsFixed(2)} ر.س',
+                label: 'نصف سنوي: ${(planBase / 2).toStringAsFixed(2)} ر.س',
               ),
               _infoChip(
                 icon: Icons.event_available,
@@ -1031,10 +1049,7 @@ class _MarketingStationDetailsScreenState
     return Row(
       children: [
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(color: AppColors.mediumGray),
-          ),
+          child: Text(label, style: TextStyle(color: AppColors.mediumGray)),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1276,8 +1291,8 @@ class _LeaseDialogState extends State<_LeaseDialog>
       _setPaymentCount(_paymentCount);
       for (var i = 0; i < _paymentAmountControllers.length; i++) {
         if (i < lease.paymentAmounts.length) {
-          _paymentAmountControllers[i].text =
-              lease.paymentAmounts[i].toString();
+          _paymentAmountControllers[i].text = lease.paymentAmounts[i]
+              .toString();
         }
       }
     } else {
@@ -1363,9 +1378,9 @@ class _LeaseDialogState extends State<_LeaseDialog>
     final leaseAmount =
         double.tryParse(_leaseAmountController.text.trim()) ?? 0;
     if (leaseAmount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال مبلغ التأجير')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('يرجى إدخال مبلغ التأجير')));
       return;
     }
     final years = int.tryParse(_yearsController.text.trim()) ?? 1;
@@ -1453,8 +1468,9 @@ class _LeaseDialogState extends State<_LeaseDialog>
       animation: _glowController,
       builder: (context, child) {
         final glow = 0.4 + (_glowController.value * 0.6);
-        final borderColor =
-            AppColors.accentBlue.withOpacity(0.25 + (0.35 * glow));
+        final borderColor = AppColors.accentBlue.withOpacity(
+          0.25 + (0.35 * glow),
+        );
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -1464,10 +1480,7 @@ class _LeaseDialogState extends State<_LeaseDialog>
             gradient: LinearGradient(
               begin: Alignment.topRight,
               end: Alignment.bottomLeft,
-              colors: [
-                Colors.white,
-                const Color(0xFFF6F7FB),
-              ],
+              colors: [Colors.white, const Color(0xFFF6F7FB)],
             ),
             boxShadow: [
               BoxShadow(
@@ -1511,8 +1524,10 @@ class _LeaseDialogState extends State<_LeaseDialog>
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryBlue.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(20),
@@ -1544,16 +1559,14 @@ class _LeaseDialogState extends State<_LeaseDialog>
                 '${accounting.expenses.toStringAsFixed(2)} ر.س',
               ),
               const SizedBox(height: 8),
-              _priceRow(
-                'إجمالي التكلفة',
-                '${baseCost.toStringAsFixed(2)} ر.س',
-              ),
+              _priceRow('إجمالي التكلفة', '${baseCost.toStringAsFixed(2)} ر.س'),
               const SizedBox(height: 8),
               _priceRow(
                 'فرق السعر',
                 '${priceGap.toStringAsFixed(2)} ر.س',
-                valueColor:
-                    priceGap >= 0 ? AppColors.successGreen : AppColors.errorRed,
+                valueColor: priceGap >= 0
+                    ? AppColors.successGreen
+                    : AppColors.errorRed,
               ),
               const SizedBox(height: 8),
               _priceRow(
@@ -1565,8 +1578,10 @@ class _LeaseDialogState extends State<_LeaseDialog>
               ),
               const SizedBox(height: 12),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.accentBlue.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
@@ -1617,10 +1632,7 @@ class _LeaseDialogState extends State<_LeaseDialog>
         ),
         Text(
           value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: valueColor,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
         ),
       ],
     );
@@ -1632,12 +1644,12 @@ class _LeaseDialogState extends State<_LeaseDialog>
     final dialogWidth = screenWidth > 1100
         ? 560.0
         : screenWidth > 900
-            ? 520.0
-            : screenWidth > 700
-                ? 480.0
-                : screenWidth > 520
-                    ? 420.0
-                    : 360.0;
+        ? 520.0
+        : screenWidth > 700
+        ? 480.0
+        : screenWidth > 520
+        ? 420.0
+        : 360.0;
     return AlertDialog(
       title: Text(widget.title),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1662,8 +1674,7 @@ class _LeaseDialogState extends State<_LeaseDialog>
                   keyboardType: TextInputType.number,
                   onChanged: (value) {
                     setState(() {
-                      _leaseAmountValue =
-                          double.tryParse(value.trim()) ?? 0;
+                      _leaseAmountValue = double.tryParse(value.trim()) ?? 0;
                     });
                   },
                 ),
@@ -1744,15 +1755,13 @@ class _LeaseDialogState extends State<_LeaseDialog>
                     if (_paymentPlan == 'custom') {
                       final count =
                           int.tryParse(_paymentCountController.text.trim()) ??
-                              1;
+                          1;
                       setState(() => _setPaymentCount(count));
                     } else {
                       _syncPaymentCountWithYears();
                     }
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'نوع الدفعات',
-                  ),
+                  decoration: const InputDecoration(labelText: 'نوع الدفعات'),
                 ),
                 const SizedBox(height: 8),
                 if (_paymentPlan == 'custom')
@@ -1791,10 +1800,7 @@ class _LeaseDialogState extends State<_LeaseDialog>
           onPressed: () => Navigator.pop(context),
           child: const Text('إلغاء'),
         ),
-        ElevatedButton(
-          onPressed: _save,
-          child: const Text('حفظ العقد'),
-        ),
+        ElevatedButton(onPressed: _save, child: const Text('حفظ العقد')),
       ],
     );
   }
@@ -1882,9 +1888,7 @@ class _ClosingReadingsDialogState extends State<_ClosingReadingsDialog> {
       for (var j = 0; j < pump.nozzles.length; j++) {
         final nozzle = pump.nozzles[j];
         final value = double.tryParse(_controllers[i][j].text.trim());
-        updatedNozzles.add(
-          nozzle.copyWith(closingReading: value),
-        );
+        updatedNozzles.add(nozzle.copyWith(closingReading: value));
       }
 
       final hasClosing = updatedNozzles.any((n) => n.closingReading != null);
@@ -1955,7 +1959,9 @@ class _ClosingReadingsDialogState extends State<_ClosingReadingsDialog> {
                       )
                     else
                       Column(
-                        children: pump.nozzles.asMap().entries.map((nozzleEntry) {
+                        children: pump.nozzles.asMap().entries.map((
+                          nozzleEntry,
+                        ) {
                           final nozzleIndex = nozzleEntry.key;
                           final nozzle = nozzleEntry.value;
                           return Padding(
@@ -1992,10 +1998,7 @@ class _ClosingReadingsDialogState extends State<_ClosingReadingsDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('إلغاء'),
         ),
-        ElevatedButton(
-          onPressed: _save,
-          child: const Text('حفظ القراءات'),
-        ),
+        ElevatedButton(onPressed: _save, child: const Text('حفظ القراءات')),
       ],
     );
   }

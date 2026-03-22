@@ -7,10 +7,7 @@ import 'package:provider/provider.dart';
 class GenerateSalaryDialog extends StatefulWidget {
   final VoidCallback onGenerate;
 
-  const GenerateSalaryDialog({
-    super.key,
-    required this.onGenerate,
-  });
+  const GenerateSalaryDialog({super.key, required this.onGenerate});
 
   @override
   State<GenerateSalaryDialog> createState() => _GenerateSalaryDialogState();
@@ -39,7 +36,10 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
   @override
   Widget build(BuildContext context) {
     final hrProvider = Provider.of<HRProvider>(context, listen: false);
-    final departments = ['جميع الأقسام', ...hrProvider.employees.map((e) => e.department).toSet().toList()];
+    final departments = [
+      'جميع الأقسام',
+      ...hrProvider.employees.map((e) => e.department).toSet().toList(),
+    ];
 
     return AlertDialog(
       title: const Text(
@@ -53,24 +53,24 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
           children: [
             // اختيار الشهر والسنة
             _buildMonthYearSelector(),
-            
+
             const SizedBox(height: 20),
-            
+
             // اختيار القسم
             _buildDepartmentSelector(departments),
-            
+
             const SizedBox(height: 20),
-            
+
             // خيارات الحساب
             _buildCalculationOptions(),
-            
+
             const SizedBox(height: 20),
-            
+
             // معلومات إضافية
             _buildAdditionalInfo(),
-            
+
             const SizedBox(height: 8),
-            
+
             // تحذير
             _buildWarning(),
           ],
@@ -78,16 +78,16 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _isGenerating ? null : () {
-            Navigator.pop(context);
-          },
+          onPressed: _isGenerating
+              ? null
+              : () {
+                  Navigator.pop(context);
+                },
           child: const Text('إلغاء'),
         ),
         ElevatedButton(
           onPressed: _isGenerating ? null : _generateSalaries,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.hrPurple,
-          ),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.hrPurple),
           child: _isGenerating
               ? const SizedBox(
                   width: 20,
@@ -117,15 +117,12 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
             Expanded(
               child: DropdownButtonFormField<int>(
                 value: _selectedMonth,
-                items: List.generate(12, (index) => index + 1)
-                    .map((month) {
-                  final monthName = DateFormat('MMMM', 'ar').format(
-                    DateTime(2024, month),
-                  );
-                  return DropdownMenuItem(
-                    value: month,
-                    child: Text(monthName),
-                  );
+                items: List.generate(12, (index) => index + 1).map((month) {
+                  final monthName = DateFormat(
+                    'MMMM',
+                    'ar',
+                  ).format(DateTime(2024, month));
+                  return DropdownMenuItem(value: month, child: Text(monthName));
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -142,13 +139,16 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
             Expanded(
               child: DropdownButtonFormField<int>(
                 value: _selectedYear,
-                items: List.generate(11, (index) => DateTime.now().year - 5 + index)
-                    .map((year) {
-                  return DropdownMenuItem(
-                    value: year,
-                    child: Text(year.toString()),
-                  );
-                }).toList(),
+                items:
+                    List.generate(
+                      11,
+                      (index) => DateTime.now().year - 5 + index,
+                    ).map((year) {
+                      return DropdownMenuItem(
+                        value: year,
+                        child: Text(year.toString()),
+                      );
+                    }).toList(),
                 onChanged: (value) {
                   setState(() {
                     _selectedYear = value!;
@@ -170,18 +170,12 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'القسم',
-          style: TextStyle(fontWeight: FontWeight.w500),
-        ),
+        const Text('القسم', style: TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: _selectedDepartment,
           items: departments.map((dept) {
-            return DropdownMenuItem(
-              value: dept,
-              child: Text(dept),
-            );
+            return DropdownMenuItem(value: dept, child: Text(dept));
           }).toList(),
           onChanged: (value) {
             setState(() {
@@ -227,27 +221,21 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
                 'خصم السلف المستحقة لهذا الشهر',
               ),
               const SizedBox(height: 12),
-              _buildOptionSwitch(
-                'تضمين خصم الجزاءات',
-                _includePenalties,
-                (value) {
-                  setState(() {
-                    _includePenalties = value;
-                  });
-                },
-                'خصم الجزاءات المطبقة',
-              ),
+              _buildOptionSwitch('تضمين خصم الجزاءات', _includePenalties, (
+                value,
+              ) {
+                setState(() {
+                  _includePenalties = value;
+                });
+              }, 'خصم الجزاءات المطبقة'),
               const SizedBox(height: 12),
-              _buildOptionSwitch(
-                'حساب الوقت الإضافي',
-                _includeOvertime,
-                (value) {
-                  setState(() {
-                    _includeOvertime = value;
-                  });
-                },
-                'حساب ساعات العمل الإضافي',
-              ),
+              _buildOptionSwitch('حساب الوقت الإضافي', _includeOvertime, (
+                value,
+              ) {
+                setState(() {
+                  _includeOvertime = value;
+                });
+              }, 'حساب ساعات العمل الإضافي'),
               const SizedBox(height: 12),
               _buildOptionSwitch(
                 'حساب المكافآت والحوافز',
@@ -266,7 +254,12 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
     );
   }
 
-  Widget _buildOptionSwitch(String title, bool value, Function(bool) onChanged, String subtitle) {
+  Widget _buildOptionSwitch(
+    String title,
+    bool value,
+    Function(bool) onChanged,
+    String subtitle,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -302,9 +295,14 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
 
   Widget _buildAdditionalInfo() {
     final hrProvider = Provider.of<HRProvider>(context, listen: false);
-    final activeEmployees = hrProvider.employees.where((e) => e.isActive).length;
-    final monthName = DateFormat('MMMM', 'ar').format(DateTime(_selectedYear, _selectedMonth));
-    
+    final activeEmployees = hrProvider.employees
+        .where((e) => e.isActive)
+        .length;
+    final monthName = DateFormat(
+      'MMMM',
+      'ar',
+    ).format(DateTime(_selectedYear, _selectedMonth));
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -363,10 +361,7 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
           Expanded(
             child: Text(
               'تأكد من وجود سجلات الحضور لهذا الشهر قبل الإنشاء',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.warningOrange,
-              ),
+              style: TextStyle(fontSize: 12, color: AppColors.warningOrange),
             ),
           ),
         ],
@@ -380,7 +375,7 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
     if (_includePenalties) calculations.add('الجزاءات');
     if (_includeOvertime) calculations.add('الوقت الإضافي');
     if (_calculateBonuses) calculations.add('المكافآت');
-    
+
     if (calculations.isEmpty) return 'الراتب الأساسي فقط';
     return calculations.join(' + ');
   }
@@ -392,11 +387,12 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
 
     try {
       final hrProvider = Provider.of<HRProvider>(context, listen: false);
-      
+
       final data = {
         'month': _selectedMonth,
         'year': _selectedYear,
-        if (_selectedDepartment != null && _selectedDepartment != 'جميع الأقسام')
+        if (_selectedDepartment != null &&
+            _selectedDepartment != 'جميع الأقسام')
           'department': _selectedDepartment,
         'includeAdvances': _includeAdvances,
         'includePenalties': _includePenalties,
@@ -405,23 +401,25 @@ class _GenerateSalaryDialogState extends State<GenerateSalaryDialog> {
       };
 
       await hrProvider.generateSalarySheets(_selectedMonth, _selectedYear);
-      
+
       if (!mounted) return;
-      
+
       Navigator.pop(context);
       widget.onGenerate();
-      
-      final monthName = DateFormat('MMMM', 'ar').format(DateTime(_selectedYear, _selectedMonth));
+
+      final monthName = DateFormat(
+        'MMMM',
+        'ar',
+      ).format(DateTime(_selectedYear, _selectedMonth));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم إنشاء كشوف رواتب $monthName $_selectedYear'),
           backgroundColor: AppColors.successGreen,
         ),
       );
-      
     } catch (error) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء الكشوف: $error'),

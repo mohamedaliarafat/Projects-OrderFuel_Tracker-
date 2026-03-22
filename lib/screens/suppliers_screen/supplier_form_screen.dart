@@ -286,7 +286,10 @@ class _SupplierFormScreenState extends State<SupplierFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'تعديل مورد' : 'مورد جديد', style: TextStyle(color: Colors.white)),
+        title: Text(
+          isEditing ? 'تعديل مورد' : 'مورد جديد',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           if (isEditing)
             IconButton(

@@ -100,17 +100,28 @@ class _ArchiveDocumentsScreenState extends State<ArchiveDocumentsScreen> {
                   children: [
                     const Text(
                       'داشبورد الأرشفة',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        _statCard('الوارد', incoming, Icons.move_to_inbox_outlined),
+                        _statCard(
+                          'الوارد',
+                          incoming,
+                          Icons.move_to_inbox_outlined,
+                        ),
                         _statCard('الصادر', outgoing, Icons.outbox_outlined),
                         _statCard('مؤرشف', archived, Icons.archive_outlined),
-                        _statCard('قيد الإجراء', pending, Icons.pending_actions),
+                        _statCard(
+                          'قيد الإجراء',
+                          pending,
+                          Icons.pending_actions,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -172,14 +183,16 @@ class _ArchiveDocumentsScreenState extends State<ArchiveDocumentsScreen> {
                     else if (_recent.isEmpty)
                       const Text('لا توجد سجلات أرشفة حتى الآن')
                     else
-                      ..._recent.take(8).map(
+                      ..._recent
+                          .take(8)
+                          .map(
                             (d) => ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: CircleAvatar(
                                 backgroundColor:
                                     ('${d['documentType']}' == 'outgoing')
-                                        ? Colors.orange.shade100
-                                        : Colors.blue.shade100,
+                                    ? Colors.orange.shade100
+                                    : Colors.blue.shade100,
                                 child: Icon(
                                   ('${d['documentType']}' == 'outgoing')
                                       ? Icons.outbox_outlined
@@ -242,7 +255,10 @@ class _ArchiveDocumentsScreenState extends State<ArchiveDocumentsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 Text(
                   '$value',
                   style: const TextStyle(

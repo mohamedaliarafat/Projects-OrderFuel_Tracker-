@@ -178,9 +178,9 @@ class _CustodyReturnScreenState extends State<CustodyReturnScreen> {
                           ),
                           _InfoRow(
                             label: 'التاريخ',
-                            value: DateFormat('yyyy-MM-dd').format(
-                              selected.documentDate,
-                            ),
+                            value: DateFormat(
+                              'yyyy-MM-dd',
+                            ).format(selected.documentDate),
                           ),
                           _InfoRow(
                             label: 'المبلغ',
@@ -220,8 +220,7 @@ class _CustodyReturnScreenState extends State<CustodyReturnScreen> {
                           const SizedBox(height: 12),
                           TextField(
                             controller: _amountController,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
+                            keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
                             decoration: InputDecoration(
@@ -319,10 +318,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            flex: 7,
-            child: Text(value),
-          ),
+          Expanded(flex: 7, child: Text(value)),
         ],
       ),
     );

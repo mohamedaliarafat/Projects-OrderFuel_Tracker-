@@ -65,21 +65,16 @@ class _MarketingStationFormScreenState
         _ownerAddressController.text = owner.address;
         _ownerEjarController.text = owner.ejarContractNumber;
       }
-      _stationCostController.text =
-          station.accounting.stationCost == 0
-              ? ''
-              : station.accounting.stationCost.toStringAsFixed(2);
-      _leaseAmountController.text =
-          station.accounting.leaseAmount == 0
-              ? ''
-              : station.accounting.leaseAmount.toStringAsFixed(2);
+      _stationCostController.text = station.accounting.stationCost == 0
+          ? ''
+          : station.accounting.stationCost.toStringAsFixed(2);
+      _leaseAmountController.text = station.accounting.leaseAmount == 0
+          ? ''
+          : station.accounting.leaseAmount.toStringAsFixed(2);
       if (station.location != null) {
         _latController.text = station.location!.lat.toString();
         _lngController.text = station.location!.lng.toString();
-        _selectedLatLng = LatLng(
-          station.location!.lat,
-          station.location!.lng,
-        );
+        _selectedLatLng = LatLng(station.location!.lat, station.location!.lng);
       }
       _pumps.addAll(station.pumps);
       // محضر الاستلام يتم التعامل معه في صفحة منفصلة.
@@ -107,9 +102,8 @@ class _MarketingStationFormScreenState
   void _addPump() {
     showDialog<void>(
       context: context,
-      builder: (_) => _PumpDialog(
-        onSave: (pump) => setState(() => _pumps.add(pump)),
-      ),
+      builder: (_) =>
+          _PumpDialog(onSave: (pump) => setState(() => _pumps.add(pump))),
     );
   }
 
@@ -138,9 +132,7 @@ class _MarketingStationFormScreenState
     try {
       final position = await _determinePosition();
       if (position == null) return;
-      _updateLocation(
-        LatLng(position.latitude, position.longitude),
-      );
+      _updateLocation(LatLng(position.latitude, position.longitude));
       if (!kIsWeb) {
         await _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(
@@ -197,9 +189,9 @@ class _MarketingStationFormScreenState
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String? _mapLink() {
@@ -220,8 +212,8 @@ class _MarketingStationFormScreenState
     final url = latLng == null
         ? 'https://www.google.com/maps'
         : directions
-            ? 'https://www.google.com/maps/dir/?api=1&destination=${latLng.latitude},${latLng.longitude}'
-            : 'https://www.google.com/maps?q=${latLng.latitude},${latLng.longitude}';
+        ? 'https://www.google.com/maps/dir/?api=1&destination=${latLng.latitude},${latLng.longitude}'
+        : 'https://www.google.com/maps?q=${latLng.latitude},${latLng.longitude}';
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _showSnackBar('تعذر فتح الخرائط');
@@ -361,9 +353,7 @@ class _MarketingStationFormScreenState
     if (!_formKey.currentState!.validate()) return;
     if (_pumps.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يجب إضافة مضخة واحدة على الأقل'),
-        ),
+        const SnackBar(content: Text('يجب إضافة مضخة واحدة على الأقل')),
       );
       return;
     }
@@ -391,8 +381,7 @@ class _MarketingStationFormScreenState
     }
 
     if (_attachments.isNotEmpty) {
-      final urls =
-          await provider.uploadAttachments(result.id, _attachments);
+      final urls = await provider.uploadAttachments(result.id, _attachments);
       await provider.addAttachments(result.id, urls);
     }
 
@@ -675,7 +664,9 @@ class _MarketingStationFormScreenState
                 ElevatedButton.icon(
                   onPressed: _locating ? null : _setCurrentLocation,
                   icon: const Icon(Icons.my_location),
-                  label: Text(_locating ? 'جاري التحديد...' : 'تحديد موقعي الآن'),
+                  label: Text(
+                    _locating ? 'جاري التحديد...' : 'تحديد موقعي الآن',
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: _syncMapFromFields,
@@ -791,8 +782,8 @@ class _MarketingStationFormScreenState
                 _saving
                     ? 'جارٍ الحفظ...'
                     : (widget.stationToEdit == null
-                        ? 'حفظ المحطة'
-                        : 'تحديث المحطة'),
+                          ? 'حفظ المحطة'
+                          : 'تحديث المحطة'),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
@@ -811,7 +802,6 @@ class _MarketingStationFormScreenState
       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
   }
-
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -972,9 +962,9 @@ class _PumpDialogState extends State<_PumpDialog> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     if (_nozzles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('حدد عدد الليّات أولاً')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('حدد عدد الليّات أولاً')));
       return;
     }
 
@@ -1026,17 +1016,13 @@ class _PumpDialogState extends State<_PumpDialog> {
             children: [
               TextFormField(
                 controller: _typeController,
-                decoration: const InputDecoration(
-                  labelText: 'نوع المضخة',
-                ),
+                decoration: const InputDecoration(labelText: 'نوع المضخة'),
                 validator: _required,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _nozzleCountController,
-                decoration: const InputDecoration(
-                  labelText: 'عدد الليّات',
-                ),
+                decoration: const InputDecoration(labelText: 'عدد الليّات'),
                 keyboardType: TextInputType.number,
                 validator: _required,
                 onChanged: (_) => _applyNozzleCount(),
@@ -1174,10 +1160,7 @@ class _PumpDialogState extends State<_PumpDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('إلغاء'),
         ),
-        ElevatedButton(
-          onPressed: _save,
-          child: const Text('حفظ المضخة'),
-        ),
+        ElevatedButton(onPressed: _save, child: const Text('حفظ المضخة')),
       ],
     );
   }

@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/order_model.dart';
+import 'package:order_tracker/services/firebase_storage_service.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
-import 'package:order_tracker/providers/auth_provider.dart';
-import 'package:provider/provider.dart';
 
 class OrderProvider with ChangeNotifier {
   List<Order> _orders = [];
@@ -27,6 +27,118 @@ class OrderProvider with ChangeNotifier {
     headers.remove('Content-Type');
     headers['Accept'] = 'application/json';
     return headers;
+  }
+
+  Future<List<Map<String, dynamic>>> _uploadOrderAttachments(
+    String orderKey,
+    List<PlatformFile> files,
+  ) async {
+    final attachments = <Map<String, dynamic>>[];
+    for (final file in files) {
+      attachments.add(
+        await FirebaseStorageService.uploadOrderAttachment(
+          orderKey: orderKey,
+          file: file,
+        ),
+      );
+    }
+    return attachments;
+  }
+
+  List<PlatformFile> _extractPlatformFiles(List<Object>? attachments) {
+    if (attachments == null || attachments.isEmpty) return const [];
+    return attachments.whereType<PlatformFile>().toList();
+  }
+
+  List<String> _extractLegacyAttachmentPaths(List<Object>? attachments) {
+    if (attachments == null || attachments.isEmpty) return const [];
+    return attachments
+        .whereType<String>()
+        .where((path) => path.isNotEmpty)
+        .toList();
+  }
+
+  List<Order> _parseOrdersFromPayload(dynamic payload) {
+    final orders = <Order>[];
+    final seenIds = <String>{};
+
+    void visit(dynamic value) {
+      if (value == null) return;
+
+      if (value is List) {
+        for (final item in value) {
+          visit(item);
+        }
+        return;
+      }
+
+      if (value is! Map) return;
+
+      final map = Map<String, dynamic>.from(value as Map);
+      final hasOrderShape =
+          (map.containsKey('_id') || map.containsKey('id')) &&
+          map.containsKey('orderNumber');
+
+      if (hasOrderShape) {
+        try {
+          final order = Order.fromJson(map);
+          if (order.id.isNotEmpty && seenIds.add(order.id)) {
+            orders.add(order);
+          }
+        } catch (_) {
+          // Ignore non-order maps.
+        }
+      }
+
+      for (final key in const [
+        'order',
+        'mergedOrder',
+        'supplierOrder',
+        'customerOrder',
+        'releasedOrders',
+        'orders',
+        'data',
+      ]) {
+        if (map.containsKey(key)) {
+          visit(map[key]);
+        }
+      }
+    }
+
+    visit(payload);
+    return orders;
+  }
+
+  void _upsertOrderLocally(Order order) {
+    final index = _orders.indexWhere((existing) => existing.id == order.id);
+    if (index == -1) {
+      _orders.insert(0, order);
+    } else {
+      _orders[index] = order;
+    }
+
+    if (_selectedOrder?.id == order.id) {
+      _selectedOrder = order;
+    }
+
+    _ordersCache[order.id] = order;
+
+    if (_filteredOrders.isNotEmpty) {
+      final filteredIndex = _filteredOrders.indexWhere(
+        (existing) => existing.id == order.id,
+      );
+      if (filteredIndex != -1) {
+        _filteredOrders[filteredIndex] = order;
+      }
+    }
+  }
+
+  List<Order> _syncOrdersFromResponse(dynamic payload) {
+    final orders = _parseOrdersFromPayload(payload);
+    for (final order in orders) {
+      _upsertOrderLocally(order);
+    }
+    return orders;
   }
 
   List<Order> get orders =>
@@ -191,13 +303,11 @@ class OrderProvider with ChangeNotifier {
   // 📄 جلب طلب محدد
   // ============================================
   Future<void> fetchOrderById(String id, {bool silent = false}) async {
-    // التحقق من الكاش أولاً
     if (_ordersCache.containsKey(id)) {
       _selectedOrder = _ordersCache[id];
       if (!silent) {
         notifyListeners();
       }
-      return;
     }
 
     if (!silent) {
@@ -255,7 +365,7 @@ class OrderProvider with ChangeNotifier {
   // ============================================
   Future<bool> createOrder(
     Order order,
-    List<String>? attachmentPaths,
+    List<Object>? attachments,
     String? customerId,
     String? driverId,
   ) async {
@@ -272,7 +382,7 @@ class OrderProvider with ChangeNotifier {
       // =========================
       // Headers
       // =========================
-      request.headers.addAll(ApiService.headers);
+      request.headers.addAll(_multipartHeaders());
 
       // =========================
       // الحقول الأساسية
@@ -361,6 +471,18 @@ class OrderProvider with ChangeNotifier {
         request.fields['notes'] = order.notes!;
       }
 
+      final firebaseAttachments = _extractPlatformFiles(attachments);
+      if (firebaseAttachments.isNotEmpty) {
+        final orderKey = order.id.isNotEmpty
+            ? order.id
+            : 'order-${DateTime.now().millisecondsSinceEpoch}';
+        final uploadedAttachments = await _uploadOrderAttachments(
+          orderKey,
+          firebaseAttachments,
+        );
+        request.fields['attachmentUrls'] = json.encode(uploadedAttachments);
+      }
+
       // =========================
       // 🖼️ لوجو الشركة
       // =========================
@@ -380,8 +502,9 @@ class OrderProvider with ChangeNotifier {
       // =========================
       // 📎 المرفقات
       // =========================
-      if (attachmentPaths?.isNotEmpty == true) {
-        for (final path in attachmentPaths!) {
+      final legacyAttachmentPaths = _extractLegacyAttachmentPaths(attachments);
+      if (legacyAttachmentPaths.isNotEmpty) {
+        for (final path in legacyAttachmentPaths) {
           try {
             request.files.add(
               await http.MultipartFile.fromPath('attachments', path),
@@ -446,7 +569,7 @@ class OrderProvider with ChangeNotifier {
   Future<bool> updateOrderLimited(
     String id,
     Map<String, dynamic> updates,
-    List<String>? newAttachmentPaths,
+    List<Object>? newAttachments,
   ) async {
     _isLoading = true;
     _error = null;
@@ -499,8 +622,12 @@ class OrderProvider with ChangeNotifier {
         filteredUpdates[key] = value;
       });
 
+      final firebaseAttachments = _extractPlatformFiles(newAttachments);
+      final legacyAttachmentPaths = _extractLegacyAttachmentPaths(
+        newAttachments,
+      );
       final hasAttachments =
-          newAttachmentPaths != null && newAttachmentPaths.isNotEmpty;
+          firebaseAttachments.isNotEmpty || legacyAttachmentPaths.isNotEmpty;
 
       http.Response response;
       if (hasAttachments) {
@@ -515,7 +642,15 @@ class OrderProvider with ChangeNotifier {
           request.fields[key] = value.toString();
         });
 
-        for (final path in newAttachmentPaths!) {
+        if (firebaseAttachments.isNotEmpty) {
+          final uploadedAttachments = await _uploadOrderAttachments(
+            id,
+            firebaseAttachments,
+          );
+          request.fields['attachmentUrls'] = json.encode(uploadedAttachments);
+        }
+
+        for (final path in legacyAttachmentPaths) {
           try {
             request.files.add(
               await http.MultipartFile.fromPath('attachments', path),
@@ -747,13 +882,65 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> submitDriverLoadingData(
+    String id, {
+    required String actualFuelType,
+    required double actualLoadedLiters,
+    String? notes,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.orderById(id)}/driver-loading',
+        ),
+        headers: ApiService.headers,
+        body: json.encode({
+          'actualFuelType': actualFuelType,
+          'actualLoadedLiters': actualLoadedLiters,
+          'notes': notes,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final rawOrder = data['order'] ?? data['data'] ?? data;
+        final updatedOrder = Order.fromJson(
+          Map<String, dynamic>.from(rawOrder as Map),
+        );
+
+        _upsertOrderLocally(updatedOrder);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
+      final errorData = json.decode(response.body);
+      _error =
+          errorData['error'] ??
+          errorData['message'] ??
+          'فشل في إرسال بيانات التعبئة';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'حدث خطأ في الاتصال بالسيرفر: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // ============================================
   // ✏️ تحديث الطلب بالكامل (للإداريين فقط)
   // ============================================
   Future<bool> updateOrderFull(
     String id,
     Order order,
-    List<String>? newAttachmentPaths,
+    List<Object>? newAttachments,
     String? customerId,
     String? driverId,
   ) async {
@@ -830,6 +1017,15 @@ class OrderProvider with ChangeNotifier {
         request.fields['delayReason'] = order.delayReason!;
       }
 
+      final firebaseAttachments = _extractPlatformFiles(newAttachments);
+      if (firebaseAttachments.isNotEmpty) {
+        final uploadedAttachments = await _uploadOrderAttachments(
+          id,
+          firebaseAttachments,
+        );
+        request.fields['attachmentUrls'] = json.encode(uploadedAttachments);
+      }
+
       // Add company logo if exists
       if (order.companyLogo != null && order.companyLogo!.isNotEmpty) {
         request.files.add(
@@ -838,8 +1034,11 @@ class OrderProvider with ChangeNotifier {
       }
 
       // Add new attachments
-      if (newAttachmentPaths != null && newAttachmentPaths.isNotEmpty) {
-        for (var path in newAttachmentPaths) {
+      final legacyAttachmentPaths = _extractLegacyAttachmentPaths(
+        newAttachments,
+      );
+      if (legacyAttachmentPaths.isNotEmpty) {
+        for (final path in legacyAttachmentPaths) {
           request.files.add(
             await http.MultipartFile.fromPath('attachments', path),
           );
@@ -1384,6 +1583,46 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> updateMergedOrderLinks({
+    required String mergedOrderId,
+    required String supplierOrderId,
+    required String customerOrderId,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await http.put(
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.orderMergeLinks(mergedOrderId)}',
+        ),
+        headers: ApiService.headers,
+        body: json.encode({
+          'supplierOrderId': supplierOrderId,
+          'customerOrderId': customerOrderId,
+        }),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        _syncOrdersFromResponse(data);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
+      _error = data['error'] ?? data['message'] ?? 'فشل تحديث الطلب المدمج';
+    } catch (e) {
+      _error = 'حدث خطأ في الاتصال بالسيرفر: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
   // ============================================
   // فك دمج الطلبات
   // ============================================
@@ -1394,19 +1633,19 @@ class OrderProvider with ChangeNotifier {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          '${ApiEndpoints.baseUrl}${ApiEndpoints.orderById(id)}/unmerge',
-        ),
+        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.orderUnmerge(id)}'),
         headers: ApiService.headers,
       );
 
-      if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        _syncOrdersFromResponse(data);
         _isLoading = false;
         notifyListeners();
         return true;
       }
 
-      final data = json.decode(response.body);
       _error = data['error'] ?? data['message'] ?? 'فشل فك الدمج';
     } catch (e) {
       _error = 'حدث خطأ في الاتصال بالسيرفر: $e';

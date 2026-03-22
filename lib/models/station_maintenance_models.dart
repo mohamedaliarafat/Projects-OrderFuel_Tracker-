@@ -78,8 +78,11 @@ class StationMaintenanceInvoice {
       vendorName: json['vendorName']?.toString() ?? '',
       issuedAt: _parseDate(json['issuedAt']),
       items: rawItems
-          .map((item) => StationMaintenanceInvoiceItem.fromJson(
-              Map<String, dynamic>.from(item as Map)))
+          .map(
+            (item) => StationMaintenanceInvoiceItem.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
           .toList(),
       subtotal: _toDouble(json['subtotal']),
       taxRate: _toDouble(json['taxRate']),
@@ -198,10 +201,12 @@ class StationMaintenanceLocation {
 class StationMaintenanceRequest {
   final String id;
   final String? requestNumber;
+  final String entryType;
   final String? stationId;
   final String stationName;
   final StationMaintenanceLocation? stationLocation;
   final String type;
+  final bool needsMaintenance;
   final String title;
   final String description;
   final String status;
@@ -229,9 +234,11 @@ class StationMaintenanceRequest {
   const StationMaintenanceRequest({
     required this.id,
     this.requestNumber,
+    required this.entryType,
     required this.stationName,
     this.stationLocation,
     required this.type,
+    required this.needsMaintenance,
     required this.title,
     required this.description,
     required this.status,
@@ -262,6 +269,7 @@ class StationMaintenanceRequest {
     return StationMaintenanceRequest(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       requestNumber: json['requestNumber']?.toString(),
+      entryType: json['entryType']?.toString() ?? 'manager_request',
       stationId: _extractId(json['stationId']),
       stationName: json['stationName']?.toString() ?? '',
       stationLocation: StationMaintenanceLocation.fromJson(
@@ -270,6 +278,7 @@ class StationMaintenanceRequest {
             : null,
       ),
       type: json['type']?.toString() ?? '',
+      needsMaintenance: _toBool(json['needsMaintenance'], fallback: true),
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
@@ -290,7 +299,9 @@ class StationMaintenanceRequest {
       invoiceFiles: _parseAttachments(json['invoiceFiles']),
       invoices: _parseInvoices(json['invoices']),
       summary: StationMaintenanceSummary.fromJson(
-        json['summary'] is Map ? Map<String, dynamic>.from(json['summary']) : null,
+        json['summary'] is Map
+            ? Map<String, dynamic>.from(json['summary'])
+            : null,
       ),
       review: json['review'] is Map
           ? StationMaintenanceReview.fromJson(
@@ -310,18 +321,22 @@ class StationMaintenanceRequest {
 List<StationMaintenanceAttachment> _parseAttachments(dynamic value) {
   final rawList = value is List ? value : <dynamic>[];
   return rawList
-      .map((item) => StationMaintenanceAttachment.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ))
+      .map(
+        (item) => StationMaintenanceAttachment.fromJson(
+          Map<String, dynamic>.from(item as Map),
+        ),
+      )
       .toList();
 }
 
 List<StationMaintenanceInvoice> _parseInvoices(dynamic value) {
   final rawList = value is List ? value : <dynamic>[];
   return rawList
-      .map((item) => StationMaintenanceInvoice.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ))
+      .map(
+        (item) => StationMaintenanceInvoice.fromJson(
+          Map<String, dynamic>.from(item as Map),
+        ),
+      )
       .toList();
 }
 
@@ -355,4 +370,18 @@ int _toInt(dynamic value) {
   if (value == null) return 0;
   if (value is num) return value.toInt();
   return int.tryParse(value.toString()) ?? 0;
+}
+
+bool _toBool(dynamic value, {bool fallback = false}) {
+  if (value == null) return fallback;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final normalized = value.toString().trim().toLowerCase();
+  if (['true', '1', 'yes', 'y', 'on'].contains(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'n', 'off'].contains(normalized)) {
+    return false;
+  }
+  return fallback;
 }

@@ -35,8 +35,10 @@ class PushNotificationService {
       initWebNotificationSound();
     }
 
-    final vapidKey =
-        const String.fromEnvironment('FCM_VAPID_KEY', defaultValue: '');
+    final vapidKey = const String.fromEnvironment(
+      'FCM_VAPID_KEY',
+      defaultValue: '',
+    );
     final token = await _messaging.getToken(
       vapidKey: kIsWeb && vapidKey.isNotEmpty ? vapidKey : null,
     );
@@ -105,10 +107,7 @@ class PushNotificationService {
       final response = await http.post(
         Uri.parse('${ApiEndpoints.baseUrl}/devices/register'),
         headers: ApiService.headers,
-        body: json.encode({
-          'token': token,
-          'platform': _platformName(),
-        }),
+        body: json.encode({'token': token, 'platform': _platformName()}),
       );
 
       if (response.statusCode >= 400) {

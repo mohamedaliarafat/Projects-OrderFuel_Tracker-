@@ -11,12 +11,14 @@ import 'package:order_tracker/firebase_options.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/custody_document_provider.dart';
 import 'package:order_tracker/providers/customer_provider.dart';
+import 'package:order_tracker/providers/driver_tracking_provider.dart';
 import 'package:order_tracker/providers/driver_provider.dart';
 import 'package:order_tracker/providers/fuel_station_provider.dart';
 import 'package:order_tracker/providers/inventory_provider.dart';
 import 'package:order_tracker/providers/language_provider.dart';
 import 'package:order_tracker/providers/maintenance_provider.dart';
 import 'package:order_tracker/providers/workshop_fuel_provider.dart';
+import 'package:order_tracker/providers/tanker_provider.dart';
 import 'package:order_tracker/providers/marketing_station_provider.dart';
 import 'package:order_tracker/providers/station_inspection_provider.dart';
 import 'package:order_tracker/providers/chat_provider.dart';
@@ -52,8 +54,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (!kIsWeb) {
-    await LocalNotificationService.init();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    unawaited(
+      LocalNotificationService.init().catchError((error, stackTrace) {
+        debugPrint('Local notifications init skipped on startup: $error');
+      }),
+    );
   }
 
   runApp(
@@ -76,6 +82,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => DriverProvider()),
+        ChangeNotifierProvider(create: (_) => DriverTrackingProvider()),
+        ChangeNotifierProvider(create: (_) => TankerProvider()),
         ChangeNotifierProvider(create: (_) => SupplierProvider()),
         ChangeNotifierProvider(create: (_) => MaintenanceProvider()),
         ChangeNotifierProvider(create: (_) => WorkshopFuelProvider()),
@@ -194,7 +202,10 @@ String _roleHomeRoute(String? role) {
     case 'finance_manager':
       return AppRoutes.custodyDashboard;
     case 'sales_manager_statiun':
+    case 'owner_station':
       return AppRoutes.mainHome;
+    case 'driver':
+      return AppRoutes.driverHome;
     default:
       return AppRoutes.dashboard;
   }

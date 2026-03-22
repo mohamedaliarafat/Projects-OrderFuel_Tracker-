@@ -10,10 +10,12 @@ class CustomTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
+  final void Function(String)? onFieldSubmitted;
   final bool enabled;
   final int? maxLines;
   final Color fieldColor;
   final String? suffixText;
+  final TextInputAction? textInputAction;
 
   const CustomTextField({
     super.key,
@@ -27,10 +29,16 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType,
     this.validator,
     this.onChanged,
+    this.onFieldSubmitted,
     this.enabled = true,
     this.maxLines = 1,
     this.fieldColor = Colors.white,
-    EdgeInsets? contentPadding,  TextStyle? labelStyle,  TextAlign? textAlign,  TextStyle? textStyle, String? initialValue,
+    this.textInputAction,
+    EdgeInsets? contentPadding,
+    TextStyle? labelStyle,
+    TextAlign? textAlign,
+    TextStyle? textStyle,
+    String? initialValue,
   });
 
   @override
@@ -49,8 +57,10 @@ class CustomTextField extends StatelessWidget {
         keyboardType: keyboardType,
         validator: validator,
         onChanged: onChanged,
+        onFieldSubmitted: onFieldSubmitted,
         enabled: enabled,
         maxLines: maxLines,
+        textInputAction: textInputAction,
         style: Theme.of(context).textTheme.bodyMedium,
         decoration: InputDecoration(
           labelText: labelText,

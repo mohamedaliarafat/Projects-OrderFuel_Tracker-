@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 
 class ReportSummary extends StatelessWidget {
   final String title;
@@ -15,175 +16,266 @@ class ReportSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final totalCustomers = statistics['totalCustomers'] ?? 0;
     final totalOrders = statistics['totalOrders'] ?? 0;
     final totalAmount = statistics['totalAmount'] ?? 0;
     final totalQuantity = statistics['totalQuantity'] ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    final bool hasAdditional =
+        statistics['avgSuccessRate'] != null ||
+        statistics['avgPaymentRate'] != null ||
+        statistics['avgOrderValue'] != null;
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
               ),
-              Chip(
-                label: Text(
-                  '${_formatDateRange()}',
-                  style: const TextStyle(fontSize: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-                backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 16,
+                      color: AppColors.primaryBlue.withValues(alpha: 0.78),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatDateRange(),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryBlue.withValues(alpha: 0.90),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              final int columns;
+              final double aspect;
 
-          // Stats Grid
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 4,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: [
-              _buildStatCard(
-                'إجمالي العملاء',
-                totalCustomers.toString(),
-                Icons.people,
-                AppColors.primaryBlue,
-              ),
-              _buildStatCard(
-                'إجمالي الطلبات',
-                totalOrders.toString(),
-                Icons.shopping_cart,
-                AppColors.secondaryTeal,
-              ),
-              _buildStatCard(
-                'إجمالي المبلغ',
-                '${_formatNumber(totalAmount)} ريال',
-                Icons.monetization_on,
-                AppColors.successGreen,
-              ),
-              _buildStatCard(
-                'إجمالي الكمية',
-                _formatNumber(totalQuantity),
-                Icons.inventory,
-                AppColors.warningOrange,
-              ),
-            ],
+              if (w >= 980) {
+                columns = 4;
+                aspect = 2.90;
+              } else if (w >= 640) {
+                columns = 2;
+                aspect = 3.05;
+              } else {
+                columns = 2;
+                aspect = 2.75;
+              }
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: columns,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: aspect,
+                children: [
+                  _buildStatCard(
+                    context,
+                    'إجمالي العملاء',
+                    totalCustomers.toString(),
+                    Icons.people_rounded,
+                    AppColors.primaryBlue,
+                  ),
+                  _buildStatCard(
+                    context,
+                    'إجمالي الطلبات',
+                    totalOrders.toString(),
+                    Icons.shopping_cart_rounded,
+                    AppColors.secondaryTeal,
+                  ),
+                  _buildStatCard(
+                    context,
+                    'إجمالي المبلغ',
+                    '${_formatNumber(totalAmount)} ريال',
+                    Icons.payments_rounded,
+                    AppColors.successGreen,
+                  ),
+                  _buildStatCard(
+                    context,
+                    'إجمالي الكمية',
+                    _formatNumber(totalQuantity),
+                    Icons.inventory_2_rounded,
+                    AppColors.warningOrange,
+                  ),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 16),
-
-          // Additional Stats
-          if (statistics['avgSuccessRate'] != null ||
-              statistics['avgPaymentRate'] != null)
-            _buildAdditionalStats(),
+          if (hasAdditional) ...[
+            const SizedBox(height: 14),
+            _buildAdditionalStats(context),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildStatCard(
+    BuildContext context,
     String label,
     String value,
     IconData icon,
     Color color,
   ) {
+    final theme = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.all(14),
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: color,
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.16),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
             ),
-            textAlign: TextAlign.center,
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: AppColors.mediumGray),
-            textAlign: TextAlign.center,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAdditionalStats() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        if (statistics['avgSuccessRate'] != null)
-          _buildMiniStat(
-            'متوسط النجاح',
-            '${_formatNumber(statistics['avgSuccessRate'])}%',
-            AppColors.successGreen,
-          ),
-        if (statistics['avgPaymentRate'] != null)
-          _buildMiniStat(
-            'متوسط السداد',
-            '${_formatNumber(statistics['avgPaymentRate'])}%',
-            AppColors.infoBlue,
-          ),
-        if (statistics['avgOrderValue'] != null)
-          _buildMiniStat(
-            'متوسط الطلب',
-            '${_formatNumber(statistics['avgOrderValue'])} ريال',
-            AppColors.warningOrange,
-          ),
-      ],
-    );
-  }
+  Widget _buildAdditionalStats(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = <_MiniStat>[];
 
-  Widget _buildMiniStat(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-            fontSize: 14,
+    if (statistics['avgSuccessRate'] != null) {
+      items.add(
+        _MiniStat(
+          label: 'متوسط النجاح',
+          value: '${_formatNumber(statistics['avgSuccessRate'])}%',
+          icon: Icons.verified_rounded,
+          color: AppColors.successGreen,
+        ),
+      );
+    }
+    if (statistics['avgPaymentRate'] != null) {
+      items.add(
+        _MiniStat(
+          label: 'متوسط السداد',
+          value: '${_formatNumber(statistics['avgPaymentRate'])}%',
+          icon: Icons.percent_rounded,
+          color: AppColors.infoBlue,
+        ),
+      );
+    }
+    if (statistics['avgOrderValue'] != null) {
+      items.add(
+        _MiniStat(
+          label: 'متوسط الطلب',
+          value: '${_formatNumber(statistics['avgOrderValue'])} ريال',
+          icon: Icons.trending_up_rounded,
+          color: AppColors.warningOrange,
+        ),
+      );
+    }
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: items.map((item) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: item.color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: item.color.withValues(alpha: 0.16)),
           ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10, color: AppColors.mediumGray),
-        ),
-      ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(item.icon, size: 16, color: item.color),
+              const SizedBox(width: 8),
+              Text(
+                item.value,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                item.label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -199,4 +291,18 @@ class ReportSummary extends StatelessWidget {
     }
     return number.toString();
   }
+}
+
+class _MiniStat {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 }

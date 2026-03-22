@@ -35,7 +35,10 @@ class _TaskTrackingMapScreenState extends State<TaskTrackingMapScreen> {
       zoomLevel: 13,
     );
     _refreshPoints();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _refreshPoints());
+    _timer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _refreshPoints(),
+    );
   }
 
   @override
@@ -49,13 +52,19 @@ class _TaskTrackingMapScreenState extends State<TaskTrackingMapScreen> {
     setState(() => _loading = true);
     try {
       final provider = context.read<TaskProvider>();
-      final points = await provider.fetchTrackingPoints(widget.taskId, limit: 100);
+      final points = await provider.fetchTrackingPoints(
+        widget.taskId,
+        limit: 100,
+      );
       if (!mounted) return;
       setState(() {
         _points = points;
         if (_points.isNotEmpty) {
           final last = _points.first;
-          _zoomPanBehavior.focalLatLng = MapLatLng(last.latitude, last.longitude);
+          _zoomPanBehavior.focalLatLng = MapLatLng(
+            last.latitude,
+            last.longitude,
+          );
         }
       });
     } finally {
@@ -124,7 +133,9 @@ class _TaskTrackingMapScreenState extends State<TaskTrackingMapScreen> {
             ),
             child: Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isWide ? 1100 : double.infinity),
+                constraints: BoxConstraints(
+                  maxWidth: isWide ? 1100 : double.infinity,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: DecoratedBox(
@@ -148,8 +159,10 @@ class _TaskTrackingMapScreenState extends State<TaskTrackingMapScreen> {
                             MapTileLayer(
                               urlTemplate:
                                   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              initialFocalLatLng:
-                                  MapLatLng(first!.latitude, first.longitude),
+                              initialFocalLatLng: MapLatLng(
+                                first!.latitude,
+                                first.longitude,
+                              ),
                               initialZoomLevel: 13,
                               zoomPanBehavior: _zoomPanBehavior,
                               initialMarkersCount: _points.length,
@@ -159,11 +172,14 @@ class _TaskTrackingMapScreenState extends State<TaskTrackingMapScreen> {
                                 return MapMarker(
                                   latitude: point.latitude,
                                   longitude: point.longitude,
-                                  size:
-                                      isLatest ? const Size(22, 22) : const Size(16, 16),
+                                  size: isLatest
+                                      ? const Size(22, 22)
+                                      : const Size(16, 16),
                                   child: Icon(
                                     Icons.location_on,
-                                    color: isLatest ? Colors.red : Colors.orange,
+                                    color: isLatest
+                                        ? Colors.red
+                                        : Colors.orange,
                                   ),
                                 );
                               },

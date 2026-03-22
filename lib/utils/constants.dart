@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary Colors
   static const Color primaryBlue = Color(0xFF1A2980);
   static const Color primaryDarkBlue = Color(0xFF0F1A5C);
   static const Color accentBlue = Color(0xFF4A6EE0);
   static const Color glassBlue = Color(0x664A6EE0);
 
-  // Secondary Colors
   static const Color secondaryTeal = Color(0xFF26D0CE);
   static const Color lightTeal = Color(0xFF6DF5F4);
 
-  // Status Colors
   static const Color successGreen = Color(0xFF4CAF50);
   static const Color warningOrange = Color(0xFFFF9800);
   static const Color errorRed = Color(0xFFF44336);
   static const Color infoBlue = Color(0xFF2196F3);
   static const Color pendingYellow = Color(0xFFFFC107);
+  static const Color statusGold = Color(0xFFD4AF37);
 
-  // Neutral Colors
   static const Color darkGray = Color(0xFF333333);
   static const Color mediumGray = Color(0xFF666666);
   static const Color lightGray = Color(0xFF999999);
@@ -36,7 +33,6 @@ class AppColors {
   static const Color appBarWaterBright = Color(0xFF2F7CFF);
   static const Color appBarWaterGlow = Color(0xFF6BCBFF);
 
-  // HR System Colors
   static const Color hrPurple = Color(0xFF9C27B0);
   static const Color hrLightPurple = Color(0xFFE1BEE7);
   static const Color hrDarkPurple = Color(0xFF7B1FA2);
@@ -53,7 +49,6 @@ class AppColors {
   static const Color hrTeal = Color(0xFF009688);
   static const Color hrLightTeal = Color(0xFFB2DFDB);
 
-  // Attendance Status Colors
   static const Color attendancePresent = Color(0xFF4CAF50);
   static const Color attendanceLate = Color(0xFFFF9800);
   static const Color attendanceAbsent = Color(0xFFF44336);
@@ -61,13 +56,11 @@ class AppColors {
   static const Color attendanceEarly = Color(0xFFFFC107);
   static const Color attendancePending = Color(0xFF9E9E9E);
 
-  // Salary Status Colors
   static const Color salaryDraft = Color(0xFF9E9E9E);
   static const Color salaryApproved = Color(0xFF2196F3);
   static const Color salaryPaid = Color(0xFF4CAF50);
   static const Color salaryCancelled = Color(0xFFF44336);
 
-  // Advance Status Colors
   static const Color advancePending = Color(0xFFFFC107);
   static const Color advanceApproved = Color(0xFF2196F3);
   static const Color advancePaid = Color(0xFF4CAF50);
@@ -75,20 +68,17 @@ class AppColors {
   static const Color advanceOverdue = Color(0xFFF44336);
   static const Color advanceRejected = Color(0xFF9E9E9E);
 
-  // Penalty Status Colors
   static const Color penaltyPending = Color(0xFFFFC107);
   static const Color penaltyApplied = Color(0xFF2196F3);
   static const Color penaltyCancelled = Color(0xFF9E9E9E);
   static const Color penaltyRefunded = Color(0xFF4CAF50);
 
-  // Employee Status Colors
   static const Color employeeActive = Color(0xFF4CAF50);
   static const Color employeeSuspended = Color(0xFFFF9800);
   static const Color employeeResigned = Color(0xFF2196F3);
   static const Color employeeTerminated = Color(0xFFF44336);
   static const Color employeeOnLeave = Color(0xFF9C27B0);
 
-  // Gradient
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topRight,
     end: Alignment.bottomLeft,
@@ -666,9 +656,6 @@ class AppStrings {
   static const String details = 'تفاصيل';
   static const String actions = 'الإجراءات';
 
-  // ===========================================
-  // 📌 نصوص نظام شؤون الموظفين
-  // ===========================================
   static const String hrDashboard = 'لوحة تحكم شؤون الموظفين';
   static const String employees = 'الموظفين';
   static const String employee = 'الموظف';
@@ -852,12 +839,21 @@ class AppStrings {
 }
 
 class ApiEndpoints {
-  static const String baseUrl = 'https://system-albuhairaalarabia.cloud/api';
-  // static const String baseUrl = 'http://192.168.8.165:6030/api';
+  // static const String baseUrl = 'https://system-albuhairaalarabia.cloud/api';
+  static const String baseUrl = 'http://192.168.8.196:6030/api';
   static const String login = '/auth/login';
   static const String register = '/auth/register';
   static const String profile = '/auth/profile';
+  static const String logout = '/auth/logout';
+  static const String requestLoginOtp = '/auth/request-login-otp';
+  static const String verifyLoginOtp = '/auth/verify-login-otp';
+  static const String authDevices = '/auth/devices';
+  static const String logoutAllAuthDevices = '/auth/devices/logout-all';
+  static const String blockedDevices = '/auth/blocked-devices';
   static const String orders = '/orders';
+  static const String tankers = '/tankers';
+  static const String trackingDrivers = '/tracking/drivers';
+  static const String driverLocations = '/driver-locations';
   static const String activities = '/activities';
   static const String suppliers = '/suppliers';
   static const String suppliersSearch = '/suppliers/search';
@@ -876,9 +872,15 @@ class ApiEndpoints {
   static const String chatConversations = '/chat/conversations';
   static const String chatDirectConversation = '/chat/conversations/direct';
   static const String chatGroupConversation = '/chat/conversations/group';
+  static const String aiAssistantChat = '/ai-assistant/chat';
 
   static String orderById(String id) => '/orders/$id';
+  static String trackingDriverById(String id) => '/tracking/drivers/$id';
+  static String driverLocationHistory(String id) =>
+      '/driver-locations/$id/history';
   static String orderPdf(String id) => '/orders/$id/export/pdf';
+  static String orderUnmerge(String id) => '/orders/$id/unmerge';
+  static String orderMergeLinks(String id) => '/orders/$id/merge-links';
   static String deleteAttachment(String orderId, String attachmentId) =>
       '/orders/$orderId/attachments/$attachmentId';
   static String chatConversationById(String id) => '/chat/conversations/$id';
@@ -928,6 +930,9 @@ class ApiEndpoints {
       '/tasks/$id/messages/attachments';
   static String taskMessagesRead(String id) => '/tasks/$id/messages/read';
   static String taskParticipants(String id) => '/tasks/$id/participants';
+  static String authDeviceBlock(String id) => '/auth/devices/$id/block';
+  static String authDeviceUnblock(String id) => '/auth/devices/$id/unblock';
+  static String authDeviceLogout(String id) => '/auth/devices/$id/logout';
   static String taskParticipant(String id, String userId) =>
       '/tasks/$id/participants/$userId';
   static String taskTrackingConsent(String id) => '/tasks/$id/tracking/consent';
@@ -935,9 +940,6 @@ class ApiEndpoints {
   static String archiveDocumentById(String id) => '/archive-documents/$id';
   static const String mapsDirections = '/maps/directions';
 
-  // ===========================================
-  // 📌 نهايات API لنظام شؤون الموظفين
-  // ===========================================
   static const String hrEmployees = '/hr/employees';
   static const String hrAttendance = '/hr/attendance';
   static const String hrSalaries = '/hr/salaries';
@@ -983,9 +985,6 @@ class ApiEndpoints {
 
   static String hrToggleLocationStatus(String id) => '/hr/locations/$id/status';
 
-  // ===============================
-  // Station Marketing
-  // ===============================
   static const String marketingStations = '/station-marketing/stations';
   static String marketingStationById(String id) =>
       '/station-marketing/stations/$id';
@@ -1004,7 +1003,6 @@ class ApiEndpoints {
   static String marketingStationAttachments(String id) =>
       '/station-marketing/stations/$id/attachments';
 
-  // Station Inspections
   static const String stationInspections = '/station-inspections';
   static String stationInspectionById(String id) => '/station-inspections/$id';
   static String stationInspectionStatus(String id) =>
@@ -1012,14 +1010,12 @@ class ApiEndpoints {
   static String stationInspectionAttachments(String id) =>
       '/station-inspections/$id/attachments';
 
-  // Qualification Stations
   static const String qualificationStations = '/qualification-stations';
   static String qualificationStationById(String id) =>
       '/qualification-stations/$id';
   static String qualificationStationStatus(String id) =>
       '/qualification-stations/$id/status';
 
-  // Station Maintenance (Stations Development & Maintenance)
   static const String stationMaintenance = '/station-maintenance';
   static const String stationMaintenanceMyActive =
       '/station-maintenance/my-active';
@@ -1062,7 +1058,6 @@ class PdfTextIcons {
   static const String quantity = 'QUANTITY';
   static const String distance = 'DISTANCE';
 
-  // HR System Icons
   static const String employee = 'EMPLOYEE';
   static const String attendance = 'ATTENDANCE';
   static const String salary = 'SALARY';
@@ -1127,9 +1122,6 @@ class AppIcons {
   static const String details = 'assets/icons/details.svg';
   static const String actions = 'assets/icons/actions.svg';
 
-  // ===========================================
-  // 📌 أيقونات نظام شؤون الموظفين
-  // ===========================================
   static const String hr = 'assets/icons/hr.svg';
   static const String employee = 'assets/icons/employee.svg';
   static const String employees = 'assets/icons/employees.svg';
@@ -1220,9 +1212,6 @@ class AppImages {
   static const String success = 'assets/images/success.png';
   static const String placeholder = 'assets/images/placeholder.png';
 
-  // ===========================================
-  // 📌 صور نظام شؤون الموظفين
-  // ===========================================
   static const String hrDashboard = 'assets/images/hr_dashboard.png';
   static const String fingerprintScanner =
       'assets/images/fingerprint_scanner.png';

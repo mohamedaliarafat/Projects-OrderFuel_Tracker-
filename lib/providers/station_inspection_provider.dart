@@ -113,7 +113,9 @@ class StationInspectionProvider with ChangeNotifier {
     }
   }
 
-  Future<StationInspection?> createInspection(StationInspection inspection) async {
+  Future<StationInspection?> createInspection(
+    StationInspection inspection,
+  ) async {
     _setLoading(true);
     _setError(null);
 
@@ -140,7 +142,9 @@ class StationInspectionProvider with ChangeNotifier {
     }
   }
 
-  Future<StationInspection?> updateInspection(StationInspection inspection) async {
+  Future<StationInspection?> updateInspection(
+    StationInspection inspection,
+  ) async {
     _setLoading(true);
     _setError(null);
 
@@ -235,7 +239,8 @@ class StationInspectionProvider with ChangeNotifier {
     for (final file in files) {
       final safeName = file.name.replaceAll(' ', '_');
       final ref = storage.ref().child(
-          'station_inspections/$inspectionId/$type/${DateTime.now().millisecondsSinceEpoch}_$safeName');
+        'station_inspections/$inspectionId/$type/${DateTime.now().millisecondsSinceEpoch}_$safeName',
+      );
 
       if (kIsWeb) {
         final bytes = await file.readAsBytes();
@@ -269,7 +274,8 @@ class StationInspectionProvider with ChangeNotifier {
     try {
       final response = await http.post(
         Uri.parse(
-            _baseUrl(ApiEndpoints.stationInspectionAttachments(inspectionId))),
+          _baseUrl(ApiEndpoints.stationInspectionAttachments(inspectionId)),
+        ),
         headers: ApiService.headers,
         body: json.encode({
           'attachments': attachments.map((e) => e.toJson()).toList(),

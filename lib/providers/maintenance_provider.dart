@@ -369,8 +369,6 @@ class MaintenanceProvider with ChangeNotifier {
     }
   }
 
-  
-
   // Export monthly report
   Future<void> exportMonthlyReport(String month) async {
     try {
@@ -428,7 +426,6 @@ class MaintenanceProvider with ChangeNotifier {
     }
   }
 
-
   // ===============================
   // 🆕 Generate maintenance month
   // ===============================
@@ -460,8 +457,6 @@ class MaintenanceProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
-
 
   // Fetch monthly statistics
   Future<void> fetchMonthlyStats(String month) async {

@@ -117,7 +117,10 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
             appBar: AppBar(
               title: Text(
                 station.stationName,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               actions: [
                 // تسعيرة الوقود (عرض التسعيرة)
@@ -232,7 +235,6 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
                   Tab(text: 'جلسات اليوم'),
                 ],
               ),
-
             ),
 
             body: Center(
@@ -340,8 +342,6 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
                 ),
               ],
             )
-        
-        
           // ================= MOBILE / TABLET: Column =================
           : Column(
               children: [
@@ -396,7 +396,7 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
     );
 
     // ================= Pumps Summary Content =================
-final pumpsSummary = SizedBox(
+    final pumpsSummary = SizedBox(
       height: web ? 280 : 320,
       child: Card(
         child: Padding(
@@ -428,13 +428,13 @@ final pumpsSummary = SizedBox(
                           style: TextStyle(color: AppColors.mediumGray),
                         ),
                       )
-              : Scrollbar(
-                  thumbVisibility: true,
-                  controller: _pumpsScrollController,
-                  child: ListView.separated(
-                    controller: _pumpsScrollController,
-                    primary: false,
-                    physics: const BouncingScrollPhysics(),
+                    : Scrollbar(
+                        thumbVisibility: true,
+                        controller: _pumpsScrollController,
+                        child: ListView.separated(
+                          controller: _pumpsScrollController,
+                          primary: false,
+                          physics: const BouncingScrollPhysics(),
                           itemCount: station.pumps.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 6),
@@ -462,7 +462,6 @@ final pumpsSummary = SizedBox(
       ),
     );
 
-
     // ================= Fuel Prices Content =================
     final fuelPrices = sectionCard(
       title: 'أسعار الوقود',
@@ -478,13 +477,13 @@ final pumpsSummary = SizedBox(
             )
           : SizedBox(
               height: 220, // 👈 ارتفاع ثابت للكارت
-            child: Scrollbar(
-              thumbVisibility: true,
-              controller: _fuelPricesScrollController,
-              child: ListView.separated(
+              child: Scrollbar(
+                thumbVisibility: true,
                 controller: _fuelPricesScrollController,
-                primary: false,
-                itemCount: station.fuelPrices.length,
+                child: ListView.separated(
+                  controller: _fuelPricesScrollController,
+                  primary: false,
+                  itemCount: station.fuelPrices.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     return FuelPriceCard(price: station.fuelPrices[index]);
@@ -586,9 +585,6 @@ final pumpsSummary = SizedBox(
       ),
     );
   }
-
-
-
 
   void _showAddPumpDialog(BuildContext rootContext, Station station) {
     final TextEditingController pumpNumberController = TextEditingController();
@@ -1131,8 +1127,6 @@ final pumpsSummary = SizedBox(
       );
     }
 
-
-
     return RefreshIndicator(
       onRefresh: _loadStationDetails,
       child: SingleChildScrollView(
@@ -1326,7 +1320,7 @@ final pumpsSummary = SizedBox(
     );
   }
 
-void _showEditPumpDialog(BuildContext context, String stationId, Pump pump) {
+  void _showEditPumpDialog(BuildContext context, String stationId, Pump pump) {
     final TextEditingController pumpNumberController = TextEditingController(
       text: pump.pumpNumber,
     );
@@ -1538,8 +1532,9 @@ void _showEditPumpDialog(BuildContext context, String stationId, Pump pump) {
     void Function(void Function()) setState,
   ) {
     final fuelOptions = fuelTypes.toSet().toList();
-    final selectedFuelType =
-        fuelOptions.contains(nozzle.fuelType) ? nozzle.fuelType : null;
+    final selectedFuelType = fuelOptions.contains(nozzle.fuelType)
+        ? nozzle.fuelType
+        : null;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1628,9 +1623,6 @@ void _showEditPumpDialog(BuildContext context, String stationId, Pump pump) {
       ),
     );
   }
-
-
-
 
   void _togglePumpStatus(BuildContext context, String stationId, Pump pump) {
     final bool web = MediaQuery.of(context).size.width >= 1100;

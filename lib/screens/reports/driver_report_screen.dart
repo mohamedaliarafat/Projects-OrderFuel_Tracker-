@@ -6,6 +6,8 @@ import 'package:order_tracker/widgets/reports/driver_stats_chart.dart';
 import 'package:order_tracker/widgets/reports/export_options.dart';
 import 'package:order_tracker/widgets/reports/report_filters.dart';
 import 'package:order_tracker/widgets/reports/report_summary.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:printing/printing.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
 
@@ -142,6 +144,18 @@ class _DriverReportScreenState extends State<DriverReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تقارير السائقين'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           if (isLargeScreen) ...[
             _buildViewToggleButton(isLargeScreen),
@@ -164,90 +178,146 @@ class _DriverReportScreenState extends State<DriverReportScreen> {
           ],
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filters Summary
-          if (_filters.isNotEmpty) _buildFiltersSummary(isLargeScreen),
-
-          // Report Summary
-          ReportSummary(
-            title: 'ملخص تقرير السائقين',
-            statistics: _summary,
-            period: _filters,
-          ),
-
-          // Toggle View for mobile/tablet
-          if (!isLargeScreen)
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMediumScreen ? 24 : 16,
-                vertical: 8,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundGray,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _showChart ? Icons.list : Icons.bar_chart,
-                          size: 16,
-                          color: AppColors.mediumGray,
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1500),
+                child: Column(
+                  children: [
+                    if (_filters.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isLargeScreen ? 24 : 16,
+                          14,
+                          isLargeScreen ? 24 : 16,
+                          0,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _showChart ? 'عرض القائمة' : 'عرض الرسوم',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
-                      ],
+                        child: _buildFiltersSummary(isLargeScreen),
+                      ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isLargeScreen ? 24 : 16,
+                        14,
+                        isLargeScreen ? 24 : 16,
+                        0,
+                      ),
+                      child: ReportSummary(
+                        title: 'ملخص تقرير السائقين',
+                        statistics: _summary,
+                        period: _filters,
+                      ),
                     ),
-                  ),
-                ],
+                    if (!isLargeScreen)
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMediumScreen ? 24 : 16,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.82),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _showChart
+                                        ? Icons.list_rounded
+                                        : Icons.bar_chart_rounded,
+                                    size: 16,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _showChart ? 'عرض القائمة' : 'عرض الرسوم',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Expanded(
+                      child: _isLoading && _drivers.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : _drivers.isEmpty
+                          ? Center(
+                              child: AppSurfaceCard(
+                                padding: const EdgeInsets.all(22),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppColors.secondaryTeal
+                                            .withValues(alpha: 0.10),
+                                        border: Border.all(
+                                          color: AppColors.secondaryTeal
+                                              .withValues(alpha: 0.18),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.directions_car_rounded,
+                                        size: 34,
+                                        color: AppColors.secondaryTeal,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'لا توجد بيانات للسائقين',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'جرّب تغيير الفلاتر أو الفترة الزمنية.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : _showChart
+                          ? DriverStatsChart(
+                              drivers: _drivers,
+                              isLargeScreen: isLargeScreen,
+                            )
+                          : _buildDriversView(isLargeScreen, isMediumScreen),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-          // Content
-          Expanded(
-            child: _isLoading && _drivers.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _drivers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.directions_car,
-                          size: 64,
-                          color: AppColors.mediumGray,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'لا توجد بيانات للسائقين',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _showChart
-                ? DriverStatsChart(
-                    drivers: _drivers,
-                    isLargeScreen: isLargeScreen,
-                  )
-                : _buildDriversView(isLargeScreen, isMediumScreen),
           ),
         ],
       ),
@@ -348,49 +418,56 @@ class _DriverReportScreenState extends State<DriverReportScreen> {
 
     if (filtersList.isEmpty) return const SizedBox();
 
-    return Container(
+    return AppSurfaceCard(
       padding: EdgeInsets.symmetric(
-        horizontal: isLargeScreen ? 24 : 16,
-        vertical: isLargeScreen ? 12 : 8,
+        horizontal: isLargeScreen ? 18 : 14,
+        vertical: isLargeScreen ? 14 : 12,
       ),
-      color: AppColors.backgroundGray,
       child: Row(
         children: [
-          const Icon(Icons.filter_list, size: 16, color: AppColors.mediumGray),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.filter_list_rounded,
+            size: 18,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.60),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: filtersList
-                    .map(
-                      (filter) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.lightGray),
-                        ),
-                        child: Text(
-                          filter,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
+                children: filtersList.map((filter) {
+                  return Container(
+                    margin: const EdgeInsetsDirectional.only(end: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.06),
                       ),
-                    )
-                    .toList(),
+                    ),
+                    child: Text(
+                      filter,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.clear, size: 16),
+            tooltip: 'مسح الفلاتر',
+            icon: const Icon(Icons.clear_rounded, size: 18),
             onPressed: () => _applyFilters({}),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.55),
           ),
         ],
       ),
@@ -511,190 +588,177 @@ class _DriverReportScreenState extends State<DriverReportScreen> {
     final successRate = driver['successRate'] ?? 0;
     final onTimeRate = driver['onTimeRate'] ?? 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(isDesktop ? 20 : 16),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// ================= Header =================
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          driver['driverName'] ?? 'غير معروف',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: isDesktop ? 18 : 16,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+    return AppSurfaceCard(
+      padding: EdgeInsets.all(isDesktop ? 20 : 16),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// ================= Header =================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        driver['driverName'] ?? 'غير معروف',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isDesktop ? 18 : 16,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          driver['licenseNumber'] ?? '--',
-                          style: TextStyle(
-                            fontSize: isDesktop ? 14 : 12,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(driver['status']),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      driver['status'] ?? 'نشط',
-                      style: TextStyle(
-                        fontSize: isDesktop ? 13 : 11,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: isDesktop ? 14 : 10),
-
-              /// ================= Contact =================
-              Row(
-                children: [
-                  Icon(
-                    Icons.phone,
-                    size: isDesktop ? 18 : 16,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      driver['driverPhone'] ?? '--',
-                      style: TextStyle(fontSize: isDesktop ? 15 : 14),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(
-                    Icons.directions_car,
-                    size: isDesktop ? 18 : 16,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    driver['vehicleNumber'] ?? '--',
-                    style: TextStyle(fontSize: isDesktop ? 15 : 14),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: isDesktop ? 10 : 8),
-
-              /// ================= Vehicle & City =================
-              Row(
-                children: [
-                  Icon(
-                    Icons.category,
-                    size: isDesktop ? 18 : 16,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      driver['vehicleType'] ?? 'غير محدد',
-                      style: TextStyle(fontSize: isDesktop ? 15 : 14),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(
-                    Icons.location_on,
-                    size: isDesktop ? 18 : 16,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    driver['driverCity'] ?? '--',
-                    style: TextStyle(fontSize: isDesktop ? 15 : 14),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: isDesktop ? 16 : 12),
-
-              /// ================= Stats =================
-              if (isDesktop) _buildDesktopDriverStats(driver),
-              if (isTablet) _buildTabletDriverStats(driver),
-              if (!isDesktop && !isTablet) _buildMobileDriverStats(driver),
-
-              SizedBox(height: isDesktop ? 16 : 12),
-
-              /// ================= Performance =================
-              if (isDesktop || isTablet)
-                _buildDesktopPerformanceIndicators(driver),
-              if (!isDesktop && !isTablet)
-                _buildMobilePerformanceIndicators(driver),
-
-              SizedBox(height: isDesktop ? 16 : 12),
-
-              /// ================= Timeline =================
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: isDesktop ? 16 : 14,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'أول مهمة: ${_formatDate(driver['firstAssignment'])}',
-                          style: TextStyle(fontSize: isDesktop ? 14 : 12),
+                      const SizedBox(height: 4),
+                      Text(
+                        driver['licenseNumber'] ?? '--',
+                        style: TextStyle(
+                          fontSize: isDesktop ? 14 : 12,
+                          color: AppColors.mediumGray,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'آخر مهمة: ${_formatDate(driver['lastAssignment'])}',
-                          style: TextStyle(fontSize: isDesktop ? 14 : 12),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(driver['status']),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    driver['status'] ?? 'نشط',
+                    style: TextStyle(
+                      fontSize: isDesktop ? 13 : 11,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (isDesktop)
-                    IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () => _showDriverOptions(driver),
-                    ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: isDesktop ? 14 : 10),
+
+            /// ================= Contact =================
+            Row(
+              children: [
+                Icon(
+                  Icons.phone,
+                  size: isDesktop ? 18 : 16,
+                  color: AppColors.mediumGray,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    driver['driverPhone'] ?? '--',
+                    style: TextStyle(fontSize: isDesktop ? 15 : 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.directions_car,
+                  size: isDesktop ? 18 : 16,
+                  color: AppColors.mediumGray,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  driver['vehicleNumber'] ?? '--',
+                  style: TextStyle(fontSize: isDesktop ? 15 : 14),
+                ),
+              ],
+            ),
+
+            SizedBox(height: isDesktop ? 10 : 8),
+
+            /// ================= Vehicle & City =================
+            Row(
+              children: [
+                Icon(
+                  Icons.category,
+                  size: isDesktop ? 18 : 16,
+                  color: AppColors.mediumGray,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    driver['vehicleType'] ?? 'غير محدد',
+                    style: TextStyle(fontSize: isDesktop ? 15 : 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.location_on,
+                  size: isDesktop ? 18 : 16,
+                  color: AppColors.mediumGray,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  driver['driverCity'] ?? '--',
+                  style: TextStyle(fontSize: isDesktop ? 15 : 14),
+                ),
+              ],
+            ),
+
+            SizedBox(height: isDesktop ? 16 : 12),
+
+            /// ================= Stats =================
+            if (isDesktop) _buildDesktopDriverStats(driver),
+            if (isTablet) _buildTabletDriverStats(driver),
+            if (!isDesktop && !isTablet) _buildMobileDriverStats(driver),
+
+            SizedBox(height: isDesktop ? 16 : 12),
+
+            /// ================= Performance =================
+            if (isDesktop || isTablet)
+              _buildDesktopPerformanceIndicators(driver),
+            if (!isDesktop && !isTablet)
+              _buildMobilePerformanceIndicators(driver),
+
+            SizedBox(height: isDesktop ? 16 : 12),
+
+            /// ================= Timeline =================
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: isDesktop ? 16 : 14,
+                  color: AppColors.mediumGray,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'أول مهمة: ${_formatDate(driver['firstAssignment'])}',
+                        style: TextStyle(fontSize: isDesktop ? 14 : 12),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'آخر مهمة: ${_formatDate(driver['lastAssignment'])}',
+                        style: TextStyle(fontSize: isDesktop ? 14 : 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isDesktop)
+                  IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => _showDriverOptions(driver),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

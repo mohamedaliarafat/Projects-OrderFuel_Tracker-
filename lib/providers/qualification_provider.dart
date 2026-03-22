@@ -228,7 +228,8 @@ class QualificationProvider with ChangeNotifier {
     for (final file in files) {
       final safeName = (file.name).replaceAll(' ', '_');
       final ref = storage.ref().child(
-          'qualification_stations/${DateTime.now().millisecondsSinceEpoch}_$safeName');
+        'qualification_stations/${DateTime.now().millisecondsSinceEpoch}_$safeName',
+      );
 
       if (kIsWeb && file.bytes != null) {
         await ref.putData(file.bytes!);

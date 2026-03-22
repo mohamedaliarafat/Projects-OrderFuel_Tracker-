@@ -7,13 +7,11 @@ import 'package:path/path.dart' as p;
 
 class ArchiveDocumentFormScreen extends StatefulWidget {
   final String initialType;
-  const ArchiveDocumentFormScreen({
-    super.key,
-    this.initialType = 'incoming',
-  });
+  const ArchiveDocumentFormScreen({super.key, this.initialType = 'incoming'});
 
   @override
-  State<ArchiveDocumentFormScreen> createState() => _ArchiveDocumentFormScreenState();
+  State<ArchiveDocumentFormScreen> createState() =>
+      _ArchiveDocumentFormScreenState();
 }
 
 class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
@@ -58,12 +56,19 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
 
   Future<void> _pickCamera() async {
     try {
-      final x = await _img.pickImage(source: ImageSource.camera, imageQuality: 85);
+      final x = await _img.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
       if (x == null) return;
       final bytes = await x.readAsBytes();
       if (!mounted) return;
       setState(() {
-        _file = ArchiveDraftFile(name: p.basename(x.name), path: x.path, bytes: bytes);
+        _file = ArchiveDraftFile(
+          name: p.basename(x.name),
+          path: x.path,
+          bytes: bytes,
+        );
       });
     } catch (_) {
       _snack('الكاميرا غير متاحة هنا. استخدم إرفاق ملف.');
@@ -71,20 +76,20 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
   }
 
   void _scanHint() => showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('اسكانر الطابعة'),
-          content: const Text(
-            'المسح المباشر من الاسكانر يحتاج تكامل محلي. يمكنك الآن استخدام إرفاق ملف أو تصوير المستند.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق'),
-            ),
-          ],
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('اسكانر الطابعة'),
+      content: const Text(
+        'المسح المباشر من الاسكانر يحتاج تكامل محلي. يمكنك الآن استخدام إرفاق ملف أو تصوير المستند.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إغلاق'),
         ),
-      );
+      ],
+    ),
+  );
 
   Future<void> _save() async {
     if (_file == null) {
@@ -130,13 +135,13 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
   }
 
   Widget _field(String key, String label, {int maxLines = 1}) => TextField(
-        controller: _c[key],
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-      );
+    controller: _c[key],
+    maxLines: maxLines,
+    decoration: InputDecoration(
+      labelText: label,
+      border: const OutlineInputBorder(),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -161,10 +166,17 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'incoming', child: Text('وارد')),
-                            DropdownMenuItem(value: 'outgoing', child: Text('صادر')),
+                            DropdownMenuItem(
+                              value: 'incoming',
+                              child: Text('وارد'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'outgoing',
+                              child: Text('صادر'),
+                            ),
                           ],
-                          onChanged: (v) => setState(() => _type = v ?? 'incoming'),
+                          onChanged: (v) =>
+                              setState(() => _type = v ?? 'incoming'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -183,7 +195,8 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (v) => setState(() => _status = v ?? 'new'),
+                          onChanged: (v) =>
+                              setState(() => _status = v ?? 'new'),
                         ),
                       ),
                     ],
@@ -201,16 +214,27 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'department', child: Text('قسم')),
-                            DropdownMenuItem(value: 'employee', child: Text('موظف')),
-                            DropdownMenuItem(value: 'other', child: Text('أخرى')),
+                            DropdownMenuItem(
+                              value: 'department',
+                              child: Text('قسم'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'employee',
+                              child: Text('موظف'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'other',
+                              child: Text('أخرى'),
+                            ),
                           ],
                           onChanged: (v) =>
                               setState(() => _holderType = v ?? 'department'),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(child: _field('holder', 'مع من / المستلم الحالي')),
+                      Expanded(
+                        child: _field('holder', 'مع من / المستلم الحالي'),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -259,8 +283,9 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
                   if (_file != null)
                     Chip(
                       label: Text(_file!.name),
-                      onDeleted:
-                          _saving ? null : () => setState(() => _file = null),
+                      onDeleted: _saving
+                          ? null
+                          : () => setState(() => _file = null),
                     ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -278,7 +303,9 @@ class _ArchiveDocumentFormScreenState extends State<ArchiveDocumentFormScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save_outlined),
-                    label: Text(_saving ? 'جاري الإنشاء...' : 'إنشاء سجل الأرشفة'),
+                    label: Text(
+                      _saving ? 'جاري الإنشاء...' : 'إنشاء سجل الأرشفة',
+                    ),
                   ),
                 ],
               ),

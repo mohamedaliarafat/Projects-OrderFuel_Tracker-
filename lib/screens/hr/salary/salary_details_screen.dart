@@ -9,12 +9,8 @@ class SalaryDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('تفاصيل الراتب'),
-      ),
-      body: Center(
-        child: Text('تفاصيل الراتب ID: $salaryId'),
-      ),
+      appBar: AppBar(title: const Text('تفاصيل الراتب')),
+      body: Center(child: Text('تفاصيل الراتب ID: $salaryId')),
     );
   }
 }

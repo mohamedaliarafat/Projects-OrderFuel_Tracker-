@@ -66,8 +66,10 @@ Future<Uint8List> buildInspectionPdf(StationInspection inspection) async {
         _buildFuelSummarySection(inspection),
         pw.SizedBox(height: 10),
         _buildInfoSection('?????????', [
-          pw.Text(inspection.notes?.isNotEmpty == true ? inspection.notes! : '-',
-              style: const pw.TextStyle(fontSize: 10)),
+          pw.Text(
+            inspection.notes?.isNotEmpty == true ? inspection.notes! : '-',
+            style: const pw.TextStyle(fontSize: 10),
+          ),
         ]),
       ],
     ),
@@ -167,10 +169,7 @@ pw.Widget _infoRow(String label, String value) {
         ),
         pw.Expanded(
           flex: 3,
-          child: pw.Text(
-            value,
-            style: const pw.TextStyle(fontSize: 9),
-          ),
+          child: pw.Text(value, style: const pw.TextStyle(fontSize: 9)),
         ),
       ],
     ),
@@ -247,10 +246,7 @@ pw.Widget _buildFuelSummarySection(StationInspection inspection) {
   }
 
   final rows = totals.entries
-      .map((entry) => [
-            _fuelLabel(entry.key),
-            entry.value.toStringAsFixed(2),
-          ])
+      .map((entry) => [_fuelLabel(entry.key), entry.value.toStringAsFixed(2)])
       .toList();
 
   if (rows.isEmpty) {

@@ -21,7 +21,6 @@ String _watermarkText(CustodyDocumentStatus status) {
   }
 }
 
-
 class CustodyDocumentPreview extends StatelessWidget {
   final CustodyDocument document;
 
@@ -36,8 +35,9 @@ class CustodyDocumentPreview extends StatelessWidget {
       children: [
         Card(
           elevation: 2,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -60,15 +60,13 @@ class CustodyDocumentPreview extends StatelessWidget {
         ),
         if (watermarkText != null)
           Positioned.fill(
-            child: IgnorePointer(
-              child: _buildPreviewWatermark(watermarkText),
-            ),
+            child: IgnorePointer(child: _buildPreviewWatermark(watermarkText)),
           ),
       ],
     );
   }
 
-Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
     final dateStr = DateFormat('yyyy-MM-dd').format(document.documentDate);
     final amountStr = NumberFormat.currency(
       locale: 'ar',
@@ -138,7 +136,6 @@ Widget _buildHeader(BuildContext context) {
     );
   }
 
-
   TableRow _buildHeaderRow(String label, String value, {bool isBold = false}) {
     final labelStyle = TextStyle(
       fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
@@ -154,11 +151,7 @@ Widget _buildHeader(BuildContext context) {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            label,
-            textAlign: TextAlign.right,
-            style: labelStyle,
-          ),
+          child: Text(label, textAlign: TextAlign.right, style: labelStyle),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -401,7 +394,7 @@ Future<Uint8List> buildCustodyDocumentPdf(CustodyDocument document) async {
   final watermarkText = _watermarkText(document.status);
   final basePageTheme = pw.PageTheme(
     pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(16, 16, 16, 16),
+    margin: const pw.EdgeInsets.fromLTRB(16, 16, 16, 16),
     textDirection: pw.TextDirection.rtl,
     theme: pw.ThemeData.withFont(base: cairoRegular, bold: cairoBold),
   );
@@ -439,18 +432,17 @@ Future<Uint8List> buildCustodyDocumentPdf(CustodyDocument document) async {
       },
 
       // ================= FOOTER (ثابت) =================
-      footer: (context) =>
-          context.pageNumber == context.pagesCount
-              ? pw.Padding(
-                  padding: const pw.EdgeInsets.only(top: 16, bottom: 20),
-                  child: pw.Container(
-                    alignment: pw.Alignment.bottomCenter,
-                    child: _buildPdfFooter(document),
-                  ),
-                )
-              : pw.SizedBox(),
-      ),
-    );
+      footer: (context) => context.pageNumber == context.pagesCount
+          ? pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 16, bottom: 20),
+              child: pw.Container(
+                alignment: pw.Alignment.bottomCenter,
+                child: _buildPdfFooter(document),
+              ),
+            )
+          : pw.SizedBox(),
+    ),
+  );
 
   return pdf.save();
 }
@@ -466,9 +458,6 @@ pw.Widget _buildPdfInfoBox(String title, String value) {
     child: pw.Text('$title: $value', style: const pw.TextStyle(fontSize: 11)),
   );
 }
-
-
-
 
 pw.Widget _buildPdfHeader(CustodyDocument document, pw.MemoryImage logoImage) {
   return pw.Container(
@@ -605,11 +594,17 @@ pw.Widget _buildPdfDocumentInfo(CustodyDocument document) {
           ),
           child: pw.Row(
             children: [
-              pw.Expanded(child: cell(triple[0]['label']!, triple[0]['value']!)),
+              pw.Expanded(
+                child: cell(triple[0]['label']!, triple[0]['value']!),
+              ),
               pw.Container(width: 0.5, height: 28, color: PdfColors.grey300),
-              pw.Expanded(child: cell(triple[1]['label']!, triple[1]['value']!)),
+              pw.Expanded(
+                child: cell(triple[1]['label']!, triple[1]['value']!),
+              ),
               pw.Container(width: 0.5, height: 28, color: PdfColors.grey300),
-              pw.Expanded(child: cell(triple[2]['label']!, triple[2]['value']!)),
+              pw.Expanded(
+                child: cell(triple[2]['label']!, triple[2]['value']!),
+              ),
             ],
           ),
         );
@@ -657,8 +652,6 @@ pw.TableRow _pdfHeaderRow(
   );
 }
 
-
-
 pw.Widget _buildPdfTable(CustodyDocument document) {
   final amountStr = NumberFormat.currency(
     symbol: 'ر.س',
@@ -700,7 +693,10 @@ pw.Widget _buildPdfTable(CustodyDocument document) {
         (row) => pw.TableRow(
           children: [
             pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+              padding: const pw.EdgeInsets.symmetric(
+                vertical: 4,
+                horizontal: 6,
+              ),
               child: pw.Text(
                 row.value.isEmpty ? '-' : row.value,
                 textAlign: pw.TextAlign.center,
@@ -708,7 +704,10 @@ pw.Widget _buildPdfTable(CustodyDocument document) {
               ),
             ),
             pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+              padding: const pw.EdgeInsets.symmetric(
+                vertical: 4,
+                horizontal: 6,
+              ),
               child: pw.Text(
                 row.label,
                 textAlign: pw.TextAlign.center,
@@ -782,21 +781,24 @@ pw.Widget _buildPdfFooter(CustodyDocument document) {
   );
 }
 
-
-
 pw.Widget _buildPdfDetailRow(String label, String value) {
   return pw.Padding(
     padding: const pw.EdgeInsets.symmetric(vertical: 3),
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-        pw.Text(value.isEmpty ? '-' : value, style: const pw.TextStyle(fontSize: 10)),
+        pw.Text(
+          label,
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+        ),
+        pw.Text(
+          value.isEmpty ? '-' : value,
+          style: const pw.TextStyle(fontSize: 10),
+        ),
       ],
     ),
   );
 }
-
 
 pw.Widget _buildPdfSignatureBlock({
   required String title,
@@ -823,7 +825,6 @@ pw.Widget _buildPdfSignatureBlock({
   );
 }
 
-
 pw.TableRow _buildPdfHeaderRow(
   String label,
   String value, {
@@ -843,11 +844,7 @@ pw.TableRow _buildPdfHeaderRow(
     children: [
       pw.Padding(
         padding: const pw.EdgeInsets.symmetric(vertical: 4),
-        child: pw.Text(
-          label,
-          textAlign: pw.TextAlign.right,
-          style: labelStyle,
-        ),
+        child: pw.Text(label, textAlign: pw.TextAlign.right, style: labelStyle),
       ),
       pw.Padding(
         padding: const pw.EdgeInsets.symmetric(vertical: 4),
@@ -880,7 +877,6 @@ pw.Widget _buildPdfWatermarkBackground(String text) {
     ),
   );
 }
-
 
 Future<void> printCustodyDocument(CustodyDocument document) async {
   final bytes = await buildCustodyDocumentPdf(document);

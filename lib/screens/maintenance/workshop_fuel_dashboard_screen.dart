@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
@@ -6,6 +6,7 @@ import 'package:order_tracker/providers/workshop_fuel_provider.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/widgets/maintenance/stats_card.dart';
+import 'package:order_tracker/widgets/maintenance/workshop_fuel_reading_editor_dialog.dart';
 import 'package:provider/provider.dart';
 
 class WorkshopFuelDashboardScreen extends StatefulWidget {
@@ -111,12 +112,12 @@ class _WorkshopFuelDashboardScreenState
           'vehicleNumber': refuel['vehicleNumber']?.toString() ?? '',
         };
       }
-      totals[name]!['liters'] =
-          (totals[name]!['liters'] as double) + liters;
+      totals[name]!['liters'] = (totals[name]!['liters'] as double) + liters;
     }
     final list = totals.values.toList();
-    list.sort((a, b) =>
-        (b['liters'] as double).compareTo(a['liters'] as double));
+    list.sort(
+      (a, b) => (b['liters'] as double).compareTo(a['liters'] as double),
+    );
     return list;
   }
 
@@ -128,14 +129,18 @@ class _WorkshopFuelDashboardScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حذف التعبئة'),
-        content: const Text('هل تريد حذف هذه التعبئة وإرجاع الكمية إلى الخزان؟'),
+        content: const Text(
+          'هل تريد حذف هذه التعبئة وإرجاع الكمية إلى الخزان؟',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorRed,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('حذف'),
           ),
@@ -184,17 +189,20 @@ class _WorkshopFuelDashboardScreenState
           children: [
             TextField(
               controller: capacityCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(labelText: 'سعة الخزان (لتر)'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: priceCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration:
-                  const InputDecoration(labelText: 'سعر اللتر (ريال/لتر)'),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'سعر اللتر (ريال/لتر)',
+              ),
             ),
           ],
         ),
@@ -243,96 +251,27 @@ class _WorkshopFuelDashboardScreenState
 
   Future<void> _showReadingDialog(WorkshopFuelProvider provider) async {
     if (_stationId == null) return;
-    final readings = provider.readings;
-    Map<String, dynamic>? last;
-    if (readings.isNotEmpty) {
-      readings.sort((a, b) {
-        final ad = DateTime.tryParse(a['readingDate']?.toString() ?? '') ??
+    final readings = List<Map<String, dynamic>>.from(provider.readings)
+      ..sort((a, b) {
+        final ad =
+            DateTime.tryParse(a['readingDate']?.toString() ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0);
-        final bd = DateTime.tryParse(b['readingDate']?.toString() ?? '') ??
+        final bd =
+            DateTime.tryParse(b['readingDate']?.toString() ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0);
         return bd.compareTo(ad);
       });
-      last = readings.first;
-    }
-    final prev = _readNum(last?['currentReading']);
-    final currentCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
-    DateTime selectedDate = DateTime.now();
+    final last = readings.isNotEmpty ? readings.first : null;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('إدخال قراءة العداد'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  const Text('التاريخ: '),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2035),
-                      );
-                      if (picked != null) {
-                        setDialogState(() => selectedDate = picked);
-                      }
-                    },
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text(DateFormat('yyyy/MM/dd').format(selectedDate)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text('القراءة السابقة: ${prev.toStringAsFixed(2)} لتر'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: currentCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'القراءة الحالية'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesCtrl,
-                decoration: const InputDecoration(labelText: 'ملاحظات'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حفظ'),
-          ),
-        ],
-      ),
+    final success = await showWorkshopFuelReadingEditorDialog(
+      context,
+      stationId: _stationId!,
+      stationName: _stationName,
+      suggestedPreviousReading: _readNum(last?['currentReading']),
     );
 
-    if (confirmed != true) return;
-
-    final current = double.tryParse(currentCtrl.text.trim());
-    if (current == null) return;
-
-    final success = await provider.createReading({
-      'stationId': _stationId,
-      'stationName': _stationName,
-      'currentReading': current,
-      'readingDate': selectedDate.toIso8601String(),
-      'notes': notesCtrl.text.trim().isNotEmpty ? notesCtrl.text.trim() : null,
-    });
-
     if (!mounted) return;
-    if (success) {
+    if (success == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تم حفظ القراءة بنجاح'),
@@ -366,13 +305,22 @@ class _WorkshopFuelDashboardScreenState
     final capacity = fuelProvider.capacity;
     final price = fuelProvider.unitPrice;
     final thresholdPercent = fuelProvider.lowThresholdPercent;
-    final thresholdLiters = capacity > 0 ? capacity * thresholdPercent / 100 : 0;
-    final percent =
-        capacity > 0 ? (balance / capacity).clamp(0, 1).toDouble() : 0.0;
+    final thresholdLiters = capacity > 0
+        ? capacity * thresholdPercent / 100
+        : 0;
+    final percent = capacity > 0
+        ? (balance / capacity).clamp(0, 1).toDouble()
+        : 0.0;
 
     final refuels = fuelProvider.refuels;
-    final totalLiters = refuels.fold<double>(0, (sum, r) => sum + _readNum(r['liters']));
-    final totalAmount = refuels.fold<double>(0, (sum, r) => sum + _readNum(r['totalAmount']));
+    final totalLiters = refuels.fold<double>(
+      0,
+      (sum, r) => sum + _readNum(r['liters']),
+    );
+    final totalAmount = refuels.fold<double>(
+      0,
+      (sum, r) => sum + _readNum(r['totalAmount']),
+    );
     final topDrivers = _topDrivers(refuels).take(5).toList();
 
     return Scaffold(
@@ -457,7 +405,8 @@ class _WorkshopFuelDashboardScreenState
                           ),
                           if (canManage)
                             TextButton.icon(
-                              onPressed: () => _showSettingsDialog(fuelProvider),
+                              onPressed: () =>
+                                  _showSettingsDialog(fuelProvider),
                               icon: const Icon(Icons.settings),
                               label: const Text('الإعدادات'),
                             ),
@@ -479,7 +428,10 @@ class _WorkshopFuelDashboardScreenState
                         spacing: 16,
                         runSpacing: 8,
                         children: [
-                          _buildInfoChip('الرصيد', '${balance.toStringAsFixed(2)} لتر'),
+                          _buildInfoChip(
+                            'الرصيد',
+                            '${balance.toStringAsFixed(2)} لتر',
+                          ),
                           _buildInfoChip(
                             'السعة',
                             capacity > 0
@@ -574,8 +526,8 @@ class _WorkshopFuelDashboardScreenState
                   OutlinedButton.icon(
                     onPressed: _stationId == null
                         ? null
-                        : () {
-                            Navigator.pushNamed(
+                        : () async {
+                            await Navigator.pushNamed(
                               context,
                               AppRoutes.workshopFuelReport,
                               arguments: {
@@ -583,9 +535,47 @@ class _WorkshopFuelDashboardScreenState
                                 'stationName': _stationName,
                               },
                             );
+                            if (!mounted) return;
+                            await _loadData();
                           },
                     icon: const Icon(Icons.receipt_long),
                     label: const Text('التقارير'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _stationId == null
+                        ? null
+                        : () async {
+                            await Navigator.pushNamed(
+                              context,
+                              AppRoutes.workshopFuelDriverReport,
+                              arguments: {
+                                'stationId': _stationId,
+                                'stationName': _stationName,
+                              },
+                            );
+                            if (!mounted) return;
+                            await _loadData();
+                          },
+                    icon: const Icon(Icons.person_search_outlined),
+                    label: const Text('تقرير السائقين'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _stationId == null
+                        ? null
+                        : () async {
+                            await Navigator.pushNamed(
+                              context,
+                              AppRoutes.workshopFuelReadings,
+                              arguments: {
+                                'stationId': _stationId,
+                                'stationName': _stationName,
+                              },
+                            );
+                            if (!mounted) return;
+                            await _loadData();
+                          },
+                    icon: const Icon(Icons.table_rows_outlined),
+                    label: const Text('القراءات اليومية'),
                   ),
                   TextButton.icon(
                     onPressed: _stationId == null
@@ -605,8 +595,8 @@ class _WorkshopFuelDashboardScreenState
                 crossAxisCount: MediaQuery.of(context).size.width > 900
                     ? 3
                     : MediaQuery.of(context).size.width > 600
-                        ? 2
-                        : 1,
+                    ? 2
+                    : 1,
                 childAspectRatio: 2.2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
@@ -642,10 +632,9 @@ class _WorkshopFuelDashboardScreenState
 
               Text(
                 'أكثر السائقين تعبئة',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               if (topDrivers.isEmpty)
@@ -681,10 +670,9 @@ class _WorkshopFuelDashboardScreenState
 
               Text(
                 'آخر التعبئات',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               if (refuels.isEmpty)
@@ -692,7 +680,8 @@ class _WorkshopFuelDashboardScreenState
               else
                 Column(
                   children: refuels.take(6).map((refuel) {
-                    final date = DateTime.tryParse(
+                    final date =
+                        DateTime.tryParse(
                           refuel['createdAt']?.toString() ?? '',
                         ) ??
                         DateTime.now();
@@ -710,7 +699,9 @@ class _WorkshopFuelDashboardScreenState
                           children: [
                             Text(
                               '${_readNum(refuel['liters']).toStringAsFixed(2)} لتر',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             if (canManage) ...[
                               const SizedBox(width: 8),
@@ -747,18 +738,10 @@ class _WorkshopFuelDashboardScreenState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(color: AppColors.mediumGray),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text('$label: ', style: const TextStyle(color: AppColors.mediumGray)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 }
-
-

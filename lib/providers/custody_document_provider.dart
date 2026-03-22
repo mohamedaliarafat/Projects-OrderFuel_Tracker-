@@ -53,7 +53,9 @@ class CustodyDocumentProvider with ChangeNotifier {
                   .toList(),
             );
         } else {
-          throw Exception(data['message'] ?? 'Failed to load custody documents');
+          throw Exception(
+            data['message'] ?? 'Failed to load custody documents',
+          );
         }
       } else {
         throw Exception('HTTP ${response.statusCode}');
@@ -116,16 +118,16 @@ class CustodyDocumentProvider with ChangeNotifier {
   }) async {
     try {
       await _initializeToken();
-      final response = await ApiService.patch(
-        '/custody-documents/$id/status',
-        {'status': status.value},
-      );
+      final response = await ApiService.patch('/custody-documents/$id/status', {
+        'status': status.value,
+      });
 
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         if (result['success'] == true) {
-          final updated =
-              CustodyDocument.fromJson(Map<String, dynamic>.from(result['data'] as Map));
+          final updated = CustodyDocument.fromJson(
+            Map<String, dynamic>.from(result['data'] as Map),
+          );
           final index = _documents.indexWhere((doc) => doc.id == id);
           if (index != -1) {
             _documents[index] = updated;
@@ -154,8 +156,9 @@ class CustodyDocumentProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         if (result['success'] == true) {
-          final updated =
-              CustodyDocument.fromJson(Map<String, dynamic>.from(result['data'] as Map));
+          final updated = CustodyDocument.fromJson(
+            Map<String, dynamic>.from(result['data'] as Map),
+          );
           final index = _documents.indexWhere((doc) => doc.id == id);
           if (index != -1) {
             _documents[index] = updated;
@@ -184,8 +187,9 @@ class CustodyDocumentProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         if (result['success'] == true) {
-          final updated =
-              CustodyDocument.fromJson(Map<String, dynamic>.from(result['data'] as Map));
+          final updated = CustodyDocument.fromJson(
+            Map<String, dynamic>.from(result['data'] as Map),
+          );
           final index = _documents.indexWhere((doc) => doc.id == id);
           if (index != -1) {
             _documents[index] = updated;
@@ -222,8 +226,9 @@ class CustodyDocumentProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         if (result['success'] == true) {
-          final updated =
-              CustodyDocument.fromJson(Map<String, dynamic>.from(result['data'] as Map));
+          final updated = CustodyDocument.fromJson(
+            Map<String, dynamic>.from(result['data'] as Map),
+          );
           final index = _documents.indexWhere((doc) => doc.id == id);
           if (index != -1) {
             _documents[index] = updated;

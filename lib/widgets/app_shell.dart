@@ -4,6 +4,7 @@ import 'package:order_tracker/providers/chat_provider.dart';
 import 'package:order_tracker/utils/app_navigation.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/mo_assistant_overlay.dart';
 import 'package:provider/provider.dart';
 
 class NavigationLoadingObserver extends NavigatorObserver {
@@ -62,11 +63,7 @@ class AppShell extends StatefulWidget {
   final Widget child;
   final NavigationLoadingObserver observer;
 
-  const AppShell({
-    super.key,
-    required this.child,
-    required this.observer,
-  });
+  const AppShell({super.key, required this.child, required this.observer});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -108,9 +105,7 @@ class _AppShellState extends State<AppShell>
       AppRoutes.chatConversation,
     };
 
-    if (canShowChat) {
-      chat.startBackgroundSync();
-    } else if (chat.hasRunningSync || chat.totalUnread > 0) {
+    if (!canShowChat && (chat.hasRunningSync || chat.totalUnread > 0)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         context.read<ChatProvider>().clearState();
@@ -155,12 +150,14 @@ class _AppShellState extends State<AppShell>
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 18,
                             offset: const Offset(0, 6),
                           ),
                           BoxShadow(
-                            color: AppColors.appBarWaterGlow.withOpacity(0.35),
+                            color: AppColors.appBarWaterGlow.withValues(
+                              alpha: 0.35,
+                            ),
                             blurRadius: 24,
                             offset: const Offset(0, -8),
                           ),
@@ -173,9 +170,9 @@ class _AppShellState extends State<AppShell>
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            AppColors.appBarWaterGlow.withOpacity(0.28),
-                            AppColors.appBarWaterMid.withOpacity(0.12),
-                            AppColors.appBarWaterDeep.withOpacity(0.18),
+                            AppColors.appBarWaterGlow.withValues(alpha: 0.28),
+                            AppColors.appBarWaterMid.withValues(alpha: 0.12),
+                            AppColors.appBarWaterDeep.withValues(alpha: 0.18),
                           ],
                           stops: const [0.0, 0.55, 1.0],
                         ),
@@ -191,8 +188,8 @@ class _AppShellState extends State<AppShell>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              AppColors.appBarWaterGlow.withOpacity(0.35),
-                              AppColors.appBarWaterGlow.withOpacity(0.0),
+                              AppColors.appBarWaterGlow.withValues(alpha: 0.35),
+                              AppColors.appBarWaterGlow.withValues(alpha: 0.0),
                             ],
                             stops: const [0.0, 0.75],
                           ),
@@ -206,6 +203,20 @@ class _AppShellState extends State<AppShell>
           ),
         ),
         Positioned.fill(child: widget.child),
+        ValueListenableBuilder<String?>(
+          valueListenable: widget.observer.currentRouteName,
+          builder: (context, currentRouteName, _) {
+            if (!canShowChat) {
+              return const SizedBox.shrink();
+            }
+
+            final normalizedRoute = currentRouteName == null
+                ? null
+                : (Uri.tryParse(currentRouteName)?.path ?? currentRouteName);
+
+            return MoAssistantOverlay(currentRouteName: normalizedRoute);
+          },
+        ),
         ValueListenableBuilder<bool>(
           valueListenable: widget.observer.isLoading,
           builder: (context, loading, _) {
@@ -233,10 +244,9 @@ class _AppShellState extends State<AppShell>
         ValueListenableBuilder<String?>(
           valueListenable: widget.observer.currentRouteName,
           builder: (context, currentRouteName, _) {
-            final normalizedRoute =
-                currentRouteName == null
-                    ? null
-                    : (Uri.tryParse(currentRouteName)?.path ?? currentRouteName);
+            final normalizedRoute = currentRouteName == null
+                ? null
+                : (Uri.tryParse(currentRouteName)?.path ?? currentRouteName);
             final showGlobalChatFab =
                 canShowChat && !embeddedChatFabRoutes.contains(normalizedRoute);
             if (!showGlobalChatFab) {

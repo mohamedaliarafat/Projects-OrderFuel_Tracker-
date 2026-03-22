@@ -81,7 +81,8 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
   @override
   void initState() {
     super.initState();
-    _documentUploadKey = widget.employeeToEdit?.id ??
+    _documentUploadKey =
+        widget.employeeToEdit?.id ??
         'draft_${DateTime.now().millisecondsSinceEpoch}';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeFormData();
@@ -155,8 +156,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
     }
   }
 
-
-    String _docTypeLabel(String fileName) {
+  String _docTypeLabel(String fileName) {
     final ext = fileName.split('.').last.toLowerCase();
     switch (ext) {
       case 'pdf':
@@ -172,7 +172,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         return '?????';
     }
   }
-
 
   String? _contentTypeForFile(String fileName) {
     final ext = fileName.split('.').last.toLowerCase();
@@ -334,10 +333,10 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
                     onNationalIdChanged: (value) => _nationalId = value,
                     onGenderChanged: (value) => _gender = value,
                     onDateOfBirthChanged: (value) {
-                    setState(() {
-                      _dateOfBirth = value;
-                    });
-                  },
+                      setState(() {
+                        _dateOfBirth = value;
+                      });
+                    },
                     onNationalityChanged: (value) => _nationality = value,
                     onCityChanged: (value) => _city = value,
                     onPhoneChanged: (value) => _phone = value,
@@ -367,45 +366,45 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
                     onJobTitleChanged: (value) => _jobTitle = value,
                     onEmploymentTypeChanged: (value) => _employmentType = value,
                     onHireDateChanged: (value) {
-                        setState(() {
-                          _hireDate = value;
-                        });
-                      },
+                      setState(() {
+                        _hireDate = value;
+                      });
+                    },
                     onContractStartDateChanged: (value) {
-                        setState(() {
-                          _contractStartDate = value;
-                        });
-                      },
+                      setState(() {
+                        _contractStartDate = value;
+                      });
+                    },
                     onContractEndDateChanged: (value) {
-                        setState(() {
-                          _contractEndDate = value;
-                        });
-                      },
+                      setState(() {
+                        _contractEndDate = value;
+                      });
+                    },
                     onProbationPeriodEndChanged: (value) {
-                        setState(() {
-                          _probationPeriodEnd = value;
-                        });
-                      },
+                      setState(() {
+                        _probationPeriodEnd = value;
+                      });
+                    },
                     onWorkScheduleChanged: (value) => _workSchedule = value,
                     onWeeklyHoursChanged: (value) => _weeklyHours = value,
                     onResidencyNumberChanged: (value) =>
                         _residencyNumber = value,
                     onResidencyIssueDateChanged: (value) {
-                        setState(() {
-                          _residencyIssueDate = value;
-                        });
-                      },
+                      setState(() {
+                        _residencyIssueDate = value;
+                      });
+                    },
                     onResidencyExpiryDateChanged: (value) {
-                        setState(() {
-                          _residencyExpiryDate = value;
-                        });
-                      },
+                      setState(() {
+                        _residencyExpiryDate = value;
+                      });
+                    },
                     onPassportNumberChanged: (value) => _passportNumber = value,
                     onPassportExpiryDateChanged: (value) {
-                        setState(() {
-                          _passportExpiryDate = value;
-                        });
-                      },
+                      setState(() {
+                        _passportExpiryDate = value;
+                      });
+                    },
                   ),
 
                   // الخطوة 3: المعلومات المالية
@@ -707,8 +706,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         return true;
 
       case 2:
-
-
         if (_basicSalary <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -728,7 +725,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
     }
   }
 
-
   void _goToStep(int step) {
     if (_currentStep == step) return;
     _pageController.animateToPage(
@@ -738,7 +734,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
     );
   }
 
-      bool _validateAllRequired() {
+  bool _validateAllRequired() {
     if (_name.isEmpty ||
         _nationalId.isEmpty ||
         _phone.isEmpty ||
@@ -777,9 +773,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
       return false;
     }
 
-    if (_department.isEmpty ||
-        _position.isEmpty ||
-        _employmentType.isEmpty) {
+    if (_department.isEmpty || _position.isEmpty || _employmentType.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('???? ??? ???? ?????? ????????'),
@@ -825,8 +819,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
 
     return true;
   }
-
-
 
   Future<void> _handleSubmit() async {
     if (_currentStep < 3) {
@@ -893,11 +885,13 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         // الوثائق
         'documents': _documents
             .where((doc) => (doc['url'] ?? '').toString().isNotEmpty)
-            .map((doc) => {
-                  'name': doc['name'],
-                  'type': doc['type'],
-                  'url': doc['url'],
-                })
+            .map(
+              (doc) => {
+                'name': doc['name'],
+                'type': doc['type'],
+                'url': doc['url'],
+              },
+            )
             .toList(),
       };
 

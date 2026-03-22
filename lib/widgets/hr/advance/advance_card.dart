@@ -35,7 +35,10 @@ class AdvanceCard extends StatelessWidget {
             children: [
               Text(
                 advance.employeeName,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 8),
               Text('الرقم الوظيفي: ${advance.employeeNumber}'),
@@ -48,10 +51,14 @@ class AdvanceCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  if (onApprove != null) _buildAction('موافقة', onApprove!, AppColors.successGreen),
-                  if (onReject != null) _buildAction('رفض', onReject!, AppColors.errorRed),
-                  if (onPay != null) _buildAction('دفع', onPay!, AppColors.infoBlue),
-                  if (onRepayment != null) _buildAction('تسديد', onRepayment!, AppColors.hrPurple),
+                  if (onApprove != null)
+                    _buildAction('موافقة', onApprove!, AppColors.successGreen),
+                  if (onReject != null)
+                    _buildAction('رفض', onReject!, AppColors.errorRed),
+                  if (onPay != null)
+                    _buildAction('دفع', onPay!, AppColors.infoBlue),
+                  if (onRepayment != null)
+                    _buildAction('تسديد', onRepayment!, AppColors.hrPurple),
                 ],
               ),
             ],

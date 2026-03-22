@@ -101,8 +101,7 @@ class _LocationFormScreenState extends State<LocationFormScreen> {
     }
 
     final radius = double.tryParse(_radiusController.text) ?? 100;
-    final maxDistance =
-        double.tryParse(_maxDistanceController.text) ?? radius;
+    final maxDistance = double.tryParse(_maxDistanceController.text) ?? radius;
 
     setState(() => _isSaving = true);
     try {
@@ -110,10 +109,7 @@ class _LocationFormScreenState extends State<LocationFormScreen> {
         'name': _nameController.text.trim(),
         'type': _type,
         'address': _addressController.text.trim(),
-        'coordinates': {
-          'latitude': _lat,
-          'longitude': _lng,
-        },
+        'coordinates': {'latitude': _lat, 'longitude': _lng},
         'radius': radius,
         'workingHours': {
           'start': _workStartController.text.trim(),
@@ -191,29 +187,28 @@ class _LocationFormScreenState extends State<LocationFormScreen> {
                       child: _isLoadingEmployees
                           ? const Center(child: CircularProgressIndicator())
                           : filtered.isEmpty
-                              ? const Center(child: Text('لا توجد نتائج'))
-                              : ListView.builder(
-                                  itemCount: filtered.length,
-                                  itemBuilder: (context, index) {
-                                    final emp = filtered[index];
-                                    final isSelected =
-                                        selected.contains(emp.id);
-                                    return CheckboxListTile(
-                                      value: isSelected,
-                                      title: Text(emp.name),
-                                      subtitle: Text(emp.employeeId),
-                                      onChanged: (value) {
-                                        setDialogState(() {
-                                          if (value == true) {
-                                            selected.add(emp.id);
-                                          } else {
-                                            selected.remove(emp.id);
-                                          }
-                                        });
-                                      },
-                                    );
+                          ? const Center(child: Text('لا توجد نتائج'))
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final emp = filtered[index];
+                                final isSelected = selected.contains(emp.id);
+                                return CheckboxListTile(
+                                  value: isSelected,
+                                  title: Text(emp.name),
+                                  subtitle: Text(emp.employeeId),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      if (value == true) {
+                                        selected.add(emp.id);
+                                      } else {
+                                        selected.remove(emp.id);
+                                      }
+                                    });
                                   },
-                                ),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -269,17 +264,15 @@ class _LocationFormScreenState extends State<LocationFormScreen> {
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('إضافة موقع عمل'),
-      ),
+      appBar: AppBar(title: const Text('إضافة موقع عمل')),
       body: Form(
         key: _formKey,
         child: ListView(

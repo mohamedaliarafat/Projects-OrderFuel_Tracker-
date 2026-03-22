@@ -22,20 +22,24 @@ class MarketingStationsScreen extends StatefulWidget {
   const MarketingStationsScreen({super.key});
 
   @override
-  State<MarketingStationsScreen> createState() => _MarketingStationsScreenState();
+  State<MarketingStationsScreen> createState() =>
+      _MarketingStationsScreenState();
 }
 
 class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
-  final TextEditingController _expenseReasonController = TextEditingController();
-  final TextEditingController _expenseAmountController = TextEditingController();
+  final TextEditingController _expenseReasonController =
+      TextEditingController();
+  final TextEditingController _expenseAmountController =
+      TextEditingController();
   final TextEditingController _expenseNotesController = TextEditingController();
   DateTime _expenseDateTime = DateTime.now();
   String? _expenseStationId;
 
-  final TextEditingController _receiptAmountController = TextEditingController();
+  final TextEditingController _receiptAmountController =
+      TextEditingController();
   final TextEditingController _receiptNotesController = TextEditingController();
   DateTime _receiptDateTime = DateTime.now();
   String? _receiptStationId;
@@ -49,7 +53,6 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       context.read<StationInspectionProvider>().fetchInspections();
     });
   }
-
 
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
@@ -190,13 +193,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     );
   }
 
-
   Future<void> _openCreateInspection() async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const StationInspectionFormScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const StationInspectionFormScreen()),
     );
 
     if (result == true && mounted) {
@@ -257,44 +257,40 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                         ? 'إخفاء القائمة'
                         : 'إظهار القائمة',
                     icon: Icon(
-                      _isSidebarExpanded
-                          ? Icons.menu_open
-                          : Icons.menu,
+                      _isSidebarExpanded ? Icons.menu_open : Icons.menu,
                     ),
                     onPressed: _toggleSidebar,
                   )
                 : null,
-              title: Text(
-                isWide ? 'تسويق المحطات' : title,
-                style: const TextStyle(color: Colors.white),
-              ),
-              actions: [
-                IconButton(
-                  tooltip: 'الإشعارات',
-                  icon: const Icon(Icons.notifications_outlined),
-                  onPressed: () {
-                    Navigator.pushNamed(context, AppRoutes.notifications);
-                  },
-                ),
-                IconButton(
-                  tooltip: 'تسجيل الخروج',
-                  icon: const Icon(Icons.logout),
-                  onPressed: () async {
-                    final authProvider = context.read<AuthProvider>();
-                    await authProvider.logout();
-                    if (!context.mounted) return;
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRoutes.login,
-                      (_) => false,
-                    );
-                  },
-                ),
-              ],
+            title: Text(
+              isWide ? 'تسويق المحطات' : title,
+              style: const TextStyle(color: Colors.white),
             ),
-        
-        
-        
+            actions: [
+              IconButton(
+                tooltip: 'الإشعارات',
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.notifications);
+                },
+              ),
+              IconButton(
+                tooltip: 'تسجيل الخروج',
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  final authProvider = context.read<AuthProvider>();
+                  await authProvider.logout();
+                  if (!context.mounted) return;
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRoutes.login,
+                    (_) => false,
+                  );
+                },
+              ),
+            ],
+          ),
+
           drawer: isWide
               ? null
               : Drawer(
@@ -362,7 +358,6 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     );
   }
 
-
   String _titleForIndex(int index) {
     switch (index) {
       case 0:
@@ -386,7 +381,6 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     }
   }
 
-
   List<MarketingStation> _filteredReportStations(
     List<MarketingStation> stations,
   ) {
@@ -401,8 +395,6 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
           report.contractReference.toLowerCase().contains(query);
     }).toList();
   }
-
-
 
   Widget _buildSideBar({
     required bool isWide,
@@ -425,9 +417,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       width: effectiveExpanded ? 260 : 80,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          right: BorderSide(color: AppColors.lightGray),
-        ),
+        border: Border(right: BorderSide(color: AppColors.lightGray)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +452,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                   IconButton(
                     onPressed: onToggle,
                     icon: Icon(
-                      effectiveExpanded ? Icons.chevron_left : Icons.chevron_right,
+                      effectiveExpanded
+                          ? Icons.chevron_left
+                          : Icons.chevron_right,
                     ),
                   ),
               ],
@@ -506,7 +498,8 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                 ),
                 _sideItem(
                   icon: Icons.rate_review_outlined,
-                  label: '\u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0627\u0644\u0645\u062d\u0637\u0627\u062a',
+                  label:
+                      '\u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0627\u0644\u0645\u062d\u0637\u0627\u062a',
                   index: 4,
                   selectedIndex: selectedIndex,
                   onSelected: onSelected,
@@ -514,7 +507,8 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                 ),
                 _sideItem(
                   icon: Icons.verified_outlined,
-                  label: '\u0645\u0648\u0627\u0642\u0639 \u062a\u062d\u062a \u0627\u0644\u062f\u0631\u0627\u0633\u0629',
+                  label:
+                      '\u0645\u0648\u0627\u0642\u0639 \u062a\u062d\u062a \u0627\u0644\u062f\u0631\u0627\u0633\u0629',
                   index: 5,
                   selectedIndex: selectedIndex,
                   onSelected: onSelected,
@@ -522,7 +516,8 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                 ),
                 _sideItem(
                   icon: Icons.map_outlined,
-                  label: '\u062e\u0631\u064a\u0637\u0629 \u0627\u0644\u0645\u0648\u0642\u0639',
+                  label:
+                      '\u062e\u0631\u064a\u0637\u0629 \u0627\u0644\u0645\u0648\u0642\u0639',
                   index: 6,
                   selectedIndex: selectedIndex,
                   onSelected: onSelected,
@@ -573,8 +568,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
           ),
         ),
         child: Row(
-          mainAxisAlignment:
-              isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+          mainAxisAlignment: isExpanded
+              ? MainAxisAlignment.start
+              : MainAxisAlignment.center,
           children: [
             Icon(icon, color: color, size: 20),
             if (isExpanded) ...[
@@ -584,8 +580,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                   label,
                   style: TextStyle(
                     color: color,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   ),
                 ),
               ),
@@ -653,17 +648,20 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
             ),
             _statCard(
               label: 'تحت المراجعة',
-              value:
-                  _statusCount(stations, StationMarketingStatus.pendingReview)
-                      .toString(),
+              value: _statusCount(
+                stations,
+                StationMarketingStatus.pendingReview,
+              ).toString(),
               icon: Icons.rate_review,
               color: AppColors.warningOrange,
               width: isWide ? 260 : double.infinity,
             ),
             _statCard(
               label: 'مؤجرة',
-              value:
-                  _statusCount(stations, StationMarketingStatus.rented).toString(),
+              value: _statusCount(
+                stations,
+                StationMarketingStatus.rented,
+              ).toString(),
               icon: Icons.assignment_ind,
               color: Colors.teal,
               width: isWide ? 260 : double.infinity,
@@ -809,8 +807,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
   Widget _buildStatusDistribution(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text('لا توجد بيانات بعد',
-          style: TextStyle(color: AppColors.mediumGray));
+      return Text(
+        'لا توجد بيانات بعد',
+        style: TextStyle(color: AppColors.mediumGray),
+      );
     }
 
     final total = stations.length.toDouble();
@@ -835,8 +835,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       ),
       _StatusEntry(
         label: 'مستأجرة لشركة ناصر المطيري',
-        count:
-            _statusCount(stations, StationMarketingStatus.rentedToNasserMotairi),
+        count: _statusCount(
+          stations,
+          StationMarketingStatus.rentedToNasserMotairi,
+        ),
         color: Colors.blueGrey,
         icon: Icons.apartment,
       ),
@@ -876,8 +878,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
   Widget _buildCityDistribution(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text('لا توجد بيانات بعد',
-          style: TextStyle(color: AppColors.mediumGray));
+      return Text(
+        'لا توجد بيانات بعد',
+        style: TextStyle(color: AppColors.mediumGray),
+      );
     }
 
     final counts = <String, int>{};
@@ -907,17 +911,16 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
   Widget _buildLitersDistribution(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text('لا توجد بيانات بعد',
-          style: TextStyle(color: AppColors.mediumGray));
+      return Text(
+        'لا توجد بيانات بعد',
+        style: TextStyle(color: AppColors.mediumGray),
+      );
     }
 
     final liters = <_NamedValue>[];
     for (final station in stations) {
       liters.add(
-        _NamedValue(
-          label: station.name,
-          value: _stationLiters(station),
-        ),
+        _NamedValue(label: station.name, value: _stationLiters(station)),
       );
     }
     liters.sort((a, b) => b.value.compareTo(a.value));
@@ -985,8 +988,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
   Widget _buildStationsTable(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text('لا توجد محطات بعد',
-          style: TextStyle(color: AppColors.mediumGray));
+      return Text(
+        'لا توجد محطات بعد',
+        style: TextStyle(color: AppColors.mediumGray),
+      );
     }
 
     return Container(
@@ -1008,21 +1013,22 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
-                      headingRowColor:
-                          MaterialStateProperty.all(AppColors.backgroundGray),
+                      headingRowColor: MaterialStateProperty.all(
+                        AppColors.backgroundGray,
+                      ),
                       columnSpacing: 24,
-          columns: const [
-            DataColumn(label: Text('#')),
-            DataColumn(label: Text('المحطة')),
-            DataColumn(label: Text('المدينة')),
-            DataColumn(label: Text('الحالة')),
-            DataColumn(label: Text('المضخات')),
-            DataColumn(label: Text('اللترات')),
-            DataColumn(label: Text('سعر الاستئجار')),
-            DataColumn(label: Text('سعر التأجير')),
-            DataColumn(label: Text('المستأجر')),
-            DataColumn(label: Text('التقييم')),
-          ],
+                      columns: const [
+                        DataColumn(label: Text('#')),
+                        DataColumn(label: Text('المحطة')),
+                        DataColumn(label: Text('المدينة')),
+                        DataColumn(label: Text('الحالة')),
+                        DataColumn(label: Text('المضخات')),
+                        DataColumn(label: Text('اللترات')),
+                        DataColumn(label: Text('سعر الاستئجار')),
+                        DataColumn(label: Text('سعر التأجير')),
+                        DataColumn(label: Text('المستأجر')),
+                        DataColumn(label: Text('التقييم')),
+                      ],
                       rows: [
                         for (int i = 0; i < stations.length; i++)
                           _buildStationRow(i + 1, stations[i]),
@@ -1052,12 +1058,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         DataCell(Text(_formatCurrency(station.accounting.stationCost))),
         DataCell(Text(_formatCurrency(station.accounting.leaseAmount))),
         DataCell(Text(station.tenantName ?? 'بدون')),
-        DataCell(
-          Text(
-            rating,
-            style: TextStyle(color: _ratingColor(rating)),
-          ),
-        ),
+        DataCell(Text(rating, style: TextStyle(color: _ratingColor(rating)))),
       ],
     );
   }
@@ -1072,8 +1073,6 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
   String _formatNumber(num value) {
     return NumberFormat.decimalPattern('ar').format(value);
   }
-
-
 
   Widget _buildTasksTab() {
     return ListView(
@@ -1259,7 +1258,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.assignment, color: AppColors.primaryBlue),
+                                Icon(
+                                  Icons.assignment,
+                                  color: AppColors.primaryBlue,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -1278,7 +1280,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                             const SizedBox(height: 8),
                             Text(
                               station.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -1399,8 +1403,6 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     );
   }
 
-
-
   Widget _buildInspectionsTab(
     bool isWide,
     StationInspectionProvider inspectionProvider,
@@ -1418,9 +1420,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                 inspection.address.toLowerCase().contains(query) ||
                 ownerName.toLowerCase().contains(query) ||
                 createdBy.toLowerCase().contains(query) ||
-                _inspectionStatusLabel(inspection.status)
-                    .toLowerCase()
-                    .contains(query);
+                _inspectionStatusLabel(
+                  inspection.status,
+                ).toLowerCase().contains(query);
           }).toList();
 
     filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -1432,7 +1434,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('\u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0627\u0644\u0645\u062d\u0637\u0627\u062a'),
+              _buildSectionTitle(
+                '\u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0627\u0644\u0645\u062d\u0637\u0627\u062a',
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
@@ -1469,7 +1473,11 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text('\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0644\u0644\u0639\u0631\u0636'))
+              ? const Center(
+                  child: Text(
+                    '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0644\u0644\u0639\u0631\u0636',
+                  ),
+                )
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemBuilder: (context, index) {
@@ -1552,7 +1560,8 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
               children: [
                 _infoChip(
                   icon: Icons.speed,
-                  label: '\u0627\u0644\u0645\u0636\u062e\u0627\u062a: ${inspection.pumps.length}',
+                  label:
+                      '\u0627\u0644\u0645\u0636\u062e\u0627\u062a: ${inspection.pumps.length}',
                 ),
                 _infoChip(
                   icon: Icons.call_split,
@@ -1560,12 +1569,14 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                 ),
                 _infoChip(
                   icon: Icons.water_drop,
-                  label: '\u0627\u0644\u0644\u062a\u0631\u0627\u062a: ${totalLiters.toStringAsFixed(0)}',
+                  label:
+                      '\u0627\u0644\u0644\u062a\u0631\u0627\u062a: ${totalLiters.toStringAsFixed(0)}',
                 ),
                 if (attachmentCount > 0)
                   _infoChip(
                     icon: Icons.attach_file,
-                    label: '\u0645\u0631\u0641\u0642\u0627\u062a: $attachmentCount',
+                    label:
+                        '\u0645\u0631\u0641\u0642\u0627\u062a: $attachmentCount',
                   ),
               ],
             ),
@@ -1618,10 +1629,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 12),
-      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 12)),
     );
   }
 
@@ -1636,6 +1644,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         return '\u062a\u062d\u062a \u0627\u0644\u0645\u0639\u0627\u064a\u0646\u0629';
     }
   }
+
   Widget _financeSection({
     required String title,
     required String actionLabel,
@@ -1707,16 +1716,15 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
   }
 
   Widget _subSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontWeight: FontWeight.bold),
-    );
+    return Text(title, style: const TextStyle(fontWeight: FontWeight.bold));
   }
 
   Widget _buildExpenseDistributionList(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text('لا توجد محطات بعد',
-          style: TextStyle(color: AppColors.mediumGray));
+      return Text(
+        'لا توجد محطات بعد',
+        style: TextStyle(color: AppColors.mediumGray),
+      );
     }
     return Column(
       children: stations.map((station) {
@@ -1765,8 +1773,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
   Widget _buildReceiptDistributionList(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text('لا توجد محطات بعد',
-          style: TextStyle(color: AppColors.mediumGray));
+      return Text(
+        'لا توجد محطات بعد',
+        style: TextStyle(color: AppColors.mediumGray),
+      );
     }
     return Column(
       children: stations.map((station) {
@@ -1956,10 +1966,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                             value: 'تحصيل الإيجار',
                             child: Text('تحصيل الإيجار'),
                           ),
-                          DropdownMenuItem(
-                            value: 'أخرى',
-                            child: Text('أخرى'),
-                          ),
+                          DropdownMenuItem(value: 'أخرى', child: Text('أخرى')),
                         ],
                         onChanged: (value) {
                           if (value == null) return;
@@ -2117,7 +2124,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
             value: _receiptReason,
             items: const [
               DropdownMenuItem(value: 'التأجير', child: Text('التأجير')),
-              DropdownMenuItem(value: 'تحصيل الإيجار', child: Text('تحصيل الإيجار')),
+              DropdownMenuItem(
+                value: 'تحصيل الإيجار',
+                child: Text('تحصيل الإيجار'),
+              ),
               DropdownMenuItem(value: 'أخرى', child: Text('أخرى')),
             ],
             onChanged: (value) {
@@ -2126,7 +2136,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
             },
             decoration: InputDecoration(
               labelText: 'سبب القبض',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               filled: true,
               fillColor: Colors.white,
             ),
@@ -2175,10 +2187,8 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       value: selectedId,
       items: stations
           .map(
-            (station) => DropdownMenuItem(
-              value: station.id,
-              child: Text(station.name),
-            ),
+            (station) =>
+                DropdownMenuItem(value: station.id, child: Text(station.name)),
           )
           .toList(),
       onChanged: onChanged,
@@ -2306,8 +2316,11 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
   }
 
   String _formatCurrency(double value) {
-    return NumberFormat.currency(locale: 'ar', symbol: 'ر.س', decimalDigits: 2)
-        .format(value);
+    return NumberFormat.currency(
+      locale: 'ar',
+      symbol: 'ر.س',
+      decimalDigits: 2,
+    ).format(value);
   }
 
   Future<bool> _saveExpense(MarketingStationProvider provider) async {
@@ -2328,8 +2341,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       createdAt: _expenseDateTime,
       notes: _expenseNotesController.text.trim(),
     );
-    final result =
-        await provider.addExpenseVoucher(_expenseStationId!, expense);
+    final result = await provider.addExpenseVoucher(
+      _expenseStationId!,
+      expense,
+    );
     if (result == null) {
       _showSnackBar(provider.error ?? 'فشل إضافة المصروف');
       return false;
@@ -2342,7 +2357,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       _expenseDateTime = DateTime.now();
     });
     _showSnackBar('تم حفظ سند المصروف');
-  
+
     return true;
   }
 
@@ -2363,8 +2378,10 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       createdAt: _receiptDateTime,
       notes: _receiptNotesController.text.trim(),
     );
-    final result =
-        await provider.addReceiptVoucher(_receiptStationId!, receipt);
+    final result = await provider.addReceiptVoucher(
+      _receiptStationId!,
+      receipt,
+    );
     if (result == null) {
       _showSnackBar(provider.error ?? 'فشل إضافة سند القبض');
       return false;
@@ -2377,7 +2394,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
       _receiptReason = 'التأجير';
     });
     _showSnackBar('تم حفظ سند القبض');
-  
+
     return true;
   }
 
@@ -2484,9 +2501,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _stationCard({
@@ -2635,10 +2652,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(color: AppColors.mediumGray),
-                ),
+                Text(label, style: TextStyle(color: AppColors.mediumGray)),
                 const SizedBox(height: 4),
                 Text(
                   value,
@@ -2685,10 +2699,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: TextStyle(color: AppColors.mediumGray),
-                ),
+                Text(subtitle, style: TextStyle(color: AppColors.mediumGray)),
               ],
             ),
           ),
@@ -2734,10 +2745,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         children: [
           Icon(icon, size: 14, color: chipColor),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(color: chipColor, fontSize: 12),
-          ),
+          Text(label, style: TextStyle(color: chipColor, fontSize: 12)),
         ],
       ),
     );
@@ -2785,10 +2793,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 12),
-      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 12)),
     );
   }
 }
@@ -2811,10 +2816,7 @@ class _NamedValue {
   final String label;
   final double value;
 
-  const _NamedValue({
-    required this.label,
-    required this.value,
-  });
+  const _NamedValue({required this.label, required this.value});
 }
 
 class _VoucherEntry {

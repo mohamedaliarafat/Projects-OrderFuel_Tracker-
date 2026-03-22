@@ -151,8 +151,10 @@ class ArchiveDocumentsRepository {
         'currentDepartment': currentDepartment!.trim(),
       if ((currentEmployeeName ?? '').trim().isNotEmpty)
         'currentEmployeeName': currentEmployeeName!.trim(),
-      if ((archiveName ?? '').trim().isNotEmpty) 'archiveName': archiveName!.trim(),
-      if ((archiveFile ?? '').trim().isNotEmpty) 'archiveFile': archiveFile!.trim(),
+      if ((archiveName ?? '').trim().isNotEmpty)
+        'archiveName': archiveName!.trim(),
+      if ((archiveFile ?? '').trim().isNotEmpty)
+        'archiveFile': archiveFile!.trim(),
       if ((archiveShelf ?? '').trim().isNotEmpty)
         'archiveShelf': archiveShelf!.trim(),
       if ((notes ?? '').trim().isNotEmpty) 'notes': notes!.trim(),
@@ -187,7 +189,9 @@ class ArchiveDocumentsRepository {
     }
     final doc = Map<String, dynamic>.from(body['document'] as Map);
     if (body['labelPayload'] is Map) {
-      doc['labelPayload'] = Map<String, dynamic>.from(body['labelPayload'] as Map);
+      doc['labelPayload'] = Map<String, dynamic>.from(
+        body['labelPayload'] as Map,
+      );
     }
     return doc;
   }
@@ -200,12 +204,17 @@ class ArchiveStickerPrinter {
         : <String, dynamic>{};
     String val(String k) => '${pld[k] ?? d[k] ?? ''}';
 
-    final reg = pw.Font.ttf(await rootBundle.load('assets/fonts/Cairo-Regular.ttf'));
-    final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
-    final barcodeData = (val('documentNumber').trim().isNotEmpty
-            ? val('documentNumber')
-            : val('serialNumber'))
-        .trim();
+    final reg = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Cairo-Regular.ttf'),
+    );
+    final bold = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Cairo-Bold.ttf'),
+    );
+    final barcodeData =
+        (val('documentNumber').trim().isNotEmpty
+                ? val('documentNumber')
+                : val('serialNumber'))
+            .trim();
     final pdf = pw.Document();
     pdf.addPage(
       pw.Page(
@@ -218,36 +227,35 @@ class ArchiveStickerPrinter {
         theme: pw.ThemeData.withFont(base: reg, bold: bold),
         build: (_) {
           pw.Widget row(String t, String v, {bool b = false}) => pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 0.5),
-                child: pw.Row(
-                  children: [
-                    pw.Container(
-                      width: 16 * PdfPageFormat.mm,
-                      alignment: pw.Alignment.centerRight,
-                      child: pw.Text(
-                        '$t:',
-                        style: pw.TextStyle(
-                          fontSize: 6.2,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
+            padding: const pw.EdgeInsets.only(bottom: 0.5),
+            child: pw.Row(
+              children: [
+                pw.Container(
+                  width: 16 * PdfPageFormat.mm,
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Text(
+                    '$t:',
+                    style: pw.TextStyle(
+                      fontSize: 6.2,
+                      fontWeight: pw.FontWeight.bold,
                     ),
-                    pw.SizedBox(width: 2),
-                    pw.Expanded(
-                      child: pw.Text(
-                        v.isEmpty ? '-' : v,
-                        textAlign: pw.TextAlign.left,
-                        maxLines: 1,
-                        style: pw.TextStyle(
-                          fontSize: 6.2,
-                          fontWeight:
-                              b ? pw.FontWeight.bold : pw.FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              );
+                pw.SizedBox(width: 2),
+                pw.Expanded(
+                  child: pw.Text(
+                    v.isEmpty ? '-' : v,
+                    textAlign: pw.TextAlign.left,
+                    maxLines: 1,
+                    style: pw.TextStyle(
+                      fontSize: 6.2,
+                      fontWeight: b ? pw.FontWeight.bold : pw.FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
           return pw.Container(
             padding: const pw.EdgeInsets.all(3),
             decoration: pw.BoxDecoration(
@@ -266,16 +274,20 @@ class ArchiveStickerPrinter {
                   ),
                 ),
                 pw.SizedBox(height: 1),
-                row('النوع',
-                    pld['documentTypeLabel']?.toString() ??
-                        d['documentTypeLabel']?.toString() ??
-                        ArchiveDocsUi.typeLabel(val('documentType')),
-                    b: true),
-                row('الحالة',
-                    pld['statusLabel']?.toString() ??
-                        d['statusLabel']?.toString() ??
-                        ArchiveDocsUi.statusLabel(val('status')),
-                    b: true),
+                row(
+                  'النوع',
+                  pld['documentTypeLabel']?.toString() ??
+                      d['documentTypeLabel']?.toString() ??
+                      ArchiveDocsUi.typeLabel(val('documentType')),
+                  b: true,
+                ),
+                row(
+                  'الحالة',
+                  pld['statusLabel']?.toString() ??
+                      d['statusLabel']?.toString() ??
+                      ArchiveDocsUi.statusLabel(val('status')),
+                  b: true,
+                ),
                 row('رقم المستند', val('documentNumber'), b: true),
                 row('السريال', val('serialNumber')),
                 if (barcodeData.isNotEmpty) ...[
@@ -287,7 +299,10 @@ class ArchiveStickerPrinter {
                     ),
                     decoration: pw.BoxDecoration(
                       color: PdfColors.white,
-                      border: pw.Border.all(color: PdfColors.grey500, width: 0.35),
+                      border: pw.Border.all(
+                        color: PdfColors.grey500,
+                        width: 0.35,
+                      ),
                       borderRadius: pw.BorderRadius.circular(1.5),
                     ),
                     child: pw.Column(

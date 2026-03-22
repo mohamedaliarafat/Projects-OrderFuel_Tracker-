@@ -36,8 +36,9 @@ class _MarketingHandoverReportScreenState
 
   Future<void> _ensureAutoFields() async {
     final report = _station.handoverReport ?? HandoverReport.empty();
-    final autoReportNumber =
-        report.reportNumber.trim().isEmpty ? _generateReportNumber() : null;
+    final autoReportNumber = report.reportNumber.trim().isEmpty
+        ? _generateReportNumber()
+        : null;
     final autoReference = report.contractReference.trim().isEmpty
         ? _generateContractReference()
         : null;
@@ -51,15 +52,16 @@ class _MarketingHandoverReportScreenState
       contractReference: autoReference ?? report.contractReference,
     );
 
-    final updatedStation =
-        _station.copyWith(handoverReport: updatedReport);
+    final updatedStation = _station.copyWith(handoverReport: updatedReport);
 
     setState(() {
       _saving = true;
       _station = updatedStation;
     });
 
-    await context.read<MarketingStationProvider>().updateStation(updatedStation);
+    await context.read<MarketingStationProvider>().updateStation(
+      updatedStation,
+    );
     if (mounted) {
       setState(() => _saving = false);
     }
@@ -99,14 +101,16 @@ class _MarketingHandoverReportScreenState
         ? report.stationName
         : _station.name;
     final city = report.city.trim().isNotEmpty ? report.city : _station.city;
-    final street =
-        report.street.trim().isNotEmpty ? report.street : _station.address;
+    final street = report.street.trim().isNotEmpty
+        ? report.street
+        : _station.address;
 
     final contractText = report.contractReference.trim().isEmpty
         ? ''
         : ' حسب العقد المبرم ${_reportValue(report.contractReference)}';
 
-    final paragraph = 'انه في يوم ${_reportValue(report.dayName)} بتاريخ '
+    final paragraph =
+        'انه في يوم ${_reportValue(report.dayName)} بتاريخ '
         '${_reportValue(report.hijriDate)} هـ الموافق '
         '${_reportValue(report.gregorianDate)} تم الوقوف على محطة المحروقات '
         'المسماة بمحطة ${_reportValue(stationName)} مدينة ${_reportValue(city)} '

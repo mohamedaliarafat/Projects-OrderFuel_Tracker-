@@ -6,6 +6,8 @@ enum AppLanguage {
   arabic('ar', 'العربية'),
   bengali('bn', 'বাংলা'),
   english('en', 'English'),
+  urdu('ur', 'اردو'),
+  pashto('ps', 'پښتو'),
   hindi('hi', 'हिन्दी'),
   nepali('ne', 'नेपाली'),
   filipino('fil', 'Filipino');
@@ -48,6 +50,72 @@ class AppStrings {
   static const logout = 'logout';
   static const languageLabel = 'languageLabel';
   static const languageDialogTitle = 'languageDialogTitle';
+  static const refreshTooltip = 'refreshTooltip';
+
+  // Driver dashboard
+  static const driverDashboardTitle = 'driverDashboardTitle';
+  static const driverTabOrders = 'driverTabOrders';
+  static const driverTabNotifications = 'driverTabNotifications';
+  static const driverAssignedOrdersTitle = 'driverAssignedOrdersTitle';
+  static const driverAssignedOrdersSubtitle = 'driverAssignedOrdersSubtitle';
+  static const driverOrdersCount = 'driverOrdersCount';
+  static const driverNotificationsTitle = 'driverNotificationsTitle';
+  static const driverNotificationsSubtitle = 'driverNotificationsSubtitle';
+  static const driverUnreadCount = 'driverUnreadCount';
+  static const driverMarkAllRead = 'driverMarkAllRead';
+  static const driverAutoRefreshChip = 'driverAutoRefreshChip';
+  static const driverNotificationLiveChip = 'driverNotificationLiveChip';
+  static const driverCurrentOrdersLabel = 'driverCurrentOrdersLabel';
+  static const driverCurrentOrdersHelper = 'driverCurrentOrdersHelper';
+  static const driverWaitingLoadLabel = 'driverWaitingLoadLabel';
+  static const driverWaitingLoadHelper = 'driverWaitingLoadHelper';
+  static const driverDeliveringLabel = 'driverDeliveringLabel';
+  static const driverDeliveringHelper = 'driverDeliveringHelper';
+  static const driverCompletedLabel = 'driverCompletedLabel';
+  static const driverCompletedHelper = 'driverCompletedHelper';
+  static const driverWelcomeTemplate = 'driverWelcomeTemplate';
+  static const driverUserFallback = 'driverUserFallback';
+  static const driverWelcomeOrdersSubtitle = 'driverWelcomeOrdersSubtitle';
+  static const driverWelcomeNotificationsSubtitle =
+      'driverWelcomeNotificationsSubtitle';
+  static const driverLoadingOrdersTitle = 'driverLoadingOrdersTitle';
+  static const driverLoadingOrdersMessage = 'driverLoadingOrdersMessage';
+  static const driverLoadOrdersErrorTitle = 'driverLoadOrdersErrorTitle';
+  static const driverRetry = 'driverRetry';
+  static const driverNoOrdersTitle = 'driverNoOrdersTitle';
+  static const driverNoOrdersMessage = 'driverNoOrdersMessage';
+  static const driverOrderNumberTemplate = 'driverOrderNumberTemplate';
+  static const driverUnknownFuel = 'driverUnknownFuel';
+  static const driverCurrentDestinationLabel = 'driverCurrentDestinationLabel';
+  static const driverArrivalTimeLabel = 'driverArrivalTimeLabel';
+  static const driverLoadingTimeLabel = 'driverLoadingTimeLabel';
+  static const driverActualLoadingDataTitle = 'driverActualLoadingDataTitle';
+  static const driverOpenExecutionPage = 'driverOpenExecutionPage';
+  static const driverLoadingNotificationsTitle =
+      'driverLoadingNotificationsTitle';
+  static const driverLoadingNotificationsMessage =
+      'driverLoadingNotificationsMessage';
+  static const driverLoadNotificationsErrorTitle =
+      'driverLoadNotificationsErrorTitle';
+  static const driverNoNotificationsTitle = 'driverNoNotificationsTitle';
+  static const driverNoNotificationsMessage = 'driverNoNotificationsMessage';
+  static const driverLoadingStationDefault = 'driverLoadingStationDefault';
+  static const driverCurrentClientFallback = 'driverCurrentClientFallback';
+  static const driverHeadingToLoadingStation =
+      'driverHeadingToLoadingStation';
+  static const driverHeadingToCustomer = 'driverHeadingToCustomer';
+  static const driverNotAvailable = 'driverNotAvailable';
+  static const driverNotSpecified = 'driverNotSpecified';
+  static const driverLitersUnit = 'driverLitersUnit';
+  static const driverStatusLoaded = 'driverStatusLoaded';
+  static const driverStatusOnWay = 'driverStatusOnWay';
+  static const driverStatusDelivered = 'driverStatusDelivered';
+  static const driverStatusExecuted = 'driverStatusExecuted';
+  static const driverStatusCompleted = 'driverStatusCompleted';
+  static const driverStatusCanceled = 'driverStatusCanceled';
+  static const driverLogoutConfirmTitle = 'driverLogoutConfirmTitle';
+  static const driverLogoutConfirmMessage = 'driverLogoutConfirmMessage';
+  static const cancelAction = 'cancelAction';
 
   // الورديات
   static const shiftCountdown = 'shiftCountdown';
@@ -147,7 +215,6 @@ class AppStrings {
   static const unexpectedError = 'unexpectedError';
   static const quantityLabel = 'quantityLabel';
 
-
   // ============= عناصر الجدول =============
   static const sessionNumberColumn = 'sessionNumberColumn';
   static const stationColumn = 'stationColumn';
@@ -203,8 +270,7 @@ class AppStrings {
   static const pumpSeparator = 'pumpSeparator';
   static const fuelTypeSeparator = 'fuelTypeSeparator';
 
-
-    static const closeSessionTitle = 'closeSessionTitle';
+  static const closeSessionTitle = 'closeSessionTitle';
   static const enterValidNumber = 'enterValidNumber';
   static const mustBeGreaterThanOpening = 'mustBeGreaterThanOpening';
   static const attachClosingMeterImage = 'attachClosingMeterImage';
@@ -242,8 +308,6 @@ class AppStrings {
   static const vehicleLitersBreakdown = 'vehicleLitersBreakdown';
   static const loadingClosingSession = 'loadingClosingSession';
 
-
-
   // ============= العملة =============
   static const currencySAR = 'currencySAR';
   static const currencyLiters = 'currencyLiters';
@@ -251,7 +315,6 @@ class AppStrings {
   // ============= الصيغ =============
   static const litersTemplate = 'litersTemplate';
   static const amountTemplate = 'amountTemplate';
-
 }
 
 class AppLocalizations {
@@ -269,6 +332,7 @@ class AppLocalizations {
   String translate(String key, [Map<String, String>? params]) {
     final value =
         translationValues[key]?[language.code] ??
+        translationValues[key]?['en'] ??
         translationValues[key]?['ar'] ??
         key;
     if (params == null || params.isEmpty) return value;
@@ -293,7 +357,7 @@ class _AppLocalizationsDelegate
   Future<AppLocalizations> load(Locale locale) {
     final language = AppLanguage.values.firstWhere(
       (lang) => lang.code == locale.languageCode,
-      orElse: () => AppLanguage.arabic,
+      orElse: () => AppLanguage.english,
     );
     return SynchronousFuture(AppLocalizations(language));
   }

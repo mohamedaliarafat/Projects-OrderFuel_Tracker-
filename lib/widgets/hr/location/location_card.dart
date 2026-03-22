@@ -43,7 +43,9 @@ class LocationCard extends StatelessWidget {
                   ),
                   Icon(
                     location.isActive ? Icons.check_circle : Icons.cancel,
-                    color: location.isActive ? AppColors.successGreen : AppColors.errorRed,
+                    color: location.isActive
+                        ? AppColors.successGreen
+                        : AppColors.errorRed,
                   ),
                 ],
               ),
@@ -63,7 +65,9 @@ class LocationCard extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: onToggleStatus,
-                    icon: Icon(location.isActive ? Icons.toggle_on : Icons.toggle_off),
+                    icon: Icon(
+                      location.isActive ? Icons.toggle_on : Icons.toggle_off,
+                    ),
                     tooltip: location.isActive ? 'تعطيل' : 'تفعيل',
                   ),
                   IconButton(

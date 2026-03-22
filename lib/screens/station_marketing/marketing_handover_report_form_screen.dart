@@ -64,13 +64,16 @@ class _MarketingHandoverReportFormScreenState
     _reportDayController.text = report?.dayName ?? '';
     _reportHijriDateController.text = report?.hijriDate ?? '';
     _reportGregorianDateController.text = report?.gregorianDate ?? '';
-    _stationNameController.text =
-        report?.stationName.isNotEmpty == true ? report!.stationName : _station.name;
-    _cityController.text =
-        report?.city.isNotEmpty == true ? report!.city : _station.city;
+    _stationNameController.text = report?.stationName.isNotEmpty == true
+        ? report!.stationName
+        : _station.name;
+    _cityController.text = report?.city.isNotEmpty == true
+        ? report!.city
+        : _station.city;
     _districtController.text = report?.district ?? '';
-    _streetController.text =
-        report?.street.isNotEmpty == true ? report!.street : _station.address;
+    _streetController.text = report?.street.isNotEmpty == true
+        ? report!.street
+        : _station.address;
     _civilLicenseNumberController.text = report?.civilLicenseNumber ?? '';
     _civilLicenseDateController.text = report?.civilLicenseDate ?? '';
     _municipalityLicenseNumberController.text =
@@ -80,15 +83,13 @@ class _MarketingHandoverReportFormScreenState
     _ownerNameController.text = report?.ownerName ?? '';
     _representativeNameController.text = report?.representativeName ?? '';
     _authorizationNumberController.text = report?.authorizationNumber ?? '';
-    _companyNameController.text =
-        report?.companyName.isNotEmpty == true
-            ? report!.companyName
-            : (_station.tenantName ?? '');
+    _companyNameController.text = report?.companyName.isNotEmpty == true
+        ? report!.companyName
+        : (_station.tenantName ?? '');
     _companyRepresentativeController.text =
         report?.companyRepresentativeName ?? '';
     _dispensersCountController.text = report?.dispensersCount ?? '';
-    _doubleDispensersCountController.text =
-        report?.doubleDispensersCount ?? '';
+    _doubleDispensersCountController.text = report?.doubleDispensersCount ?? '';
 
     if (report != null) {
       _fuelDispensers.addAll(report.fuelDispensers);
@@ -142,9 +143,7 @@ class _MarketingHandoverReportFormScreenState
 
   void _ensureDefaultReportRows() {
     if (_fuelDispensers.isEmpty) {
-      _fuelDispensers.addAll(
-        List.generate(4, (_) => FuelDispenserRow.empty()),
-      );
+      _fuelDispensers.addAll(List.generate(4, (_) => FuelDispenserRow.empty()));
     }
     if (_fuelTanks.isEmpty) {
       _fuelTanks.addAll(
@@ -184,7 +183,8 @@ class _MarketingHandoverReportFormScreenState
       street: _streetController.text.trim(),
       civilLicenseNumber: _civilLicenseNumberController.text.trim(),
       civilLicenseDate: _civilLicenseDateController.text.trim(),
-      municipalityLicenseNumber: _municipalityLicenseNumberController.text.trim(),
+      municipalityLicenseNumber: _municipalityLicenseNumberController.text
+          .trim(),
       municipalityLicenseDate: _municipalityLicenseDateController.text.trim(),
       ownerName: _ownerNameController.text.trim(),
       representativeName: _representativeNameController.text.trim(),
@@ -206,16 +206,17 @@ class _MarketingHandoverReportFormScreenState
     setState(() => _saving = true);
     final report = _buildReport();
     final updated = _station.copyWith(handoverReport: report);
-    final result =
-        await context.read<MarketingStationProvider>().updateStation(updated);
+    final result = await context.read<MarketingStationProvider>().updateStation(
+      updated,
+    );
     if (mounted) {
       setState(() => _saving = false);
       if (result != null) {
         Navigator.pop(context, result);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('فشل حفظ المحضر')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('فشل حفظ المحضر')));
       }
     }
   }
@@ -261,9 +262,7 @@ class _MarketingHandoverReportFormScreenState
     final isWide = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('محضر استلام محطة محروقات'),
-      ),
+      appBar: AppBar(title: const Text('محضر استلام محطة محروقات')),
       body: Stack(
         children: [
           Form(
@@ -508,7 +507,8 @@ class _MarketingHandoverReportFormScreenState
                             ),
                             _tableTextFieldCell(
                               initialValue: row.operatingCapacity,
-                              onChanged: (value) => row.operatingCapacity = value,
+                              onChanged: (value) =>
+                                  row.operatingCapacity = value,
                               keyboardType: TextInputType.number,
                             ),
                             _tableTextFieldCell(

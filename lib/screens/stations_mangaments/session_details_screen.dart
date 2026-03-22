@@ -20,7 +20,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/web_platform.dart' as web_platform;
 
-
 class PdfFuelStockSummary {
   final String fuelType;
   final double stockBeforeSales;
@@ -34,7 +33,6 @@ class PdfFuelStockSummary {
     required this.stockAfterSales,
   });
 }
-
 
 class SessionDetailsScreen extends StatefulWidget {
   final String sessionId;
@@ -178,10 +176,7 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
 
     try {
       await provider.fetchInventories(
-        filters: {
-          'stationId': stationId,
-          'endDate': _formatDate(sessionDate),
-        },
+        filters: {'stationId': stationId, 'endDate': _formatDate(sessionDate)},
       );
     } catch (_) {
       return {};
@@ -206,7 +201,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
       if (key.isEmpty) continue;
 
       final existing = latestByFuel[key];
-      if (existing == null || inventory.inventoryDate.isAfter(existing.inventoryDate)) {
+      if (existing == null ||
+          inventory.inventoryDate.isAfter(existing.inventoryDate)) {
         latestByFuel[key] = inventory;
       }
     }
@@ -246,7 +242,6 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     }
     return result;
   }
-
 
   double _calculateReadingLiters(NozzleReading reading) {
     if (reading.closingReading == null) return 0;
@@ -374,7 +369,7 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     }
   }
 
-Future<void> exportSessionToPdf(
+  Future<void> exportSessionToPdf(
     BuildContext context,
     PumpSession session,
   ) async {
@@ -398,10 +393,8 @@ Future<void> exportSessionToPdf(
 
     // ================= الحسابات المالية =================
     final _SessionTotals sessionTotals = _calculateSessionTotals(session);
-    final double expensesTotal = session.expenses?.fold<double>(
-          0,
-          (sum, e) => sum + e.amount,
-        ) ??
+    final double expensesTotal =
+        session.expenses?.fold<double>(0, (sum, e) => sum + e.amount) ??
         (session.expensesTotal ?? 0);
     final double returnAmount = _calculateFuelReturnAmount(session);
     final double expectedTotal =
@@ -412,10 +405,22 @@ Future<void> exportSessionToPdf(
 
     // ================= بيانات المخزون =================
     List<PdfFuelStockSummary> pdfFuelSummaries = [];
-    final Map<String, double> sessionSalesByFuel =
-        _getSessionSalesByFuel(session);
+    final Map<String, double> sessionSalesByFuel = _getSessionSalesByFuel(
+      session,
+    );
 
-    if (session.stationId.isNotEmpty) {
+    if (session.fuelStockSummary.isNotEmpty) {
+      pdfFuelSummaries = session.fuelStockSummary
+          .map(
+            (item) => PdfFuelStockSummary(
+              fuelType: item.fuelType,
+              stockBeforeSales: item.stockBeforeSales,
+              sales: item.sales,
+              stockAfterSales: item.stockAfterSales,
+            ),
+          )
+          .toList();
+    } else if (session.stationId.isNotEmpty) {
       try {
         // ⬅️ نجيب كل تقارير المخزون لحد وقت الجلسة
         await stationProvider.fetchFuelBalanceReport(
@@ -431,8 +436,10 @@ Future<void> exportSessionToPdf(
             .toList();
 
         // ✅ رصيد أساس من التقرير
-        Map<String, double> baseStockByFuel =
-            _buildBaseStockFromReport(rows, session.sessionDate);
+        Map<String, double> baseStockByFuel = _buildBaseStockFromReport(
+          rows,
+          session.sessionDate,
+        );
 
         // ✅ دمج رصيد الجرد اليومي (الأقرب للتاريخ) كأولوية للرصيد الفعلي
         final inventoryBaseStock = await _loadBaseStockFromInventoriesFallback(
@@ -547,7 +554,6 @@ Future<void> exportSessionToPdf(
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-
   Future<pw.Font> _loadArabicFont() async {
     final fontData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
     return pw.Font.ttf(fontData);
@@ -602,15 +608,11 @@ Future<void> exportSessionToPdf(
       row++;
     }
 
-    final expensesTotal = session.expenses?.fold<double>(
-          0,
-          (sum, e) => sum + e.amount,
-        ) ??
-        0;
+    final expensesTotal =
+        session.expenses?.fold<double>(0, (sum, e) => sum + e.amount) ?? 0;
     final returnAmount = _calculateFuelReturnAmount(session);
     final sessionTotals = _calculateSessionTotals(session);
-    final expectedTotal =
-        sessionTotals.amount - expensesTotal - returnAmount;
+    final expectedTotal = sessionTotals.amount - expensesTotal - returnAmount;
     final actualTotal = session.paymentTypes.total;
 
     row += 1;
@@ -640,6 +642,28 @@ Future<void> exportSessionToPdf(
         row += 1;
         sheet.getRangeByIndex(row, 1).setText('سبب الإرجاع');
         sheet.getRangeByIndex(row, 5).setText(ret.reason ?? '-');
+        row += 1;
+      }
+    }
+
+    if (session.fuelStockSummary.isNotEmpty) {
+      row += 1;
+      sheet.getRangeByIndex(row, 1).setText('ملخص المخزون');
+      sheet.getRangeByIndex(row, 1).cellStyle.bold = true;
+      row += 1;
+
+      final stockHeaders = ['الوقود', 'قبل البيع', 'المباع', 'بعد البيع'];
+      for (int i = 0; i < stockHeaders.length; i++) {
+        sheet.getRangeByIndex(row, i + 1).setText(stockHeaders[i]);
+        sheet.getRangeByIndex(row, i + 1).cellStyle.bold = true;
+      }
+
+      row += 1;
+      for (final summary in session.fuelStockSummary) {
+        sheet.getRangeByIndex(row, 1).setText(summary.fuelType);
+        sheet.getRangeByIndex(row, 2).setNumber(summary.stockBeforeSales);
+        sheet.getRangeByIndex(row, 3).setNumber(summary.sales);
+        sheet.getRangeByIndex(row, 4).setNumber(summary.stockAfterSales);
         row += 1;
       }
     }
@@ -687,8 +711,6 @@ Future<void> exportSessionToPdf(
       _isFuelPriceLoading = false;
     });
   }
-
-
 
   pw.Widget _buildPdfFinancialSummary({
     required double expectedTotal,
@@ -807,7 +829,6 @@ Future<void> exportSessionToPdf(
     );
   }
 
- 
   pw.TableRow _buildCompactInfoRow(String label, String value) {
     return pw.TableRow(
       children: [
@@ -1075,7 +1096,6 @@ Future<void> exportSessionToPdf(
     );
   }
 
-
   pw.Widget _buildPdfPaymentsTable(PumpSession s) {
     final p = s.paymentTypes;
 
@@ -1164,7 +1184,6 @@ Future<void> exportSessionToPdf(
       ],
     );
   }
-
 
   pw.Widget _buildPdfPumpTable(PumpSession session) {
     final readings = session.nozzleReadings ?? [];
@@ -1294,7 +1313,11 @@ Future<void> exportSessionToPdf(
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
               children: [
-                _pdfCell(totalExpenses.toStringAsFixed(2), bold: true, fontSize: 8),
+                _pdfCell(
+                  totalExpenses.toStringAsFixed(2),
+                  bold: true,
+                  fontSize: 8,
+                ),
                 _pdfCell('إجمالي المصروفات', bold: true, fontSize: 8),
                 _pdfCell('', fontSize: 8),
               ],
@@ -1309,7 +1332,6 @@ Future<void> exportSessionToPdf(
     PumpSession session,
     List<FuelReturn> fuelReturns,
   ) {
-
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1337,8 +1359,10 @@ Future<void> exportSessionToPdf(
               return pw.TableRow(
                 children: [
                   _pdfCell(ret.fuelType, fontSize: 8),
-                  _pdfCell('${ret.quantity.toStringAsFixed(2)} لتر',
-                      fontSize: 8),
+                  _pdfCell(
+                    '${ret.quantity.toStringAsFixed(2)} لتر',
+                    fontSize: 8,
+                  ),
                   _pdfCell(ret.reason ?? '-', fontSize: 8),
                   _pdfCell(
                     amount > 0 ? amount.toStringAsFixed(2) : '-',
@@ -1353,7 +1377,7 @@ Future<void> exportSessionToPdf(
     );
   }
 
-pw.Widget _buildPdfFuelStockSummaryEnhanced(
+  pw.Widget _buildPdfFuelStockSummaryEnhanced(
     List<PdfFuelStockSummary> summaries,
   ) {
     if (summaries.isEmpty) return pw.SizedBox();
@@ -1397,17 +1421,14 @@ pw.Widget _buildPdfFuelStockSummaryEnhanced(
     );
   }
 
-
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
- 
   @override
   Widget build(BuildContext context) {
     final stationProvider = Provider.of<StationProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-    final isSalesManager = authProvider.role == 'sales_manager_statiun';
     final isOwner = authProvider.role == 'owner';
     final session = stationProvider.selectedSession;
 
@@ -1468,16 +1489,20 @@ pw.Widget _buildPdfFuelStockSummaryEnhanced(
             },
           ),
 
-          if (isSalesManager)
+          if (isOwner)
             IconButton(
               tooltip: 'تعديل الجلسة',
               icon: const Icon(Icons.edit),
-              onPressed: () {
-                Navigator.pushNamed(
+              onPressed: () async {
+                final updated = await Navigator.pushNamed(
                   context,
                   AppRoutes.sessionEdit,
                   arguments: session,
                 );
+
+                if (updated == true && mounted) {
+                  await _loadSessionDetails();
+                }
               },
             ),
 
@@ -1500,8 +1525,7 @@ pw.Widget _buildPdfFuelStockSummaryEnhanced(
                       ),
                       ElevatedButton(
                         onPressed: () => Navigator.pop(context, true),
-                        style: ElevatedButton.styleFrom(
-                        ),
+                        style: ElevatedButton.styleFrom(),
                         child: const Text('حذف'),
                       ),
                     ],
@@ -1517,16 +1541,12 @@ pw.Widget _buildPdfFuelStockSummaryEnhanced(
                 if (success) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم حذف الجلسة بنجاح'),
-                    ),
+                    const SnackBar(content: Text('تم حذف الجلسة بنجاح')),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        stationProvider.error ?? 'فشل حذف الجلسة',
-                      ),
+                      content: Text(stationProvider.error ?? 'فشل حذف الجلسة'),
                     ),
                   );
                 }
@@ -3929,7 +3949,8 @@ pw.Widget _buildPdfFuelStockSummaryEnhanced(
           await web_platform.downloadUrl(
             imageUrl,
             filename:
-                'reading_image_' + DateTime.now().millisecondsSinceEpoch.toString(),
+                'reading_image_' +
+                DateTime.now().millisecondsSinceEpoch.toString(),
           );
         } else {
           final uri = Uri.parse(imageUrl);

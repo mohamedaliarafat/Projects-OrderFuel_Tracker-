@@ -44,9 +44,7 @@ class NotificationProvider with ChangeNotifier {
             .toList();
         if (_currentUserId != null && _currentUserId!.isNotEmpty) {
           _notifications = fetched
-              .where(
-                (n) => n.getRecipientForUser(_currentUserId!) != null,
-              )
+              .where((n) => n.getRecipientForUser(_currentUserId!) != null)
               .toList();
           _calculateUnreadCount();
         } else {
@@ -67,14 +65,10 @@ class NotificationProvider with ChangeNotifier {
     }
   }
 
-  
-
   Future<bool> markAsRead(String notificationId) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '${ApiEndpoints.baseUrl}/notifications/$notificationId/read',
-        ),
+        Uri.parse('${ApiEndpoints.baseUrl}/notifications/$notificationId/read'),
         headers: ApiService.headers,
       );
 

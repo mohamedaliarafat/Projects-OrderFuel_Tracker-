@@ -25,10 +25,12 @@ import 'package:order_tracker/screens/maintenance/maintenance_dashboard_screen.d
 import 'package:order_tracker/screens/maintenance/maintenance_detail_screen.dart';
 import 'package:order_tracker/screens/maintenance/maintenance_form_screen.dart';
 import 'package:order_tracker/screens/maintenance/workshop_fuel_dashboard_screen.dart';
+import 'package:order_tracker/screens/maintenance/workshop_fuel_driver_report_screen.dart';
 import 'package:order_tracker/screens/maintenance/workshop_fuel_supplies_screen.dart';
 import 'package:order_tracker/screens/maintenance/workshop_fuel_supply_form_screen.dart';
 import 'package:order_tracker/screens/maintenance/workshop_fuel_supply_details_screen.dart';
 import 'package:order_tracker/screens/maintenance/workshop_fuel_refuel_form_screen.dart';
+import 'package:order_tracker/screens/maintenance/workshop_fuel_readings_screen.dart';
 import 'package:order_tracker/screens/maintenance/workshop_fuel_report_screen.dart';
 import 'package:order_tracker/screens/archive/archive_documents_screen.dart';
 import 'package:order_tracker/screens/archive/archive_document_form_screen.dart';
@@ -38,7 +40,10 @@ import 'package:order_tracker/screens/order/costomer_order/customer_form_screen.
 import 'package:order_tracker/screens/order/costomer_order/customer_order_form.dart';
 import 'package:order_tracker/screens/order/costomer_order/customers_screen.dart';
 import 'package:order_tracker/screens/dashboard_screen.dart';
+import 'package:order_tracker/screens/auth_devices_screen.dart';
+import 'package:order_tracker/screens/blocked_devices_screen.dart';
 import 'package:order_tracker/screens/driver_form_screen.dart';
+import 'package:order_tracker/screens/driver_home_screen.dart';
 import 'package:order_tracker/screens/drivers_screen.dart';
 import 'package:order_tracker/screens/login_screen.dart';
 import 'package:order_tracker/screens/notifications_screen.dart';
@@ -61,12 +66,15 @@ import 'package:order_tracker/screens/stations_mangaments/daily_inventory_screen
 import 'package:order_tracker/screens/stations_mangaments/inventory_details_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/inventory_list_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/main_home_screen.dart';
+import 'package:order_tracker/screens/tracking/tracking_screen.dart';
+import 'package:order_tracker/screens/stations_mangaments/monthly_station_report_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/open_session_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/session_details_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/session_edit_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/sessions_list_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/station_details_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/station_form_screen.dart';
+import 'package:order_tracker/screens/stations_mangaments/station_treasury_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/stations_dashboard_screen.dart';
 import 'package:order_tracker/screens/stations_mangaments/stations_list_screen.dart';
 import 'package:order_tracker/screens/trading/trade.dart';
@@ -129,8 +137,10 @@ class AppRoutes {
 
   // Main
   static const dashboard = '/dashboard';
+  static const tracking = '/tracking';
 
   // Orders
+  static const driverHome = '/driver/home';
   static const orders = '/orders';
   static const orderForm = '/orders/form';
   static const orderDetails = '/orders/details';
@@ -151,6 +161,8 @@ class AppRoutes {
   static const String invoiceReport = '/reports/invoice';
   static const String advancedFilter = '/reports/filter';
   static const String userManagement = '/users/manage';
+  static const String authDevices = '/auth/devices';
+  static const String blockedDevices = '/auth/blocked-devices';
 
   // Other
   static const activities = '/activities';
@@ -181,11 +193,19 @@ class AppRoutes {
   static const String custodyDashboard = '/maintenance/custody-dashboard';
   static const String custodyReturn = '/maintenance/custody-return';
   static const String workshopFuelDashboard = '/maintenance/workshop-fuel';
-  static const String workshopFuelSupplies = '/maintenance/workshop-fuel/supplies';
-  static const String workshopFuelSupplyForm = '/maintenance/workshop-fuel/supplies/new';
-  static const String workshopFuelSupplyDetails = '/maintenance/workshop-fuel/supplies/details';
-  static const String workshopFuelRefuelForm = '/maintenance/workshop-fuel/refuel';
+  static const String workshopFuelSupplies =
+      '/maintenance/workshop-fuel/supplies';
+  static const String workshopFuelSupplyForm =
+      '/maintenance/workshop-fuel/supplies/new';
+  static const String workshopFuelSupplyDetails =
+      '/maintenance/workshop-fuel/supplies/details';
+  static const String workshopFuelRefuelForm =
+      '/maintenance/workshop-fuel/refuel';
   static const String workshopFuelReport = '/maintenance/workshop-fuel/report';
+  static const String workshopFuelReadings =
+      '/maintenance/workshop-fuel/readings';
+  static const String workshopFuelDriverReport =
+      '/maintenance/workshop-fuel/driver-report';
   static const String archiveDocuments = '/archive/documents';
   static const String archiveDocumentsCreate = '/archive/documents/create';
   static const String archiveDocumentsList = '/archive/documents/list';
@@ -210,7 +230,9 @@ class AppRoutes {
   static const String inventoryList = '/inventory/list';
   static const String inventoryCreate = '/inventory/create';
   static const String inventoryDetails = '/inventory/details';
+  static const String stationTreasury = '/stations/treasury';
   static const String reportsStations = '/reports/stations';
+  static const String monthlyStationsReport = '/reports/stations/monthly';
   static const String trading = '/trading';
   static const String marketingStations = '/station-marketing';
   static const String inventoryDashboard = '/inventory/dashboard';
@@ -220,10 +242,13 @@ class AppRoutes {
   static const String qualificationForm = '/qualification/form';
   static const String qualificationMap = '/qualification/map';
   static const String qualificationDetails = '/qualification/details';
-  static const String stationMaintenanceDashboard = '/station-maintenance/dashboard';
+  static const String stationMaintenanceDashboard =
+      '/station-maintenance/dashboard';
   static const String stationMaintenanceForm = '/station-maintenance/form';
-  static const String stationMaintenanceDetails = '/station-maintenance/details';
-  static const String stationMaintenanceTechnician = '/station-maintenance/technician';
+  static const String stationMaintenanceDetails =
+      '/station-maintenance/details';
+  static const String stationMaintenanceTechnician =
+      '/station-maintenance/technician';
 
   // ===========================================
   // 📌 مسارات نظام شؤون الموظفين
@@ -247,8 +272,7 @@ class AppRoutes {
   static const String fingerprintEnrollment = '/hr/fingerprint/enrollment';
   static const String faceEnrollment = '/hr/face/enrollment';
   static const String deviceAssignment = '/hr/device/assignment';
-  static const String deviceEnrollmentRequests =
-      '/hr/device/enroll-requests';
+  static const String deviceEnrollmentRequests = '/hr/device/enroll-requests';
 
   /// Routes بدون arguments
   static final Map<String, Widget Function(BuildContext)> routes = {
@@ -267,6 +291,8 @@ class AppRoutes {
     chat: (_) => const ChatListScreen(),
 
     dashboard: (_) => const DashboardScreen(),
+    driverHome: (_) => const DriverHomeScreen(),
+    tracking: (_) => const TrackingScreen(),
     trading: (_) => const TraderScreen(),
     suppliers: (context) => const SuppliersScreen(),
 
@@ -277,9 +303,13 @@ class AppRoutes {
     workshopFuelDashboard: (context) => const WorkshopFuelDashboardScreen(),
     workshopFuelSupplies: (context) => const WorkshopFuelSuppliesScreen(),
     workshopFuelSupplyForm: (context) => const WorkshopFuelSupplyFormScreen(),
-    workshopFuelSupplyDetails: (context) => const WorkshopFuelSupplyDetailsScreen(),
+    workshopFuelSupplyDetails: (context) =>
+        const WorkshopFuelSupplyDetailsScreen(),
     workshopFuelRefuelForm: (context) => const WorkshopFuelRefuelFormScreen(),
     workshopFuelReport: (context) => const WorkshopFuelReportScreen(),
+    workshopFuelReadings: (context) => const WorkshopFuelReadingsScreen(),
+    workshopFuelDriverReport: (context) =>
+        const WorkshopFuelDriverReportScreen(),
     archiveDocuments: (context) => const ArchiveDocumentsScreen(),
     archiveDocumentsCreate: (context) => const ArchiveDocumentFormScreen(),
     archiveDocumentsList: (context) => const ArchiveDocumentsListScreen(),
@@ -335,6 +365,8 @@ class AppRoutes {
     supplierReport: (_) => const SupplierReportScreen(),
     userReport: (_) => const UserReportScreen(),
     userManagement: (_) => const UserManagementScreen(),
+    authDevices: (_) => const AuthDevicesScreen(),
+    blockedDevices: (_) => const BlockedDevicesScreen(),
     invoiceReport: (_) => const InvoiceReportScreen(),
 
     mainHome: (context) => const MainHomeScreen(),
@@ -368,6 +400,8 @@ class AppRoutes {
     closeSession: (context) => const CloseSessionScreen(),
     inventoryList: (context) => const InventoryListScreen(),
     inventoryCreate: (context) => const DailyInventoryScreen(),
+    stationTreasury: (context) => const StationTreasuryScreen(),
+    monthlyStationsReport: (context) => const MonthlyStationReportScreen(),
 
     // ===========================================
     // 📌 شاشات نظام شؤون الموظفين
@@ -454,6 +488,7 @@ class AppRoutes {
             initialPeer: peer,
           ),
         );
+
       /// ➕ إنشاء طلب / ✏️ تعديل طلب
       case archiveDocumentDetails:
         final args = settings.arguments;
@@ -635,9 +670,7 @@ class AppRoutes {
           builder: (_) => const CustodyDocumentFormScreen(),
         );
       case custodyReturn:
-        return MaterialPageRoute(
-          builder: (_) => const CustodyReturnScreen(),
-        );
+        return MaterialPageRoute(builder: (_) => const CustodyReturnScreen());
 
       default:
         return null;

@@ -19,9 +19,14 @@ class SalarySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = salarySummary?['totalSalary'] ?? salarySummary?['totalSalaries'] ?? 0;
-    final paid = salarySummary?['paidCount'] ?? salarySummary?['paidThisMonth'] ?? 0;
-    final pending = salarySummary?['pendingCount'] ?? salarySummary?['pendingPayments'] ?? 0;
+    final total =
+        salarySummary?['totalSalary'] ?? salarySummary?['totalSalaries'] ?? 0;
+    final paid =
+        salarySummary?['paidCount'] ?? salarySummary?['paidThisMonth'] ?? 0;
+    final pending =
+        salarySummary?['pendingCount'] ??
+        salarySummary?['pendingPayments'] ??
+        0;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -39,10 +44,7 @@ class SalarySummaryCard extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 if (isLoading)
-                  const SizedBox(
-                    width: 100,
-                    child: LinearProgressIndicator(),
-                  ),
+                  const SizedBox(width: 100, child: LinearProgressIndicator()),
               ],
             ),
             const SizedBox(height: 12),
@@ -50,7 +52,11 @@ class SalarySummaryCard extends StatelessWidget {
               spacing: 12,
               runSpacing: 8,
               children: [
-                _buildStat('الإجمالي', '$total ريال', AppColors.appBarWaterDeep),
+                _buildStat(
+                  'الإجمالي',
+                  '$total ريال',
+                  AppColors.appBarWaterDeep,
+                ),
                 _buildStat('مدفوعة', '$paid راتب', AppColors.appBarWaterBright),
                 _buildStat('معلقة', '$pending راتب', AppColors.appBarWaterMid),
               ],
@@ -59,7 +65,10 @@ class SalarySummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton(onPressed: onViewAll, child: const Text('عرض التفاصيل')),
+                TextButton(
+                  onPressed: onViewAll,
+                  child: const Text('عرض التفاصيل'),
+                ),
                 ElevatedButton(
                   onPressed: onGenerateSalaries,
                   style: ElevatedButton.styleFrom(
@@ -92,10 +101,7 @@ class SalarySummaryCard extends StatelessWidget {
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.mediumGray),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.mediumGray)),
         ],
       ),
     );

@@ -77,13 +77,17 @@ class FinancialInfoSection extends StatelessWidget {
           const SizedBox(height: 12),
           _buildTextField('IBAN', iban ?? '', onIbanChanged),
           const SizedBox(height: 12),
-          _buildTextField('رقم الحساب', accountNumber ?? '', onAccountNumberChanged),
+          _buildTextField(
+            'رقم الحساب',
+            accountNumber ?? '',
+            onAccountNumberChanged,
+          ),
           const SizedBox(height: 12),
           Text(
             'مواقع العمل',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           if (availableLocations.isEmpty)
@@ -98,7 +102,9 @@ class FinancialInfoSection extends StatelessWidget {
               children: availableLocations.map((loc) {
                 final selected = selectedLocationIds.contains(loc.id);
                 return FilterChip(
-                  label: Text('${loc.name} (${loc.radius.toStringAsFixed(0)}m)'),
+                  label: Text(
+                    '${loc.name} (${loc.radius.toStringAsFixed(0)}m)',
+                  ),
                   selected: selected,
                   selectedColor: AppColors.hrTeal,
                   checkmarkColor: Colors.white,

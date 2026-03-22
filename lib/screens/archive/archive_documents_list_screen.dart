@@ -7,10 +7,12 @@ class ArchiveDocumentsListScreen extends StatefulWidget {
   const ArchiveDocumentsListScreen({super.key});
 
   @override
-  State<ArchiveDocumentsListScreen> createState() => _ArchiveDocumentsListScreenState();
+  State<ArchiveDocumentsListScreen> createState() =>
+      _ArchiveDocumentsListScreenState();
 }
 
-class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen> {
+class _ArchiveDocumentsListScreenState
+    extends State<ArchiveDocumentsListScreen> {
   final _search = TextEditingController();
   String? _type;
   String? _status;
@@ -42,8 +44,9 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
       setState(() => _items = docs);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تعذر تحميل السجلات: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تعذر تحميل السجلات: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,12 +58,17 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
       appBar: AppBar(
         title: const Text('كل سجلات الأرشفة'),
         actions: [
-          IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+          IconButton(
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ArchiveDocumentFormScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const ArchiveDocumentFormScreen(),
+                ),
               ).then((_) => _load());
             },
             icon: const Icon(Icons.add),
@@ -97,9 +105,18 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
                               border: OutlineInputBorder(),
                             ),
                             items: const [
-                              DropdownMenuItem<String?>(value: null, child: Text('الكل')),
-                              DropdownMenuItem<String?>(value: 'incoming', child: Text('وارد')),
-                              DropdownMenuItem<String?>(value: 'outgoing', child: Text('صادر')),
+                              DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('الكل'),
+                              ),
+                              DropdownMenuItem<String?>(
+                                value: 'incoming',
+                                child: Text('وارد'),
+                              ),
+                              DropdownMenuItem<String?>(
+                                value: 'outgoing',
+                                child: Text('صادر'),
+                              ),
                             ],
                             onChanged: (v) => setState(() => _type = v),
                           ),
@@ -141,9 +158,19 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
             ),
             const SizedBox(height: 12),
             if (_loading)
-              const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(),
+                ),
+              )
             else if (_items.isEmpty)
-              const Card(child: Padding(padding: EdgeInsets.all(24), child: Text('لا توجد سجلات أرشفة')))
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('لا توجد سجلات أرشفة'),
+                ),
+              )
             else
               ..._items.map(_buildItemCard),
           ],
@@ -157,10 +184,12 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
     final imageAtt = attachments.cast<Map<String, dynamic>?>().firstWhere(
-          (a) => a != null && ArchiveDocsUi.isImageAttachment(a),
-          orElse: () => null,
-        );
-    final imageUrl = imageAtt == null ? null : ArchiveDocsUi.attachmentUrl(imageAtt);
+      (a) => a != null && ArchiveDocsUi.isImageAttachment(a),
+      orElse: () => null,
+    );
+    final imageUrl = imageAtt == null
+        ? null
+        : ArchiveDocsUi.attachmentUrl(imageAtt);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -207,13 +236,17 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
                         Chip(
                           label: Text(
                             d['documentTypeLabel']?.toString() ??
-                                ArchiveDocsUi.typeLabel(d['documentType']?.toString()),
+                                ArchiveDocsUi.typeLabel(
+                                  d['documentType']?.toString(),
+                                ),
                           ),
                         ),
                         Chip(
                           label: Text(
                             d['statusLabel']?.toString() ??
-                                ArchiveDocsUi.statusLabel(d['status']?.toString()),
+                                ArchiveDocsUi.statusLabel(
+                                  d['status']?.toString(),
+                                ),
                           ),
                         ),
                       ],
@@ -247,7 +280,8 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
                           label: const Text('التفاصيل'),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () => ArchiveStickerPrinter.printDocument(d),
+                          onPressed: () =>
+                              ArchiveStickerPrinter.printDocument(d),
                           icon: const Icon(Icons.print_outlined),
                           label: const Text('طباعة'),
                         ),
@@ -264,13 +298,13 @@ class _ArchiveDocumentsListScreenState extends State<ArchiveDocumentsListScreen>
   }
 
   Widget _placeholderThumb() => Container(
-        width: 92,
-        height: 92,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: const Icon(Icons.insert_drive_file_outlined),
-      );
+    width: 92,
+    height: 92,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.grey.shade300),
+    ),
+    child: const Icon(Icons.insert_drive_file_outlined),
+  );
 }

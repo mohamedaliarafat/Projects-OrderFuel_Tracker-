@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:order_tracker/providers/report_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/widgets/reports/export_options.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -489,6 +491,18 @@ class _InvoiceReportScreenState extends State<InvoiceReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تقارير الفواتير'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           if (_invoiceData != null) ...[
             IconButton(
@@ -504,99 +518,204 @@ class _InvoiceReportScreenState extends State<InvoiceReportScreen> {
           ],
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Search Section
-            _buildSearchSection(),
-            const SizedBox(height: 20),
-
-            // Invoice Content
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                  ? Center(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      _buildSearchSection(),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : _error != null
+                            ? Center(
+                                child: AppSurfaceCard(
+                                  padding: const EdgeInsets.all(22),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 72,
+                                        height: 72,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppColors.errorRed.withValues(
+                                            alpha: 0.10,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.errorRed
+                                                .withValues(alpha: 0.18),
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.error_outline_rounded,
+                                          size: 34,
+                                          color: AppColors.errorRed,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        _error!,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Color(0xFF7F1D1D),
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : _invoiceData == null
+                            ? Center(
+                                child: AppSurfaceCard(
+                                  padding: const EdgeInsets.all(22),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(
+                                        Icons.receipt_long_rounded,
+                                        size: 44,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                      SizedBox(height: 12),
+                                      Text(
+                                        'ادخل رقم الطلب لعرض الفاتورة',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Color(0xFF0F172A),
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : _buildInvoiceContent(),
                       ),
-                    )
-                  : _invoiceData == null
-                  ? const Center(
-                      child: Text(
-                        'ادخل رقم الطلب لعرض الفاتورة',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppColors.mediumGray,
-                        ),
-                      ),
-                    )
-                  : _buildInvoiceContent(),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSearchSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    final theme = Theme.of(context);
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'بحث عن فاتورة',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _orderIdController,
-                  decoration: InputDecoration(
-                    hintText: 'أدخل رقم الطلب',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onSubmitted: (value) => _fetchInvoice(value),
+              Text(
+                'بحث عن فاتورة',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => _fetchInvoice(_orderIdController.text),
-                icon: const Icon(Icons.search),
-                label: const Text('بحث'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
-                  ),
-                ),
+              const Spacer(),
+              Icon(
+                Icons.search_rounded,
+                color: const Color(0xFF0F172A).withValues(alpha: 0.55),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 520;
+
+              final field = TextField(
+                controller: _orderIdController,
+                decoration: InputDecoration(
+                  hintText: 'أدخل رقم الطلب',
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.55),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black.withValues(alpha: 0.03),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: Colors.black.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: Colors.black.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primaryBlue,
+                      width: 1.6,
+                    ),
+                  ),
+                ),
+                onSubmitted: (value) => _fetchInvoice(value),
+              );
+
+              final button = FilledButton.icon(
+                onPressed: () => _fetchInvoice(_orderIdController.text),
+                icon: const Icon(Icons.search_rounded),
+                label: const Text('بحث'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              );
+
+              if (isCompact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [field, const SizedBox(height: 12), button],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: field),
+                  const SizedBox(width: 12),
+                  button,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8),
           Text(
             'مثال: CUS-20241231-0001, SUP-20241231-0001, MIX-20241231-0001',
-            style: TextStyle(fontSize: 12, color: AppColors.mediumGray),
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 12,
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -612,198 +731,259 @@ class _InvoiceReportScreenState extends State<InvoiceReportScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Invoice Header
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primaryBlue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'فاتورة ضريبية',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: AppColors.appBarGradient,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.appBarWaterDeep.withValues(alpha: 0.18),
+                    blurRadius: 26,
+                    offset: const Offset(0, 14),
                   ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(22),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.receipt_long_rounded,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'فاتورة ضريبية',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            (invoice['invoiceNumber'] ?? '').toString(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatDate(invoice['invoiceDate']),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.82),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  invoice['invoiceNumber'],
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatDate(invoice['invoiceDate']),
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ],
+              ),
             ),
           ),
 
           const SizedBox(height: 20),
 
           // Order Info
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'معلومات الطلب',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          AppSurfaceCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'معلومات الطلب',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    color: Color(0xFF0F172A),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInfoItem('رقم الطلب', order['orderNumber']),
-                            _buildInfoItem(
-                              'تاريخ الطلب',
-                              _formatDate(order['orderDate']),
-                            ),
-                            _buildInfoItem('حالة الطلب', order['status']),
-                          ],
-                        ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoItem('رقم الطلب', order['orderNumber']),
+                          _buildInfoItem(
+                            'تاريخ الطلب',
+                            _formatDate(order['orderDate']),
+                          ),
+                          _buildInfoItem('حالة الطلب', order['status']),
+                        ],
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInfoItem('نوع الطلب', order['orderSource']),
-                            _buildInfoItem('وقت التحميل', order['loadingTime']),
-                            _buildInfoItem('وقت الوصول', order['arrivalTime']),
-                          ],
-                        ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoItem('نوع الطلب', order['orderSource']),
+                          _buildInfoItem('وقت التحميل', order['loadingTime']),
+                          _buildInfoItem('وقت الوصول', order['arrivalTime']),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 
           const SizedBox(height: 16),
 
           // Supplier & Customer Info
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'بيانات المورد',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoItem('الاسم', order['supplierName']),
-                        _buildInfoItem('الشركة', order['supplierCompany']),
-                        _buildInfoItem(
-                          'جهة الاتصال',
-                          order['supplierContactPerson'],
-                        ),
-                        _buildInfoItem('الهاتف', order['supplierPhone']),
-                        if (order['supplierAddress'] != null)
-                          _buildInfoItem('العنوان', order['supplierAddress']),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 900;
 
-              const SizedBox(width: 16),
-
-              Expanded(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'بيانات العميل',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoItem('الاسم', order['customerName']),
-                        _buildInfoItem('الكود', order['customerCode']),
-                        if (order['customerPhone'] != null)
-                          _buildInfoItem('الهاتف', order['customerPhone']),
-                        if (order['customerEmail'] != null)
-                          _buildInfoItem('البريد', order['customerEmail']),
-                        if (order['address'] != null)
-                          _buildInfoItem('العنوان', order['address']),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Driver Info
-          if (order['driverName'] != null) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
+              final supplierCard = AppSurfaceCard(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'بيانات السائق',
+                      'بيانات المورد',
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
                         fontSize: 16,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildInfoItem('اسم السائق', order['driverName']),
-                        const SizedBox(width: 20),
-                        _buildInfoItem('رقم المركبة', order['vehicleNumber']),
-                        const SizedBox(width: 20),
-                        if (order['driverPhone'] != null)
-                          _buildInfoItem('الهاتف', order['driverPhone']),
-                      ],
+                    _buildInfoItem('الاسم', order['supplierName']),
+                    _buildInfoItem('الشركة', order['supplierCompany']),
+                    _buildInfoItem(
+                      'جهة الاتصال',
+                      order['supplierContactPerson'],
                     ),
+                    _buildInfoItem('الهاتف', order['supplierPhone']),
+                    if (order['supplierAddress'] != null)
+                      _buildInfoItem('العنوان', order['supplierAddress']),
                   ],
                 ),
+              );
+
+              final customerCard = AppSurfaceCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'بيانات العميل',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoItem('الاسم', order['customerName']),
+                    _buildInfoItem('الكود', order['customerCode']),
+                    if (order['customerPhone'] != null)
+                      _buildInfoItem('الهاتف', order['customerPhone']),
+                    if (order['customerEmail'] != null)
+                      _buildInfoItem('البريد', order['customerEmail']),
+                    if (order['address'] != null)
+                      _buildInfoItem('العنوان', order['address']),
+                  ],
+                ),
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    supplierCard,
+                    const SizedBox(height: 16),
+                    customerCard,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: supplierCard),
+                  const SizedBox(width: 16),
+                  Expanded(child: customerCard),
+                ],
+              );
+            },
+          ),
+
+          // Driver Info
+          if (order['driverName'] != null) ...[
+            const SizedBox(height: 16),
+            AppSurfaceCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'بيانات السائق',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildInfoItem('اسم السائق', order['driverName']),
+                      const SizedBox(width: 20),
+                      _buildInfoItem('رقم المركبة', order['vehicleNumber']),
+                      const SizedBox(width: 20),
+                      if (order['driverPhone'] != null)
+                        _buildInfoItem('الهاتف', order['driverPhone']),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
 
           // Products Table
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'تفاصيل المنتجات',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          AppSurfaceCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'تفاصيل المنتجات',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: Color(0xFF0F172A),
                   ),
-                  const SizedBox(height: 12),
-                  DataTable(
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
                     columns: const [
                       DataColumn(label: Text('الوصف')),
                       DataColumn(label: Text('الكمية')),
@@ -838,99 +1018,108 @@ class _InvoiceReportScreenState extends State<InvoiceReportScreen> {
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
           // Totals
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'الإجماليات',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          AppSurfaceCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'الإجماليات',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: Color(0xFF0F172A),
                   ),
-                  const SizedBox(height: 12),
-                  _buildTotalRow(
-                    'المبلغ الإجمالي',
-                    '${invoice['subtotal']?.toStringAsFixed(2) ?? '0.00'} ريال',
-                  ),
-                  _buildTotalRow(
-                    'الضريبة (${invoice['taxRate']})',
-                    '${invoice['tax']?.toStringAsFixed(2) ?? '0.00'} ريال',
-                  ),
-                  const Divider(),
-                  _buildTotalRow(
-                    'المبلغ الإجمالي شامل الضريبة',
-                    '${invoice['total']?.toStringAsFixed(2) ?? '0.00'} ريال',
-                    isBold: true,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                _buildTotalRow(
+                  'المبلغ الإجمالي',
+                  '${invoice['subtotal']?.toStringAsFixed(2) ?? '0.00'} ريال',
+                ),
+                _buildTotalRow(
+                  'الضريبة (${invoice['taxRate']})',
+                  '${invoice['tax']?.toStringAsFixed(2) ?? '0.00'} ريال',
+                ),
+                const Divider(),
+                _buildTotalRow(
+                  'المبلغ الإجمالي شامل الضريبة',
+                  '${invoice['total']?.toStringAsFixed(2) ?? '0.00'} ريال',
+                  isBold: true,
+                ),
+              ],
             ),
           ),
 
           // Payment Info
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'معلومات الدفع',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          AppSurfaceCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'معلومات الدفع',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: Color(0xFF0F172A),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _buildInfoItem(
-                        'طريقة الدفع',
-                        order['paymentMethod'] ?? 'غير محدد',
-                      ),
-                      const SizedBox(width: 20),
-                      _buildInfoItem(
-                        'حالة الدفع',
-                        order['paymentStatus'] ?? 'غير مدفوع',
-                      ),
-                      const SizedBox(width: 20),
-                      _buildInfoItem(
-                        'تاريخ الاستحقاق',
-                        _formatDate(invoice['paymentDetails']['dueDate']),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _buildInfoItem(
+                      'طريقة الدفع',
+                      order['paymentMethod'] ?? 'غير محدد',
+                    ),
+                    const SizedBox(width: 20),
+                    _buildInfoItem(
+                      'حالة الدفع',
+                      order['paymentStatus'] ?? 'غير مدفوع',
+                    ),
+                    const SizedBox(width: 20),
+                    _buildInfoItem(
+                      'تاريخ الاستحقاق',
+                      _formatDate(invoice['paymentDetails']['dueDate']),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 
           // Notes
           if (order['notes'] != null) ...[
             const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'ملاحظات',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+            AppSurfaceCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ملاحظات',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: Color(0xFF0F172A),
                     ),
-                    const SizedBox(height: 12),
-                    Text(order['notes']!),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    order['notes']!,
+                    style: const TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -972,14 +1161,17 @@ class _InvoiceReportScreenState extends State<InvoiceReportScreen> {
           Text(
             '$label: ',
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkGray,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF64748B),
             ),
           ),
           Expanded(
             child: Text(
               value ?? '--',
-              style: const TextStyle(color: AppColors.mediumGray),
+              style: const TextStyle(
+                color: Color(0xFF0F172A),
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -996,13 +1188,15 @@ class _InvoiceReportScreenState extends State<InvoiceReportScreen> {
           Text(
             label,
             style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
+              color: isBold ? const Color(0xFF0F172A) : const Color(0xFF64748B),
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontWeight: isBold ? FontWeight.w900 : FontWeight.w800,
+              color: const Color(0xFF0F172A),
             ),
           ),
         ],

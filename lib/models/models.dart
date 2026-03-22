@@ -4,12 +4,15 @@ import 'package:order_tracker/utils/constants.dart';
 class User {
   final String id;
   final String name;
+  final String username;
   final String email;
   final String role;
   final String company;
   final String? phone;
   final DateTime? createdAt;
   final String? stationId;
+  final List<String> stationIds;
+  final String? driverId;
   final String? stationName;
   final String? stationCode;
   final bool isBlocked;
@@ -18,12 +21,15 @@ class User {
   User({
     required this.id,
     required this.name,
+    this.username = '',
     required this.email,
     required this.role,
     required this.company,
     this.phone,
     this.createdAt,
     this.stationId,
+    this.stationIds = const [],
+    this.driverId,
     this.stationName,
     this.stationCode,
     this.isBlocked = false,
@@ -36,31 +42,76 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     // 🔐 stationId قد يكون String أو ObjectId
     String? parsedStationId;
-    if (json['stationId'] is Map) {
-      parsedStationId = json['stationId']['_id'] ?? json['stationId']['\$oid'];
-    } else if (json['stationId'] is String) {
-      parsedStationId = json['stationId'];
+    final rawStationId = json['stationId'];
+    if (rawStationId is Map) {
+      final stationMap = Map<String, dynamic>.from(rawStationId);
+      parsedStationId =
+          stationMap['_id']?.toString() ?? stationMap[r'$oid']?.toString();
+    } else if (rawStationId != null) {
+      parsedStationId = rawStationId.toString();
+    }
+
+    final rawStationIds = json['stationIds'];
+    final parsedStationIds = rawStationIds is Iterable
+        ? rawStationIds
+              .map((item) {
+                if (item is Map) {
+                  final stationMap = Map<String, dynamic>.from(item);
+                  return stationMap['_id']?.toString() ??
+                      stationMap[r'$oid']?.toString();
+                }
+                return item?.toString();
+              })
+              .whereType<String>()
+              .map((id) => id.trim())
+              .where((id) => id.isNotEmpty)
+              .toSet()
+              .toList()
+        : const <String>[];
+
+    final rawPermissions = json['permissions'];
+    final parsedPermissions = rawPermissions is Iterable
+        ? rawPermissions
+              .map((permission) => permission.toString())
+              .where((permission) => permission.trim().isNotEmpty)
+              .toList()
+        : rawPermissions == null
+        ? const <String>[]
+        : <String>[rawPermissions.toString()];
+
+    final rawIsBlocked = json['isBlocked'];
+    final parsedIsBlocked = rawIsBlocked is bool
+        ? rawIsBlocked
+        : rawIsBlocked?.toString().toLowerCase() == 'true';
+
+    String? parsedDriverId;
+    final rawDriverId = json['driverId'];
+    if (rawDriverId is Map) {
+      final driverMap = Map<String, dynamic>.from(rawDriverId);
+      parsedDriverId =
+          driverMap['_id']?.toString() ?? driverMap[r'$oid']?.toString();
+    } else if (rawDriverId != null) {
+      parsedDriverId = rawDriverId.toString();
     }
 
     return User(
-      id: json['_id'] ?? json['id'] ?? '',
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      role: json['role'] ?? '',
-      company: json['company'] ?? '',
-      phone: json['phone'],
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      username: (json['username'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      role: (json['role'] ?? '').toString(),
+      company: (json['company'] ?? '').toString(),
+      phone: json['phone']?.toString(),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
       stationId: parsedStationId,
-      stationName: json['stationName'],
-      stationCode: json['stationCode'],
-      isBlocked: json['isBlocked'] ?? false,
-      permissions:
-          (json['permissions'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      stationIds: parsedStationIds,
+      driverId: parsedDriverId,
+      stationName: json['stationName']?.toString(),
+      stationCode: json['stationCode']?.toString(),
+      isBlocked: parsedIsBlocked,
+      permissions: parsedPermissions,
     );
   }
 
@@ -71,12 +122,15 @@ class User {
     return {
       'id': id,
       'name': name,
+      'username': username,
       'email': email,
       'role': role,
       'company': company,
       'phone': phone,
       'createdAt': createdAt?.toIso8601String(),
       'stationId': stationId,
+      'stationIds': stationIds,
+      'driverId': driverId,
       'stationName': stationName,
       'stationCode': stationCode,
       'isBlocked': isBlocked,

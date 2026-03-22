@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:order_tracker/models/station_models.dart';
@@ -6,7 +5,6 @@ import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/widgets/gradient_button.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class _TableHeader extends StatelessWidget {
   final String text;
@@ -110,11 +108,11 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
 
     final provider = Provider.of<StationProvider>(context, listen: false);
     await provider.fetchStationById(value, inventoryDate: _inventoryDate);
+    await provider.fetchCurrentStock(value);
     if (!mounted) return;
 
     _applyTankCapacities(provider.fuelTankCapacities);
-    await _loadPreviousBalances();
-    _updateSalesFromSessions(provider.sessions);
+    _applyBackendStockSnapshot(provider.currentStock);
     _calculateProfitLoss();
   }
 
@@ -190,6 +188,39 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     }
   }
 
+  double _stockValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '0') ?? 0;
+  }
+
+  void _applyBackendStockSnapshot(List<Map<String, dynamic>> currentStock) {
+    final snapshotByFuel = <String, Map<String, dynamic>>{};
+
+    for (final item in currentStock) {
+      final fuelType = _normalizeFuelType(item['fuelType']?.toString() ?? '');
+      if (fuelType.isEmpty) continue;
+      snapshotByFuel[fuelType] = item;
+    }
+
+    double totalPrevious = 0;
+    for (final entry in _fuelEntries) {
+      final snapshot = snapshotByFuel[_normalizeFuelType(entry.fuelType)];
+      entry.applyBackendSnapshot(
+        currentBalance: _stockValue(snapshot?['currentBalance']),
+        salesSinceInventory: _stockValue(snapshot?['salesSinceInventory']),
+      );
+      totalPrevious += entry.previousBalanceValue;
+    }
+
+    _totalPreviousBalance = totalPrevious;
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadCachedClosingBalances() async {}
+
   Future<void> _loadPreviousBalances() async {
     if (_selectedStationId == null || _fuelEntries.isEmpty) return;
 
@@ -230,8 +261,11 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
             previousRow.calculatedBalance ??
             previousRow.openingBalance;
         entry.hasPreviousBalance = true;
-      } else if (_cachedClosingBalances.containsKey(_normalizeFuelType(entry.fuelType))) {
-        previousValue = _cachedClosingBalances[_normalizeFuelType(entry.fuelType)];
+      } else if (_cachedClosingBalances.containsKey(
+        _normalizeFuelType(entry.fuelType),
+      )) {
+        previousValue =
+            _cachedClosingBalances[_normalizeFuelType(entry.fuelType)];
         entry.hasPreviousBalance = true;
       } else {
         entry.hasPreviousBalance = false;
@@ -244,7 +278,8 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
       }
 
       if (!entry.hasPreviousBalance) {
-        final cachedValue = _cachedClosingBalances[_normalizeFuelType(entry.fuelType)];
+        final cachedValue =
+            _cachedClosingBalances[_normalizeFuelType(entry.fuelType)];
         if (cachedValue != null && entry.openingBalanceController.text == '0') {
           entry.openingBalanceController.text = cachedValue.toStringAsFixed(2);
         }
@@ -342,7 +377,9 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     if (lower.contains('بنزين') && lower.contains('95')) {
       return 'بنزين 95';
     }
-    if (lower.contains('ديزل') || lower.contains('سولار') || lower.contains('diesel')) {
+    if (lower.contains('ديزل') ||
+        lower.contains('سولار') ||
+        lower.contains('diesel')) {
       return 'ديزل';
     }
     if (lower.contains('كيروسين') || lower.contains('kerosene')) {
@@ -385,7 +422,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     return '';
   }
 
-void _updateSalesFromSessions(List<PumpSession> sessions) {
+  void _updateSalesFromSessions(List<PumpSession> sessions) {
     if (_selectedStationId == null) return;
 
     final targetDate = DateTime(
@@ -484,8 +521,7 @@ void _updateSalesFromSessions(List<PumpSession> sessions) {
     _calculateProfitLoss();
   }
 
-
- double _sessionReadingLiters(NozzleReading reading) {
+  double _sessionReadingLiters(NozzleReading reading) {
     // ✅ لو في قراءة إغلاق → هي المصدر الأساسي
     if (reading.closingReading != null) {
       final diff = reading.closingReading! - reading.openingReading;
@@ -500,7 +536,6 @@ void _updateSalesFromSessions(List<PumpSession> sessions) {
     return 0;
   }
 
-
   bool _isSameDay(DateTime sessionDate, DateTime inventoryDate) {
     final local = sessionDate.toLocal();
     return local.year == inventoryDate.year &&
@@ -508,39 +543,7 @@ void _updateSalesFromSessions(List<PumpSession> sessions) {
         local.day == inventoryDate.day;
   }
 
-  String _closingBalanceCacheKey(String fuelType) {
-    final stationPart = _selectedStationId ?? 'unknown';
-    final normalized = _normalizeFuelType(fuelType);
-    return 'closing_balance_${stationPart}_$normalized';
-  }
-
-  Future<void> _loadCachedClosingBalances() async {
-    _cachedClosingBalances.clear();
-    if (_selectedStationId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final prefix = 'closing_balance_${_selectedStationId}_';
-    for (final key in prefs.getKeys()) {
-      if (!key.startsWith(prefix)) continue;
-      final fuelType = key.substring(prefix.length);
-      final value = prefs.getDouble(key);
-      if (value != null) {
-        _cachedClosingBalances[_normalizeFuelType(fuelType)] = value;
-      }
-    }
-  }
-
-  Future<void> _persistClosingBalances() async {
-    if (_selectedStationId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    for (final entry in _fuelEntries) {
-      final key = _closingBalanceCacheKey(entry.fuelType);
-      await prefs.setDouble(key, entry.postSalesBalance);
-      _cachedClosingBalances[_normalizeFuelType(entry.fuelType)] =
-          entry.postSalesBalance;
-    }
-  }
-
-Future<void> _submitForm() async {
+  Future<void> _submitForm() async {
     if (_selectedStation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -564,14 +567,14 @@ Future<void> _submitForm() async {
     final entriesToSubmit = _fuelEntries
         .where(
           (entry) =>
-              entry.receivedQuantityValue > 0 || entry.litersSoldValue > 0,
+              entry.receivedQuantityValue > 0 || entry.difference.abs() > 0.001,
         )
         .toList();
 
     if (entriesToSubmit.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('يرجى إدخال كمية توريد أو مبيعات على الأقل'),
+          content: Text('يرجى إدخال كمية توريد أو تعديل الرصيد الفعلي'),
           backgroundColor: AppColors.errorRed,
         ),
       );
@@ -657,17 +660,8 @@ Future<void> _submitForm() async {
       ),
     );
 
-    await _persistClosingBalances();
-
-    if (_selectedStationId != null) {
-      await provider.fetchInventories(
-        filters: {'stationId': _selectedStationId!},
-      );
-    }
-
     Navigator.pop(context);
   }
-
 
   Future<void> _selectDate(BuildContext context) async {
     final picked = await showDatePicker(
@@ -687,10 +681,10 @@ Future<void> _submitForm() async {
           _selectedStationId!,
           inventoryDate: _inventoryDate,
         );
+        await provider.fetchCurrentStock(_selectedStationId!);
         if (!mounted) return;
         _applyTankCapacities(provider.fuelTankCapacities);
-        await _loadPreviousBalances();
-        _updateSalesFromSessions(provider.sessions);
+        _applyBackendStockSnapshot(provider.currentStock);
         _calculateProfitLoss();
       }
     }
@@ -1536,7 +1530,7 @@ Future<void> _submitForm() async {
                     );
                   case 3:
                     return _buildSummaryStat(
-                      'الرصيد السابق',
+                      'المخزون الحالي بالخزان',
                       '${_totalPreviousBalance.toStringAsFixed(2)} لتر',
                       AppColors.primaryBlue,
                       Icons.history,
@@ -1612,13 +1606,13 @@ Future<void> _submitForm() async {
       // ================= Columns =================
       columns: [
         const DataColumn(label: _TableHeader('نوع الوقود')),
-        const DataColumn(label: _TableHeader('الرصيد السابق'), numeric: true),
+        const DataColumn(label: _TableHeader('المخزون الحالي'), numeric: true),
         if (showOpeningColumn)
-          const DataColumn(label: _TableHeader('رصيد افتتاحي'), numeric: true),
+          const DataColumn(label: _TableHeader('قبل التوريد'), numeric: true),
         const DataColumn(label: _TableHeader('كمية التوريد'), numeric: true),
         const DataColumn(label: _TableHeader('سعر التوريد'), numeric: true),
         const DataColumn(label: _TableHeader('قيمة التوريد'), numeric: true),
-        const DataColumn(label: _TableHeader('المبيعات'), numeric: true),
+        const DataColumn(label: _TableHeader('مبيعات منذ آخر جرد'), numeric: true),
         const DataColumn(label: _TableHeader('الإيرادات'), numeric: true),
         const DataColumn(label: _TableHeader('الرصيد الفعلي'), numeric: true),
         const DataColumn(label: _TableHeader('الفرق'), numeric: true),
@@ -1650,7 +1644,7 @@ Future<void> _submitForm() async {
             _numberCell(
               controller: entry.openingBalanceController,
               suffix: 'لتر',
-              onChanged: (_) => _recalculateEntry(entry),
+              enabled: false,
             ),
           );
         }
@@ -1682,10 +1676,10 @@ Future<void> _submitForm() async {
           _numberCell(
             controller: entry.actualBalanceController,
             suffix: 'لتر',
-            enabled: !entry.hasPreviousBalance,
-            onChanged: entry.hasPreviousBalance
-                ? null
-                : (_) => _recalculateEntry(entry),
+            onChanged: (_) {
+              entry.markActualBalanceEdited();
+              _recalculateEntry(entry);
+            },
           ),
           _differenceCell(entry, differenceColor),
           _profitCell(entry, profitColor),
@@ -1986,7 +1980,7 @@ Future<void> _submitForm() async {
                   case 0:
                     return _buildInputField(
                       controller: entry.previousBalanceController,
-                      label: 'الرصيد السابق',
+                      label: 'المخزون الحالي',
                       icon: Icons.history,
                       suffix: 'لتر',
                       enabled: false,
@@ -2013,7 +2007,7 @@ Future<void> _submitForm() async {
                   case 3:
                     return _buildInputField(
                       controller: entry.litersSoldController,
-                      label: 'المبيعات',
+                      label: 'مبيعات منذ آخر جرد',
                       icon: Icons.sell,
                       suffix: 'لتر',
                       enabled: false,
@@ -2025,10 +2019,10 @@ Future<void> _submitForm() async {
                       label: 'الرصيد الفعلي',
                       icon: Icons.straighten,
                       suffix: 'لتر',
-                      enabled: !entry.hasPreviousBalance,
-                      onChanged: entry.hasPreviousBalance
-                          ? null
-                          : (_) => _recalculateEntry(entry),
+                      onChanged: (_) {
+                        entry.markActualBalanceEdited();
+                        _recalculateEntry(entry);
+                      },
                       color: AppColors.infoBlue.withOpacity(0.1),
                     );
                   default:
@@ -2404,6 +2398,9 @@ class FuelSupplyEntry {
   double openingBalanceValue = 0;
   double tankCapacity = 0;
   bool hasPreviousBalance = false;
+  bool salesAlreadyAppliedInBalance = false;
+  bool _actualBalanceEdited = false;
+  bool _updatingActualBalance = false;
   bool get hasTankCapacity => tankCapacity > 0;
   double differencePercentage = 0;
 
@@ -2425,15 +2422,13 @@ class FuelSupplyEntry {
     supplyTotalCost = receivedQuantityValue * supplyPriceValue;
 
     calculatedBalance = previousBalanceValue + receivedQuantityValue;
-    postSalesBalance = calculatedBalance - litersSoldValue;
+    postSalesBalance = salesAlreadyAppliedInBalance
+        ? calculatedBalance
+        : calculatedBalance - litersSoldValue;
 
-    if (hasPreviousBalance) {
-      final autoActual = previousBalanceValue + receivedQuantityValue;
-      actualBalanceValue = autoActual;
-      final formatted = autoActual.toStringAsFixed(2);
-      if (actualBalanceController.text != formatted) {
-        actualBalanceController.text = formatted;
-      }
+    if (!_actualBalanceEdited) {
+      actualBalanceValue = postSalesBalance;
+      _setActualBalance(postSalesBalance);
     } else {
       actualBalanceValue = _parse(actualBalanceController.text);
     }
@@ -2442,6 +2437,32 @@ class FuelSupplyEntry {
     differencePercentage = calculatedBalance > 0
         ? (difference / calculatedBalance) * 100
         : 0;
+  }
+
+  void applyBackendSnapshot({
+    required double currentBalance,
+    required double salesSinceInventory,
+  }) {
+    hasPreviousBalance = true;
+    salesAlreadyAppliedInBalance = true;
+    _actualBalanceEdited = false;
+    previousBalanceController.text = currentBalance.toStringAsFixed(2);
+    openingBalanceController.text = currentBalance.toStringAsFixed(2);
+    litersSoldController.text = salesSinceInventory.toStringAsFixed(2);
+    recalculate();
+  }
+
+  void markActualBalanceEdited() {
+    if (_updatingActualBalance) return;
+    _actualBalanceEdited = true;
+  }
+
+  void _setActualBalance(double value) {
+    final formatted = value.toStringAsFixed(2);
+    if (actualBalanceController.text == formatted) return;
+    _updatingActualBalance = true;
+    actualBalanceController.text = formatted;
+    _updatingActualBalance = false;
   }
 
   void updateTankCapacity(double capacity) {

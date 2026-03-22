@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,6 +15,7 @@ import 'package:order_tracker/models/qualification_models.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/utils/web_platform.dart' as web_platform;
 
 class QualificationStationsMapScreen extends StatefulWidget {
   final QualificationStation? initialStation;
@@ -42,11 +44,16 @@ class _QualificationStationsMapScreenState
   bool _locating = false;
   bool _routeLoading = false;
   bool _showSelectedOnly = false;
+  bool _webMapsReady = !kIsWeb;
+  bool _checkingWebMaps = false;
 
   @override
   void initState() {
     super.initState();
     _prepareMarkerIcons();
+    if (kIsWeb) {
+      _checkWebMapsReady();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInspections();
       _ensureCurrentLocation();
@@ -73,6 +80,33 @@ class _QualificationStationsMapScreenState
       if (_mapController == null) {
         _pendingFocusStation = match;
       }
+    }
+  }
+
+  Future<void> _checkWebMapsReady() async {
+    if (!kIsWeb || _checkingWebMaps) return;
+    _checkingWebMaps = true;
+    try {
+      for (var attempt = 0; attempt < 24; attempt++) {
+        final mapsLoaded = web_platform.isGoogleMapsReady();
+        final loadState = web_platform.googleMapsLoadState();
+        if (!mounted) return;
+        if (mapsLoaded) {
+          setState(() => _webMapsReady = true);
+          return;
+        }
+        if (loadState == 'auth_failure' ||
+            loadState == 'load_error' ||
+            loadState == 'loaded_no_maps') {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+      if (mounted) {
+        setState(() => _webMapsReady = false);
+      }
+    } finally {
+      _checkingWebMaps = false;
     }
   }
 
@@ -245,9 +279,7 @@ class _QualificationStationsMapScreenState
         _currentPosition = position;
       });
       _mapController?.animateCamera(
-        CameraUpdate.newLatLng(
-          LatLng(position.latitude, position.longitude),
-        ),
+        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
       );
       if (_activeStation != null) {
         await _refreshRouteForActive();
@@ -257,15 +289,19 @@ class _QualificationStationsMapScreenState
     }
   }
 
-  List<QualificationStation> _applyFilters(List<QualificationStation> stations) {
+  List<QualificationStation> _applyFilters(
+    List<QualificationStation> stations,
+  ) {
     final query = _searchController.text.trim().toLowerCase();
     return stations.where((station) {
-      final matchesQuery = query.isEmpty ||
+      final matchesQuery =
+          query.isEmpty ||
           station.name.toLowerCase().contains(query) ||
           station.city.toLowerCase().contains(query) ||
           station.region.toLowerCase().contains(query);
-      final matchesStatus =
-          _statusFilter == null ? true : station.status == _statusFilter;
+      final matchesStatus = _statusFilter == null
+          ? true
+          : station.status == _statusFilter;
       final matchesSelected =
           !_showSelectedOnly || _selectedIds.contains(station.id);
       return matchesQuery && matchesStatus && matchesSelected;
@@ -285,15 +321,19 @@ class _QualificationStationsMapScreenState
       location.lng,
     );
 
-    final uri = Uri.parse(
-      '${ApiEndpoints.baseUrl}${ApiEndpoints.mapsDirections}',
-    ).replace(queryParameters: {
-      'origin': '${_currentPosition!.latitude},${_currentPosition!.longitude}',
-      'destination': '${location.lat},${location.lng}',
-      'mode': 'driving',
-      'language': 'ar',
-      'alternatives': 'false',
-    });
+    final uri =
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.mapsDirections}',
+        ).replace(
+          queryParameters: {
+            'origin':
+                '${_currentPosition!.latitude},${_currentPosition!.longitude}',
+            'destination': '${location.lat},${location.lng}',
+            'mode': 'driving',
+            'language': 'ar',
+            'alternatives': 'false',
+          },
+        );
 
     try {
       final response = await http.get(uri, headers: ApiService.headers);
@@ -323,8 +363,9 @@ class _QualificationStationsMapScreenState
       final distanceMeters = (first['distance'] as num?)?.toDouble() ?? 0;
       final durationSeconds = (first['duration'] as num?)?.toInt() ?? 0;
       final polyline = first['polyline']?.toString() ?? '';
-      final points =
-          polyline.isNotEmpty ? _decodePolyline(polyline) : <LatLng>[];
+      final points = polyline.isNotEmpty
+          ? _decodePolyline(polyline)
+          : <LatLng>[];
       final info = _RouteInfo(
         distanceKm: distanceMeters / 1000,
         durationMinutes: (durationSeconds / 60).round(),
@@ -421,22 +462,10 @@ class _QualificationStationsMapScreenState
       return;
     }
 
-    final swLat = math.min(
-      _currentPosition!.latitude,
-      station.location.lat,
-    );
-    final swLng = math.min(
-      _currentPosition!.longitude,
-      station.location.lng,
-    );
-    final neLat = math.max(
-      _currentPosition!.latitude,
-      station.location.lat,
-    );
-    final neLng = math.max(
-      _currentPosition!.longitude,
-      station.location.lng,
-    );
+    final swLat = math.min(_currentPosition!.latitude, station.location.lat);
+    final swLng = math.min(_currentPosition!.longitude, station.location.lng);
+    final neLat = math.max(_currentPosition!.latitude, station.location.lat);
+    final neLng = math.max(_currentPosition!.longitude, station.location.lng);
 
     final bounds = LatLngBounds(
       southwest: LatLng(swLat, swLng),
@@ -509,8 +538,9 @@ class _QualificationStationsMapScreenState
                         decoration: BoxDecoration(
                           color: _statusColor(station.status).withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border:
-                              Border.all(color: _statusColor(station.status)),
+                          border: Border.all(
+                            color: _statusColor(station.status),
+                          ),
                         ),
                         child: Text(
                           _statusLabel(station.status),
@@ -613,8 +643,7 @@ class _QualificationStationsMapScreenState
       return const SizedBox.shrink();
     }
 
-    final sorted = [...stations]
-      ..sort((a, b) => a.name.compareTo(b.name));
+    final sorted = [...stations]..sort((a, b) => a.name.compareTo(b.name));
 
     return DropdownButtonFormField<String>(
       value: _selectedStationId,
@@ -622,7 +651,10 @@ class _QualificationStationsMapScreenState
       decoration: InputDecoration(
         labelText: 'اختر محطة',
         prefixIcon: const Icon(Icons.place_outlined),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
@@ -631,10 +663,7 @@ class _QualificationStationsMapScreenState
           .map(
             (station) => DropdownMenuItem<String>(
               value: station.id,
-              child: Text(
-                station.name,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(station.name, overflow: TextOverflow.ellipsis),
             ),
           )
           .toList(),
@@ -683,14 +712,16 @@ class _QualificationStationsMapScreenState
             FilterChip(
               label: const Text('تحت الدراسة'),
               selected: _statusFilter == QualificationStatus.underReview,
-              onSelected: (_) =>
-                  setState(() => _statusFilter = QualificationStatus.underReview),
+              onSelected: (_) => setState(
+                () => _statusFilter = QualificationStatus.underReview,
+              ),
             ),
             FilterChip(
               label: const Text('جاري التفاوض'),
               selected: _statusFilter == QualificationStatus.negotiating,
-              onSelected: (_) =>
-                  setState(() => _statusFilter = QualificationStatus.negotiating),
+              onSelected: (_) => setState(
+                () => _statusFilter = QualificationStatus.negotiating,
+              ),
             ),
             FilterChip(
               label: const Text('تم الاتفاق'),
@@ -744,6 +775,53 @@ class _QualificationStationsMapScreenState
     );
   }
 
+  Widget _buildWebMapsState() {
+    final isWaiting = _checkingWebMaps && !_webMapsReady;
+    final loadError = web_platform.googleMapsLoadError();
+    return Container(
+      color: const Color(0xFFF2F3F5),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isWaiting) ...[
+            const SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'جارٍ تحميل Google Maps...',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ] else ...[
+            const Icon(Icons.map_outlined, size: 48, color: Colors.black38),
+            const SizedBox(height: 12),
+            const Text(
+              'تعذّر تحميل Google Maps على الويب',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              loadError ??
+                  'غالبًا السبب أن مكتبة الخرائط لم تكتمل بعد أو يوجد قيد على مفتاح Google Maps.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _checkWebMapsReady,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<QualificationProvider>();
@@ -759,17 +837,15 @@ class _QualificationStationsMapScreenState
       );
     } else if (hasStations) {
       final first = stations.first;
-      initialCenter = LatLng(
-        first.location.lat,
-        first.location.lng,
-      );
+      initialCenter = LatLng(first.location.lat, first.location.lng);
     } else {
       initialCenter = const LatLng(24.7136, 46.6753);
     }
 
     final markers = <Marker>{};
     for (final station in stations) {
-      final icon = _statusMarkerIcons[station.status] ??
+      final icon =
+          _statusMarkerIcons[station.status] ??
           BitmapDescriptor.defaultMarkerWithHue(_statusHue(station.status));
       markers.add(
         Marker(
@@ -788,9 +864,12 @@ class _QualificationStationsMapScreenState
       markers.add(
         Marker(
           markerId: const MarkerId('current_location'),
-          position:
-              LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          icon: _currentMarkerIcon ??
+          position: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          icon:
+              _currentMarkerIcon ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'موقعي الحالي'),
         ),
@@ -830,75 +909,75 @@ class _QualificationStationsMapScreenState
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildFilterBar(),
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: _buildFilterBar()),
           Expanded(
             child: Container(
               color: const Color(0xFFF6F8FF),
               child: provider.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : (!hasStations && _currentPosition == null)
-                      ? const Center(child: Text('لا توجد محطات للعرض'))
-                      : Stack(
-                          children: [
-                            GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: initialCenter,
-                                zoom: 10,
-                              ),
-                              markers: markers,
-                              polylines: polylines,
-                              myLocationEnabled: true,
-                              myLocationButtonEnabled: false,
-                              zoomControlsEnabled: true,
-                              compassEnabled: true,
-                              onMapCreated: (controller) {
-                                _mapController = controller;
-                                final pending = _pendingFocusStation;
-                                if (pending != null) {
-                                  _fitMapToSelection(pending);
-                                  _pendingFocusStation = null;
-                                }
-                              },
+                  ? const Center(child: Text('لا توجد محطات للعرض'))
+                  : Stack(
+                      children: [
+                        if (kIsWeb && !_webMapsReady)
+                          _buildWebMapsState()
+                        else
+                          GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: initialCenter,
+                              zoom: 10,
                             ),
-                            if (_routeLoading)
-                              Positioned(
-                                top: 12,
-                                left: 12,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.12),
-                                        blurRadius: 6,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: const [
-                                      SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text('جاري تحديث المسار'),
-                                    ],
-                                  ),
-                                ),
+                            markers: markers,
+                            polylines: polylines,
+                            myLocationEnabled: true,
+                            myLocationButtonEnabled: false,
+                            zoomControlsEnabled: true,
+                            compassEnabled: true,
+                            onMapCreated: (controller) {
+                              _mapController = controller;
+                              final pending = _pendingFocusStation;
+                              if (pending != null) {
+                                _fitMapToSelection(pending);
+                                _pendingFocusStation = null;
+                              }
+                            },
+                          ),
+                        if (_routeLoading)
+                          Positioned(
+                            top: 12,
+                            left: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
                               ),
-                          ],
-                        ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: const [
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('جاري تحديث المسار'),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
             ),
           ),
         ],

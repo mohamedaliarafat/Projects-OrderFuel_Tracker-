@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -69,16 +69,20 @@ class _QualificationDashboardScreenState
     }
   }
 
-  List<QualificationStation> _applyFilters(List<QualificationStation> stations) {
+  List<QualificationStation> _applyFilters(
+    List<QualificationStation> stations,
+  ) {
     final query = _searchController.text.trim().toLowerCase();
     return stations.where((station) {
-      final matchesQuery = query.isEmpty ||
+      final matchesQuery =
+          query.isEmpty ||
           station.name.toLowerCase().contains(query) ||
           station.city.toLowerCase().contains(query) ||
           station.region.toLowerCase().contains(query) ||
           station.address.toLowerCase().contains(query);
-      final matchesStatus =
-          _statusFilter == null ? true : station.status == _statusFilter;
+      final matchesStatus = _statusFilter == null
+          ? true
+          : station.status == _statusFilter;
       return matchesQuery && matchesStatus;
     }).toList();
   }
@@ -92,12 +96,12 @@ class _QualificationDashboardScreenState
   }) async {
     if (station.status == status) return;
     await context.read<QualificationProvider>().updateStatus(
-          station.id,
-          status,
-          reason: reason,
-          assignedTo: assignedTo,
-          attachments: attachments,
-        );
+      station.id,
+      status,
+      reason: reason,
+      assignedTo: assignedTo,
+      attachments: attachments,
+    );
   }
 
   String _normalizeCityName(String value) {
@@ -123,7 +127,9 @@ class _QualificationDashboardScreenState
       return candidateHasTaMarbuta;
     }
 
-    final candidateIsArabic = RegExp(r'^[\u0600-\u06FF\s]+$').hasMatch(candidate);
+    final candidateIsArabic = RegExp(
+      r'^[\u0600-\u06FF\s]+$',
+    ).hasMatch(candidate);
     final currentIsArabic = RegExp(r'^[\u0600-\u06FF\s]+$').hasMatch(current);
     if (candidateIsArabic != currentIsArabic) {
       return candidateIsArabic;
@@ -161,9 +167,7 @@ class _QualificationDashboardScreenState
   ) {
     final normalizedCity = _normalizeCityName(city);
     return stations
-        .where(
-          (station) => _normalizeCityName(station.city) == normalizedCity,
-        )
+        .where((station) => _normalizeCityName(station.city) == normalizedCity)
         .toList();
   }
 
@@ -178,18 +182,20 @@ class _QualificationDashboardScreenState
         .toSet();
     return stations
         .where(
-          (station) => normalizedCities.contains(_normalizeCityName(station.city)),
+          (station) =>
+              normalizedCities.contains(_normalizeCityName(station.city)),
         )
         .toList();
   }
 
   List<String> _regionsForStations(List<QualificationStation> stations) {
-    final regions = stations
-        .map((station) => station.region.trim())
-        .where((region) => region.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort((a, b) => a.compareTo(b));
+    final regions =
+        stations
+            .map((station) => station.region.trim())
+            .where((region) => region.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => a.compareTo(b));
     return regions;
   }
 
@@ -204,9 +210,7 @@ class _QualificationDashboardScreenState
     final cities = _availableCities(stations);
     if (cities.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا توجد مدن متاحة لإنشاء التقرير'),
-        ),
+        const SnackBar(content: Text('لا توجد مدن متاحة لإنشاء التقرير')),
       );
       return;
     }
@@ -228,7 +232,10 @@ class _QualificationDashboardScreenState
             final selectedCityLabels = cities
                 .where((city) => selectedCities.contains(city))
                 .toList();
-            final selectedStations = _stationsForCities(stations, selectedCities);
+            final selectedStations = _stationsForCities(
+              stations,
+              selectedCities,
+            );
             final selectedRegions = _regionsForStations(selectedStations);
             final selectedCitiesText = selectedCityLabels.isEmpty
                 ? '-'
@@ -249,7 +256,10 @@ class _QualificationDashboardScreenState
                   children: [
                     const Text(
                       'تقرير المحطات حسب المدن',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -316,7 +326,9 @@ class _QualificationDashboardScreenState
                     const SizedBox(height: 12),
                     Text('المدن المحددة: $selectedCitiesText'),
                     const SizedBox(height: 8),
-                    Text('عدد المحطات داخل المدن المحددة: ${selectedStations.length}'),
+                    Text(
+                      'عدد المحطات داخل المدن المحددة: ${selectedStations.length}',
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       selectedRegions.isEmpty
@@ -330,16 +342,17 @@ class _QualificationDashboardScreenState
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed:
-                                selectedCities.isEmpty || selectedStations.isEmpty
-                                    ? null
-                                    : () async {
-                                        Navigator.pop(sheetContext);
-                                        await _exportCityReport(
-                                          selectedCityLabels,
-                                          selectedStations,
-                                          selectedRegions,
-                                        );
-                                      },
+                                selectedCities.isEmpty ||
+                                    selectedStations.isEmpty
+                                ? null
+                                : () async {
+                                    Navigator.pop(sheetContext);
+                                    await _exportCityReport(
+                                      selectedCityLabels,
+                                      selectedStations,
+                                      selectedRegions,
+                                    );
+                                  },
                             icon: const Icon(Icons.picture_as_pdf_outlined),
                             label: const Text('تصدير التقرير'),
                           ),
@@ -369,7 +382,9 @@ class _QualificationDashboardScreenState
     if (_isExportingCityReport) return;
     if (selectedStations.isEmpty) return;
 
-    final citiesLabel = selectedCities.isEmpty ? '-' : selectedCities.join('، ');
+    final citiesLabel = selectedCities.isEmpty
+        ? '-'
+        : selectedCities.join('، ');
 
     setState(() => _isExportingCityReport = true);
     try {
@@ -514,25 +529,21 @@ class _QualificationDashboardScreenState
       final cityPart = selectedCities.length == 1
           ? _sanitizeFileNamePart(selectedCities.first)
           : 'multi_cities';
-      final fileName =
-          'qualification_stations_${cityPart}_$datePart.pdf';
+      final fileName = 'qualification_stations_${cityPart}_$datePart.pdf';
 
       try {
         await Printing.sharePdf(bytes: bytes, filename: fileName);
       } catch (_) {
-        await Printing.layoutPdf(
-          onLayout: (_) async => bytes,
-          name: fileName,
-        );
+        await Printing.layoutPdf(onLayout: (_) async => bytes, name: fileName);
       }
 
       if (!mounted) return;
       final successMessage = selectedCities.length == 1
           ? 'تم تصدير تقرير مدينة ${selectedCities.first}'
           : 'تم تصدير تقرير ${selectedCities.length} مدن';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -696,10 +707,7 @@ class _QualificationDashboardScreenState
     );
   }
 
-  pw.Widget _pdfLinkCell({
-    required String label,
-    required String url,
-  }) {
+  pw.Widget _pdfLinkCell({required String label, required String url}) {
     return pw.Container(
       alignment: pw.Alignment.center,
       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -717,11 +725,7 @@ class _QualificationDashboardScreenState
     );
   }
 
-  Widget _buildStatCard(
-    String label,
-    int value,
-    Color color,
-  ) {
+  Widget _buildStatCard(String label, int value, Color color) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -842,19 +846,18 @@ class _QualificationDashboardScreenState
         scrollDirection: Axis.horizontal,
         child: Row(
           children: chips
-              .map((chip) => Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 8),
-                    child: chip,
-                  ))
+              .map(
+                (chip) => Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 8),
+                  child: chip,
+                ),
+              )
               .toList(),
         ),
       );
     }
 
-    return Wrap(
-      spacing: 8,
-      children: chips,
-    );
+    return Wrap(spacing: 8, children: chips);
   }
 
   Widget _buildSearchField() {
@@ -901,8 +904,7 @@ class _QualificationDashboardScreenState
                 ),
                 PopupMenuButton<QualificationStatus>(
                   tooltip: 'تغيير الحالة',
-                  onSelected: (value) =>
-                      _showStatusUpdateSheet(station, value),
+                  onSelected: (value) => _showStatusUpdateSheet(station, value),
                   itemBuilder: (context) => const [
                     PopupMenuItem(
                       value: QualificationStatus.underReview,
@@ -922,8 +924,10 @@ class _QualificationDashboardScreenState
                     ),
                   ],
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
@@ -935,10 +939,9 @@ class _QualificationDashboardScreenState
                         Icon(
                           station.status == QualificationStatus.agreed
                               ? Icons.verified_outlined
-                              : station.status ==
-                                      QualificationStatus.notAgreed
-                                  ? Icons.cancel_outlined
-                                  : Icons.info_outline,
+                              : station.status == QualificationStatus.notAgreed
+                              ? Icons.cancel_outlined
+                              : Icons.info_outline,
                           size: 16,
                           color: statusColor,
                         ),
@@ -1112,26 +1115,24 @@ class _QualificationDashboardScreenState
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                            'يرجى تحديد المستخدم المسؤول'),
+                                          'يرجى تحديد المستخدم المسؤول',
+                                        ),
                                       ),
                                     );
                                     return;
                                   }
 
                                   setModalState(() => saving = true);
-                                  final provider =
-                                      context.read<QualificationProvider>();
-                                  final uploaded =
-                                      await provider.uploadAttachments(
-                                    attachments,
-                                  );
+                                  final provider = context
+                                      .read<QualificationProvider>();
+                                  final uploaded = await provider
+                                      .uploadAttachments(attachments);
                                   final assignedTo =
                                       assignedController.text.trim().isEmpty
-                                          ? null
-                                          : QualificationAssignee(
-                                              name: assignedController.text
-                                                  .trim(),
-                                            );
+                                      ? null
+                                      : QualificationAssignee(
+                                          name: assignedController.text.trim(),
+                                        );
 
                                   await _updateStatus(
                                     station,
@@ -1250,8 +1251,8 @@ class _QualificationDashboardScreenState
           final statsAspectRatio = statsColumns == 1
               ? 4.0
               : statsColumns == 2
-                  ? 2.6
-                  : 2.2;
+              ? 2.6
+              : 2.2;
 
           return RefreshIndicator(
             onRefresh: _loadInspections,
@@ -1265,11 +1266,11 @@ class _QualificationDashboardScreenState
                       Expanded(
                         child: Text(
                           'لوحة التأهيل',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryBlue,
-                                  ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryBlue,
+                              ),
                         ),
                       ),
                       _buildHeaderActions(context, compact: false),
@@ -1279,9 +1280,9 @@ class _QualificationDashboardScreenState
                   Text(
                     'لوحة التأهيل',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryBlue,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryBlue,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _buildHeaderActions(context, compact: isCompact),

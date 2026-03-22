@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:order_tracker/models/driver_model.dart';
 import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/order_model.dart';
@@ -11,13 +12,14 @@ import 'package:order_tracker/models/supplier_model.dart';
 import 'package:order_tracker/providers/order_provider.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/utils/file_saver.dart';
 import 'package:order_tracker/widgets/activity_item.dart';
-import 'package:order_tracker/widgets/attachment_item.dart';
 import 'package:order_tracker/widgets/order_status_timeline.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:intl/intl.dart';
 
@@ -3107,8 +3109,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         effectiveRequestType.trim().isNotEmpty &&
         effectiveRequestType != 'غير محدد' &&
         (order.orderSource == 'عميل' || order.orderSource == 'مدمج');
-    final String requestTypeLabel =
-        order.orderSource == 'مدمج' ? 'نوع طلب العميل' : 'نوع العملية';
+    final String requestTypeLabel = order.orderSource == 'مدمج'
+        ? 'نوع طلب العميل'
+        : 'نوع العملية';
 
     return pw.Page(
       pageFormat: PdfPageFormat.a4,
@@ -3461,11 +3464,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         pw.TableRow(
           decoration: pw.BoxDecoration(color: bg),
           children: [
-            _buildMergedTableCell(
-              left.value,
-              PdfColors.black,
-              isValue: true,
-            ),
+            _buildMergedTableCell(left.value, PdfColors.black, isValue: true),
             _buildMergedTableCell(left.key, PdfColors.black),
             _buildMergedTableCell(
               right?.value ?? '',
@@ -3538,8 +3537,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     String orderType,
   ) {
     final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final orderNumber =
-        order.orderNumber.trim().isEmpty ? '—' : order.orderNumber;
+    final orderNumber = order.orderNumber.trim().isEmpty
+        ? '—'
+        : order.orderNumber;
     final customerName = _getCustomerName(order) ?? '—';
 
     return pw.Container(
@@ -3697,7 +3697,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   //     child: pw.Column(
   //       crossAxisAlignment: pw.CrossAxisAlignment.center,
   //       children: [
-      
+
   //         pw.SizedBox(height: 3),
   //         pw.Text(
   //           officerName,
@@ -3769,24 +3769,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
       child: pw.Align(
-        alignment:
-            isHeader
-                ? pw.Alignment.center
-                : (isValue
-                    ? pw.Alignment.centerLeft
-                    : pw.Alignment.centerRight),
+        alignment: isHeader
+            ? pw.Alignment.center
+            : (isValue ? pw.Alignment.centerLeft : pw.Alignment.centerRight),
         child: pw.Text(
           text,
-          textAlign:
-              isHeader
-                  ? pw.TextAlign.center
-                  : (isValue ? pw.TextAlign.left : pw.TextAlign.right),
+          textAlign: isHeader
+              ? pw.TextAlign.center
+              : (isValue ? pw.TextAlign.left : pw.TextAlign.right),
           style: pw.TextStyle(
             fontSize: isHeader ? 7 : 6.5,
-            fontWeight:
-                isHeader
-                    ? pw.FontWeight.bold
-                    : (isValue ? pw.FontWeight.normal : pw.FontWeight.bold),
+            fontWeight: isHeader
+                ? pw.FontWeight.bold
+                : (isValue ? pw.FontWeight.normal : pw.FontWeight.bold),
             color: color,
           ),
         ),
@@ -6037,24 +6032,123 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  Future<void> _deleteAttachment(String attachmentId) async {
-    final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-    final success = await orderProvider.deleteAttachment(
-      widget.orderId,
-      attachmentId,
+  Future<void> _openAttachment(String url) async {
+    final uri = Uri.parse(url);
+    final ok = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+      webOnlyWindowName: '_blank',
     );
-
-    if (success && mounted) {
+    if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم حذف المرفق بنجاح'),
-          backgroundColor: AppColors.successGreen,
+          content: Text('تعذر فتح المرفق'),
+          backgroundColor: AppColors.errorRed,
         ),
       );
     }
   }
 
-  // ⭐ دالة التعديل المحدودة (الحالة، السائق، المواعيد فقط)
+  Future<void> _downloadAttachment(
+    String url, {
+    required String filename,
+  }) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode < 200 ||
+          response.statusCode >= 300 ||
+          response.bodyBytes.isEmpty) {
+        throw Exception('Download failed with status ${response.statusCode}');
+      }
+      await saveAndLaunchFile(response.bodyBytes, filename);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذر تحميل المرفق'),
+          backgroundColor: AppColors.errorRed,
+        ),
+      );
+    }
+  }
+
+  String _attachmentDownloadName(Attachment attachment) {
+    final trimmed = attachment.filename.trim();
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    final uri = Uri.tryParse(attachment.path);
+    final lastSegment = uri != null && uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last
+        : '';
+    return lastSegment.isNotEmpty ? lastSegment : 'attachment';
+  }
+
+  Widget _buildOrderAttachmentItem(Attachment attachment) {
+    final uploadedAt = DateFormat(
+      'yyyy/MM/dd HH:mm',
+    ).format(attachment.uploadedAt.toLocal());
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundGray,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.lightGray),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.attach_file, color: AppColors.primaryBlue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  attachment.filename,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            attachment.path,
+            style: const TextStyle(fontSize: 12, color: AppColors.mediumGray),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'تم الرفع: $uploadedAt',
+            style: const TextStyle(fontSize: 12, color: AppColors.mediumGray),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _openAttachment(attachment.path),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('فتح الرابط'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _downloadAttachment(
+                  attachment.path,
+                  filename: _attachmentDownloadName(attachment),
+                ),
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text('تحميل'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showLimitedEditDialog() {
     final order = context.read<OrderProvider>().selectedOrder;
     if (order == null) return;
@@ -6671,8 +6765,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         effectiveRequestType.trim().isNotEmpty &&
         effectiveRequestType != 'غير محدد' &&
         (order.orderSource == 'عميل' || order.orderSource == 'مدمج');
-    final String requestTypeLabel =
-        order.orderSource == 'مدمج' ? 'نوع طلب العميل' : 'نوع العملية';
+    final String requestTypeLabel = order.orderSource == 'مدمج'
+        ? 'نوع طلب العميل'
+        : 'نوع العملية';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -6904,16 +6999,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               title: 'المرفقات (${order.attachments.length})',
               icon: Icons.attach_file,
               color: AppColors.primaryBlue,
-              children: [
-                ...order.attachments.map(
-                  (attachment) => AttachmentItem(
-                    fileName: attachment.filename,
-                    fileSize: 'موجود على السيرفر',
-                    onDelete: () => _deleteAttachment(attachment.id),
-                    canDelete: true,
-                  ),
-                ),
-              ],
+              children: [...order.attachments.map(_buildOrderAttachmentItem)],
             ),
 
           const SizedBox(height: 32),

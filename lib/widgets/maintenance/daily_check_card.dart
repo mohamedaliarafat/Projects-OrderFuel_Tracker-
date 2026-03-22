@@ -91,11 +91,8 @@ class DailyCheckCard extends StatelessWidget {
     final reviewerName = status == 'approved'
         ? (approvedByName ?? reviewedByName ?? supervisorName)
         : status == 'rejected'
-            ? (rejectedByName ??
-                reviewedByName ??
-                supervisorName ??
-                approvedByName)
-            : null;
+        ? (rejectedByName ?? reviewedByName ?? supervisorName ?? approvedByName)
+        : null;
 
     final inspectionTimeText = inspectionDate != null
         ? DateFormat('yyyy-MM-dd HH:mm').format(inspectionDate)
@@ -236,11 +233,7 @@ class DailyCheckCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(
-                            Icons.cancel,
-                            size: 14,
-                            color: Colors.red,
-                          ),
+                          const Icon(Icons.cancel, size: 14, color: Colors.red),
                           const SizedBox(width: 6),
                           Text(
                             'رفض بواسطة: $reviewerName',

@@ -125,7 +125,9 @@ class _ChatLiveCallScreenState extends State<ChatLiveCallScreen> {
     if (_syncingCallState || _endingCall || _startedAt != null) return;
     _syncingCallState = true;
     try {
-      final session = await _chatProvider.fetchActiveCall(widget.conversationId);
+      final session = await _chatProvider.fetchActiveCall(
+        widget.conversationId,
+      );
       if (!mounted) return;
       final startedAt = session?.startedAt;
       if (startedAt != null) {
@@ -323,7 +325,8 @@ class _ChatLiveCallScreenState extends State<ChatLiveCallScreen> {
                           icon: _isCameraOff
                               ? Icons.videocam_off
                               : Icons.videocam,
-                          label: '\u0627\u0644\u0643\u0627\u0645\u064A\u0631\u0627',
+                          label:
+                              '\u0627\u0644\u0643\u0627\u0645\u064A\u0631\u0627',
                           active: !_isCameraOff,
                           onPressed: widget.isVideo ? _toggleCamera : null,
                         ),
@@ -394,7 +397,8 @@ class _CallControlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null && !loading;
-    final bg = backgroundColor ??
+    final bg =
+        backgroundColor ??
         (active
             ? Colors.white.withValues(alpha: 0.28)
             : Colors.white.withValues(alpha: 0.15));

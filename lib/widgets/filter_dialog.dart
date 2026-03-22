@@ -47,8 +47,6 @@ class _FilterDialogState extends State<FilterDialog> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -67,8 +65,11 @@ class _FilterDialogState extends State<FilterDialog> {
             Icon(Icons.filter_alt_outlined, color: AppColors.primaryBlue),
             SizedBox(width: 8),
             Text(
-            '\u062a\u0635\u0641\u064a\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062a',
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700),
+              '\u062a\u0635\u0641\u064a\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062a',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -83,7 +84,7 @@ class _FilterDialogState extends State<FilterDialog> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                    '\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0639\u0627\u064a\u064a\u0631 \u0627\u0644\u0645\u0646\u0627\u0633\u0628\u0629 \u0644\u0639\u0631\u0636 \u0627\u0644\u0637\u0644\u0628\u0627\u062a',
+                      '\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0639\u0627\u064a\u064a\u0631 \u0627\u0644\u0645\u0646\u0627\u0633\u0628\u0629 \u0644\u0639\u0631\u0636 \u0627\u0644\u0637\u0644\u0628\u0627\u062a',
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'Cairo',
                         color: AppColors.mediumGray,
@@ -94,7 +95,8 @@ class _FilterDialogState extends State<FilterDialog> {
                   DropdownButtonFormField<String>(
                     value: _status,
                     decoration: InputDecoration(
-                    labelText: '\u062d\u0627\u0644\u0629 \u0627\u0644\u0637\u0644\u0628',
+                      labelText:
+                          '\u062d\u0627\u0644\u0629 \u0627\u0644\u0637\u0644\u0628',
                       border: inputBorder,
                       enabledBorder: inputBorder,
                       focusedBorder: inputBorder.copyWith(
@@ -106,18 +108,19 @@ class _FilterDialogState extends State<FilterDialog> {
                       filled: true,
                       fillColor: AppColors.backgroundGray.withOpacity(0.35),
                     ),
-                  items: [
-                    '\u0642\u064a\u062f \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631',
-                    '\u0642\u064a\u062f \u0627\u0644\u062a\u062c\u0647\u064a\u0632',
-                    '\u062c\u0627\u0647\u0632 \u0644\u0644\u062a\u062d\u0645\u064a\u0644',
-                    '\u062a\u0645 \u0627\u0644\u062a\u062d\u0645\u064a\u0644',
-                    '\u0645\u0644\u063a\u0649',
-                  ].map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
+                    items:
+                        [
+                          '\u0642\u064a\u062f \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631',
+                          '\u0642\u064a\u062f \u0627\u0644\u062a\u062c\u0647\u064a\u0632',
+                          '\u062c\u0627\u0647\u0632 \u0644\u0644\u062a\u062d\u0645\u064a\u0644',
+                          '\u062a\u0645 \u0627\u0644\u062a\u062d\u0645\u064a\u0644',
+                          '\u0645\u0644\u063a\u0649',
+                        ].map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
                     onChanged: (value) {
                       setState(() {
                         _status = value;
@@ -127,7 +130,8 @@ class _FilterDialogState extends State<FilterDialog> {
                   const SizedBox(height: 16),
                   TextFormField(
                     decoration: InputDecoration(
-                    labelText: '\u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0631\u062f',
+                      labelText:
+                          '\u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0631\u062f',
                       border: inputBorder,
                       enabledBorder: inputBorder,
                       focusedBorder: inputBorder.copyWith(
@@ -146,7 +150,8 @@ class _FilterDialogState extends State<FilterDialog> {
                   const SizedBox(height: 16),
                   TextFormField(
                     decoration: InputDecoration(
-                    labelText: '\u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628',
+                      labelText:
+                          '\u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628',
                       border: inputBorder,
                       enabledBorder: inputBorder,
                       focusedBorder: inputBorder.copyWith(
@@ -180,7 +185,9 @@ class _FilterDialogState extends State<FilterDialog> {
                               children: [
                                 Text(
                                   _startDate != null
-                                      ? DateFormat('yyyy/MM/dd').format(_startDate!)
+                                      ? DateFormat(
+                                          'yyyy/MM/dd',
+                                        ).format(_startDate!)
                                       : '\u0645\u0646 \u062a\u0627\u0631\u064a\u062e',
                                   style: TextStyle(
                                     color: _startDate != null
@@ -210,7 +217,9 @@ class _FilterDialogState extends State<FilterDialog> {
                               children: [
                                 Text(
                                   _endDate != null
-                                      ? DateFormat('yyyy/MM/dd').format(_endDate!)
+                                      ? DateFormat(
+                                          'yyyy/MM/dd',
+                                        ).format(_endDate!)
                                       : '\u0625\u0644\u0649 \u062a\u0627\u0631\u064a\u062e',
                                   style: TextStyle(
                                     color: _endDate != null
@@ -243,10 +252,10 @@ class _FilterDialogState extends State<FilterDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-          child: const Text(
-            '\u0625\u0644\u063a\u0627\u0621',
-            style: TextStyle(fontFamily: 'Cairo'),
-          ),
+            child: const Text(
+              '\u0625\u0644\u063a\u0627\u0621',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -256,7 +265,8 @@ class _FilterDialogState extends State<FilterDialog> {
                   'supplierName': _supplierName!,
                 if (_orderNumber != null && _orderNumber!.isNotEmpty)
                   'orderNumber': _orderNumber!,
-                if (_startDate != null) 'startDate': _startDate!.toIso8601String(),
+                if (_startDate != null)
+                  'startDate': _startDate!.toIso8601String(),
                 if (_endDate != null) 'endDate': _endDate!.toIso8601String(),
               };
               Navigator.pop(context, filters);
@@ -268,10 +278,10 @@ class _FilterDialogState extends State<FilterDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-        child: const Text(
-          '\u062a\u0637\u0628\u064a\u0642',
-          style: TextStyle(fontFamily: 'Cairo'),
-        ),
+            child: const Text(
+              '\u062a\u0637\u0628\u064a\u0642',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),

@@ -5,7 +5,11 @@ import 'package:order_tracker/utils/constants.dart';
 class DriverStatsChart extends StatelessWidget {
   final List<dynamic> drivers;
 
-  const DriverStatsChart({super.key, required this.drivers, required bool isLargeScreen});
+  const DriverStatsChart({
+    super.key,
+    required this.drivers,
+    required bool isLargeScreen,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -313,5 +313,4 @@ class _PaySalaryDialogState extends State<PaySalaryDialog> {
 
     await widget.onPay(_paymentMethod, _paymentDate);
   }
-
 }

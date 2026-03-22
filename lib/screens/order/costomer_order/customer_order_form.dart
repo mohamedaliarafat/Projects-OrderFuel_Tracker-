@@ -20,6 +20,7 @@ import 'package:order_tracker/providers/driver_provider.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/saudi_cities.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
 import 'package:order_tracker/widgets/attachment_item.dart';
 import 'package:order_tracker/widgets/custom_text_field.dart';
 import 'package:order_tracker/widgets/gradient_button.dart';
@@ -126,21 +127,34 @@ class _CustomerOrderFormScreenState extends State<CustomerOrderFormScreen> {
   }
 
   PreferredSizeWidget _buildDesktopAppBar() {
+    final title = widget.orderToEdit != null
+        ? 'تعديل طلب العميل'
+        : 'طلب عميل جديد';
+
     return AppBar(
       elevation: 0,
+      backgroundColor: Colors.transparent,
+      flexibleSpace: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+      ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new),
         tooltip: 'رجوع',
-        color: AppColors.primaryBlue,
-        onPressed: () {
-          Navigator.pop(context);
-        },
+        color: Colors.white,
+        onPressed: () => Navigator.pop(context),
       ),
       title: Text(
-        widget.orderToEdit != null ? 'تعديل طلب العميل' : 'طلب عميل جديد',
+        title,
         style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: AppColors.primaryBlue,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
         ),
       ),
       centerTitle: true,
@@ -589,7 +603,7 @@ class _CustomerOrderFormScreenState extends State<CustomerOrderFormScreen> {
     });
   }
 
-Future<void> _submitForm() async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     // ===============================
@@ -776,7 +790,7 @@ Future<void> _submitForm() async {
     );
   }
 
-Widget _buildLocationField({
+  Widget _buildLocationField({
     required String label,
     required String? value,
     required IconData icon,
@@ -850,8 +864,6 @@ Widget _buildLocationField({
       ),
     );
   }
-
-
 
   String _formatFileSize(String path) {
     try {
@@ -1190,21 +1202,18 @@ Widget _buildLocationField({
     final orderProvider = Provider.of<OrderProvider>(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
+    final content = _isDesktop
+        ? _buildDesktopLayout(context, orderProvider, screenWidth)
+        : _buildMobileLayout(context, orderProvider);
+
     return Scaffold(
-      appBar: _isDesktop
-          ? _buildDesktopAppBar()
-          : AppBar(
-              title: Text(
-                widget.orderToEdit != null
-                    ? 'تعديل طلب العميل'
-                    : 'طلب عميل جديد',
-                style: const TextStyle(color: Colors.white),
-              ),
-              centerTitle: true,
-            ),
-      body: _isDesktop
-          ? _buildDesktopLayout(context, orderProvider, screenWidth)
-          : _buildMobileLayout(context, orderProvider),
+      appBar: _buildDesktopAppBar(),
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Positioned.fill(child: content),
+        ],
+      ),
     );
   }
 
@@ -1278,69 +1287,79 @@ Widget _buildLocationField({
     OrderProvider orderProvider,
     double screenWidth,
   ) {
-    return Scaffold(
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ================= LEFT COLUMN =================
-              Expanded(
-                child: Column(
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1500),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(8),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildCustomerCardDesktop(context),
-                    const SizedBox(height: 24),
+                    // ================= LEFT COLUMN =================
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildCustomerCardDesktop(context),
+                          const SizedBox(height: 24),
 
-                    if (_selectedCustomer != null) ...[
-                      _buildPurchaseTypeCardDesktop(context),
-                      const SizedBox(height: 24),
-                    ],
+                          if (_selectedCustomer != null) ...[
+                            _buildPurchaseTypeCardDesktop(context),
+                            const SizedBox(height: 24),
+                          ],
 
-                    // ✅ بطاقة السائق تظهر فقط إذا كان النوع "نقل"
-                    _buildDriverCardDesktop(context),
-                    if (_purchaseType == 'نقل') const SizedBox(height: 24),
+                          // ✅ بطاقة السائق تظهر فقط إذا كان النوع "نقل"
+                          _buildDriverCardDesktop(context),
+                          if (_purchaseType == 'نقل')
+                            const SizedBox(height: 24),
 
-                    if (_selectedCustomer != null) ...[
-                      _buildLocationCardDesktop(context),
-                      const SizedBox(height: 24),
-                    ],
-                    _buildCustomerAddressPreview(),
-                    const SizedBox(height: 12),
+                          if (_selectedCustomer != null) ...[
+                            _buildLocationCardDesktop(context),
+                            const SizedBox(height: 24),
+                          ],
+                          _buildCustomerAddressPreview(),
+                          const SizedBox(height: 12),
 
-                    _buildOrderInfoCardDesktop(context),
-                    const SizedBox(height: 24),
+                          _buildOrderInfoCardDesktop(context),
+                          const SizedBox(height: 24),
 
-                    _buildArrivalDateCardDesktop(context),
+                          _buildArrivalDateCardDesktop(context),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 24),
+
+                    // ================= RIGHT COLUMN =================
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFuelInfoCardDesktop(context),
+                          const SizedBox(height: 24),
+
+                          _buildStatusNotesCardDesktop(context),
+                          const SizedBox(height: 24),
+
+                          _buildAttachmentsCardDesktop(context),
+                          const SizedBox(height: 32),
+
+                          // ✅ زر الحفظ / الإنشاء
+                          _buildSubmitButton(orderProvider),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-
-              const SizedBox(width: 32),
-
-              // ================= RIGHT COLUMN =================
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildFuelInfoCardDesktop(context),
-                    const SizedBox(height: 24),
-
-                    _buildStatusNotesCardDesktop(context),
-                    const SizedBox(height: 24),
-
-                    _buildAttachmentsCardDesktop(context),
-                    const SizedBox(height: 32),
-
-                    // ✅ زر الحفظ / الإنشاء
-                    _buildSubmitButton(orderProvider),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1443,70 +1462,35 @@ Widget _buildLocationField({
                 ),
               ),
 
-            // قائمة العملاء للاختيار
-            if (_selectedCustomer != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryBlue),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showCustomerPicker,
+                icon: const Icon(Icons.people_alt_outlined),
+                label: Text(
+                  _selectedCustomer == null
+                      ? 'عرض العملاء واختيار عميل'
+                      : 'تغيير العميل',
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: AppColors.primaryBlue.withOpacity(
-                            0.2,
-                          ),
-                          child: Text(
-                            _selectedCustomer!.name
-                                .substring(0, 1)
-                                .toUpperCase(),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _selectedCustomer!.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'كود: ${_selectedCustomer!.code}',
-                                style: TextStyle(
-                                  color: AppColors.mediumGray,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        /// ✅ زر تغيير العميل (يظهر فقط في التعديل)
-                        if (_isEditMode)
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedCustomer = null;
-                                _selectedCustomerId = null;
-                                _filteredCustomers = _allCustomers;
-                              });
-                            },
-                            child: const Text('تغيير'),
-                          ),
-                      ],
-                    ),
-                  ],
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  side: const BorderSide(color: AppColors.primaryBlue),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _selectedCustomer == null
+                  ? 'اضغط لعرض قائمة العملاء على الجوال واختيار العميل المطلوب.'
+                  : 'يمكنك تغيير العميل الحالي من نفس الزر.',
+              style: TextStyle(color: AppColors.mediumGray, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -2388,17 +2372,20 @@ Widget _buildLocationField({
               Container(
                 margin: const EdgeInsets.only(top: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.white.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.70),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      blurRadius: 5,
-                      offset: const Offset(0, 3),
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 22,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
-                constraints: const BoxConstraints(maxHeight: 300),
+                constraints: const BoxConstraints(maxHeight: 420),
                 child: Column(
                   children: [
                     Padding(
@@ -2407,10 +2394,29 @@ Widget _buildLocationField({
                         controller: _customerFilterController,
                         onChanged: _filterCustomers,
                         decoration: InputDecoration(
-                          hintText: 'Search customers...',
+                          hintText: 'بحث عن عميل...',
                           prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: Colors.black.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.appBarWaterBright,
+                              width: 1.4,
+                            ),
                           ),
                         ),
                       ),
@@ -2428,7 +2434,7 @@ Widget _buildLocationField({
                               ),
                             ),
                             title: Text(customer.name),
-                            subtitle: Text('U?U^O_: ${customer.code}'),
+                            subtitle: Text('كود: ${customer.code}'),
                             onTap: () {
                               setState(() {
                                 _selectedCustomer = customer;

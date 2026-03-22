@@ -1,243 +1,15 @@
-// // auth_provider.dart
-// import 'dart:convert';
-// import 'dart:io';
-
-// import 'package:flutter/foundation.dart';
-// import 'package:http/http.dart' as http;
-// import 'package:order_tracker/models/models.dart';
-// import 'package:order_tracker/utils/api_service.dart';
-// import 'package:order_tracker/utils/app_routes.dart';
-// import 'package:order_tracker/utils/constants.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
-
-// class AuthProvider with ChangeNotifier {
-//   User? _user;
-//   String? _token;
-//   bool _isLoading = false;
-//   String? _error;
-
-//   // ================= GETTERS =================
-//   User? get user => _user;
-//   String? get token => _token;
-//   bool get isLoading => _isLoading;
-//   String? get error => _error;
-//   bool get isAuthenticated => _token != null && _user != null;
-//   String? get role => _user?.role;
-
-//   String? get stationId => _user?.stationId;
-//   String? get stationName => _user?.stationName;
-
-//   bool get isStationBoy => _user?.role == 'station_boy';
-
-//   /// ✅ أدوار إدارية
-//   bool get isAdminLike =>
-//       _user?.role == 'owner' ||
-//       _user?.role == 'admin' ||
-//       _user?.role == 'manager';
-
-//   String get initialRoute {
-//     if (!isAuthenticated) {
-//       return AppRoutes.front;
-//     }
-
-//     if (isStationBoy) {
-//       return '/sessions';
-//     }
-
-//     return '/home';
-//   }
-
-//   // ================= INIT =================
-//   /// تُستدعى مرة واحدة عند تشغيل التطبيق
-//   Future<void> initialize() async {
-//     try {
-//       final prefs = await SharedPreferences.getInstance();
-//       final savedToken = prefs.getString('token');
-//       final userJson = prefs.getString('user');
-
-//       if (savedToken != null && userJson != null) {
-//         _token = savedToken;
-//         _user = User.fromJson(json.decode(userJson));
-
-//         // أهم سطر 👇
-//         ApiService.setToken(savedToken);
-
-//         notifyListeners();
-//         debugPrint('✅ AUTH INITIALIZED (TOKEN LOADED)');
-//       }
-//     } catch (e, s) {
-//       debugPrint('❌ INIT AUTH ERROR: $e');
-//       debugPrint('STACK: $s');
-//     }
-//   }
-
-//   // ================= LOGIN =================
-//   Future<bool> login(String email, String password) async {
-//     _setLoading(true);
-//     _error = null;
-
-//     try {
-//       final response = await http.post(
-//         Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.login}'),
-//         headers: const {'Content-Type': 'application/json'},
-//         body: json.encode({'email': email, 'password': password}),
-//       );
-
-//       debugPrint('LOGIN STATUS: ${response.statusCode}');
-//       debugPrint('LOGIN BODY: ${response.body}');
-
-//       if (response.statusCode == 200) {
-//         final data = json.decode(response.body);
-
-//         final receivedToken = data['token'];
-//         final userData = data['user'];
-
-//         if (receivedToken == null || userData == null) {
-//           throw Exception('Token أو User غير موجودين في الاستجابة');
-//         }
-
-//         _token = receivedToken;
-//         _user = User.fromJson(userData);
-
-//         final prefs = await SharedPreferences.getInstance();
-//         await prefs.setString('token', receivedToken);
-//         await prefs.setString('user', json.encode(_user!.toJson()));
-
-//         ApiService.setToken(receivedToken);
-
-//         _setLoading(false);
-//         notifyListeners();
-//         return true;
-//       } else {
-//         final errorData = json.decode(response.body);
-//         _error = errorData['error'] ?? 'فشل تسجيل الدخول';
-//       }
-//     } on SocketException {
-//       _error = 'لا يوجد اتصال بالإنترنت';
-//     } catch (e, s) {
-//       debugPrint('❌ LOGIN ERROR: $e');
-//       debugPrint('STACK: $s');
-//       _error = 'حدث خطأ غير متوقع أثناء تسجيل الدخول';
-//     }
-
-//     _setLoading(false);
-//     notifyListeners();
-//     return false;
-//   }
-
-//   // ================= REGISTER =================
-//   Future<bool> register(
-//     String name,
-//     String email,
-//     String password,
-//     String company,
-//     String? phone,
-//   ) async {
-//     _setLoading(true);
-//     _error = null;
-
-//     try {
-//       final response = await http.post(
-//         Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.register}'),
-//         headers: const {'Content-Type': 'application/json'},
-//         body: json.encode({
-//           'name': name,
-//           'email': email,
-//           'password': password,
-//           'company': company,
-//           'phone': phone,
-//         }),
-//       );
-
-//       if (response.statusCode == 201) {
-//         final data = json.decode(response.body);
-
-//         final receivedToken = data['token'];
-//         final userData = data['user'];
-
-//         if (receivedToken == null || userData == null) {
-//           throw Exception('Token أو User غير موجودين');
-//         }
-
-//         _token = receivedToken;
-//         _user = User.fromJson(userData);
-
-//         final prefs = await SharedPreferences.getInstance();
-//         await prefs.setString('token', receivedToken);
-//         await prefs.setString('user', json.encode(_user!.toJson()));
-
-//         // مهم جدًا
-//         ApiService.setToken(receivedToken);
-
-//         _setLoading(false);
-//         notifyListeners();
-//         return true;
-//       } else {
-//         final errorData = json.decode(response.body);
-//         _error = errorData['error'] ?? 'فشل إنشاء الحساب';
-//       }
-//     } catch (e, s) {
-//       debugPrint('❌ REGISTER ERROR: $e');
-//       debugPrint('STACK: $s');
-//       _error = 'حدث خطأ غير متوقع أثناء التسجيل';
-//     }
-
-//     _setLoading(false);
-//     notifyListeners();
-//     return false;
-//   }
-
-//   // ================= LOGOUT =================
-//   Future<void> logout() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     await prefs.remove('token');
-//     await prefs.remove('user');
-
-//     _user = null;
-//     _token = null;
-
-//     // مهم جدًا
-//     ApiService.setToken(null);
-
-//     notifyListeners();
-//   }
-
-//   // ================= UPDATE PROFILE =================
-//   Future<void> updateProfile(User updatedUser) async {
-//     _user = updatedUser;
-
-//     final prefs = await SharedPreferences.getInstance();
-//     await prefs.setString('user', json.encode(updatedUser.toJson()));
-
-//     notifyListeners();
-//   }
-
-//   // ================= HELPERS =================
-//   void clearError() {
-//     _error = null;
-//     notifyListeners();
-//   }
-
-//   void _setLoading(bool value) {
-//     _isLoading = value;
-//     notifyListeners();
-//   }
-// }
-
-
-
-
-// auth_provider.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:order_tracker/models/models.dart';
+import 'package:order_tracker/services/push_notification_service.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/auth_token_storage.dart';
 import 'package:order_tracker/utils/constants.dart';
-import 'package:order_tracker/services/push_notification_service.dart';
+import 'package:order_tracker/utils/login_device_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -248,6 +20,10 @@ class AuthProvider with ChangeNotifier {
   String? _error;
   int? _tokenExpiryMillis;
   String? _pendingRoute;
+  String? _pendingLoginType;
+  String? _pendingIdentifier;
+  String? _pendingMaskedEmail;
+
   static const Set<String> _publicRoutes = <String>{
     '/',
     '/front',
@@ -255,30 +31,31 @@ class AuthProvider with ChangeNotifier {
     '/register',
   };
 
-  // ================= GETTERS =================
   User? get user => _user;
   String? get token => _token;
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
   String? get error => _error;
   String? get pendingRoute => _pendingRoute;
+  String? get pendingMaskedEmail => _pendingMaskedEmail;
 
   bool get isAuthenticated => _token != null && _user != null;
+  bool get hasPendingOtp =>
+      _pendingLoginType != null && _pendingIdentifier != null;
   String? get role => _user?.role;
-
   String? get stationId => _user?.stationId;
+  List<String> get stationIds =>
+      List.unmodifiable(_user?.stationIds ?? const <String>[]);
   String? get stationName => _user?.stationName;
 
   bool get isStationBoy => _user?.role == 'station_boy';
+  bool get isOwnerStation => _user?.role == 'owner_station';
 
-  /// ✅ أدوار إدارية
   bool get isAdminLike =>
       _user?.role == 'owner' ||
       _user?.role == 'admin' ||
       _user?.role == 'manager';
 
-  // ================= INIT =================
-  /// ⏳ تُستدعى مرة واحدة عند تشغيل التطبيق
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -294,19 +71,15 @@ class AuthProvider with ChangeNotifier {
         _user = User.fromJson(json.decode(userJson));
         _tokenExpiryMillis = expiryMillis;
 
-        ApiService.setToken(savedToken);
+        ApiService.primeToken(savedToken);
         setAuthToken(savedToken);
-        await _initPushNotificationsSafely();
-        debugPrint('✅ AUTH INITIALIZED (TOKEN LOADED)');
+        unawaited(_initPushNotificationsSafely());
       } else if (expiryMillis != null &&
           DateTime.now().millisecondsSinceEpoch >= expiryMillis) {
         await _clearStoredAuthData(prefs);
-        debugPrint('ℹ️ Saved credentials expired, clearing data');
-      } else {
-        debugPrint('ℹ️ NO SAVED SESSION');
       }
     } catch (e, s) {
-      debugPrint('❌ INIT AUTH ERROR: $e');
+      debugPrint('INIT AUTH ERROR: $e');
       debugPrint('STACK: $s');
     } finally {
       _isInitialized = true;
@@ -314,7 +87,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // ================= LOGIN =================
   Future<bool> login(String email, String password) async {
     _setLoading(true);
     _error = null;
@@ -326,45 +98,19 @@ class AuthProvider with ChangeNotifier {
         body: json.encode({'email': email, 'password': password}),
       );
 
-      debugPrint('LOGIN STATUS: ${response.statusCode}');
-      debugPrint('LOGIN BODY: ${response.body}');
-
+      final body = json.decode(utf8.decode(response.bodyBytes));
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        final receivedToken = data['token'];
-        final userData = data['user'];
-
-        if (receivedToken == null || userData == null) {
-          throw Exception('Token أو User غير موجودين في الاستجابة');
-        }
-
-        _token = receivedToken;
-        _user = User.fromJson(userData);
-
-        final prefs = await SharedPreferences.getInstance();
-        final expiry = DateTime.now().add(const Duration(days: 30));
-        _tokenExpiryMillis = expiry.millisecondsSinceEpoch;
-
-        await prefs.setString('token', receivedToken);
-        await prefs.setString('user', json.encode(_user!.toJson()));
-        await prefs.setInt('tokenExpiry', _tokenExpiryMillis!);
-
-        ApiService.setToken(receivedToken);
-        setAuthToken(receivedToken);
-        await _initPushNotificationsSafely();
-
+        await _completeAuthenticatedSession(body);
         _setLoading(false);
         notifyListeners();
         return true;
-      } else {
-        final errorData = json.decode(response.body);
-        _error = errorData['error'] ?? 'فشل تسجيل الدخول';
       }
+
+      _error = body['error']?.toString() ?? 'فشل تسجيل الدخول';
     } on SocketException {
       _error = 'لا يوجد اتصال بالإنترنت';
     } catch (e, s) {
-      debugPrint('❌ LOGIN ERROR: $e');
+      debugPrint('LOGIN ERROR: $e');
       debugPrint('STACK: $s');
       _error = 'حدث خطأ غير متوقع أثناء تسجيل الدخول';
     }
@@ -374,14 +120,118 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
-  // ================= REGISTER =================
+  Future<bool> requestLoginOtp({
+    required String loginType,
+    required String identifier,
+  }) async {
+    final trimmedIdentifier = identifier.trim();
+    if (trimmedIdentifier.isEmpty) {
+      _error = 'يرجى إدخال بيانات الدخول';
+      notifyListeners();
+      return false;
+    }
+
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final device = await LoginDeviceUtil.resolve();
+      final response = await http.post(
+        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.requestLoginOtp}'),
+        headers: const {'Content-Type': 'application/json'},
+        body: json.encode({
+          'loginType': loginType,
+          'identifier': trimmedIdentifier,
+          ...device.toJson(),
+        }),
+      );
+
+      final body = json.decode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200) {
+        _pendingLoginType = loginType;
+        _pendingIdentifier = trimmedIdentifier;
+        _pendingMaskedEmail = body['maskedEmail']?.toString();
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      }
+
+      _error = body['error']?.toString() ?? 'تعذر إرسال رمز التحقق';
+    } on SocketException {
+      _error = 'لا يوجد اتصال بالإنترنت';
+    } catch (e, s) {
+      debugPrint('OTP REQUEST ERROR: $e');
+      debugPrint('STACK: $s');
+      _error = 'حدث خطأ أثناء إرسال رمز التحقق';
+    }
+
+    _setLoading(false);
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> verifyLoginOtp(String otp) async {
+    final trimmedOtp = otp.trim();
+
+    if (!hasPendingOtp) {
+      _error = 'انتهت جلسة التحقق، يرجى طلب رمز جديد';
+      notifyListeners();
+      return false;
+    }
+
+    if (trimmedOtp.length != 6) {
+      _error = 'أدخل رمز تحقق مكوناً من 6 أرقام';
+      notifyListeners();
+      return false;
+    }
+
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final device = await LoginDeviceUtil.resolve();
+      final response = await http.post(
+        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.verifyLoginOtp}'),
+        headers: const {'Content-Type': 'application/json'},
+        body: json.encode({
+          'loginType': _pendingLoginType,
+          'identifier': _pendingIdentifier,
+          'otp': trimmedOtp,
+          ...device.toJson(),
+        }),
+      );
+
+      final body = json.decode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200) {
+        await _completeAuthenticatedSession(body);
+        cancelPendingOtp(notify: false);
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      }
+
+      _error = body['error']?.toString() ?? 'فشل التحقق من الرمز';
+    } on SocketException {
+      _error = 'لا يوجد اتصال بالإنترنت';
+    } catch (e, s) {
+      debugPrint('OTP VERIFY ERROR: $e');
+      debugPrint('STACK: $s');
+      _error = 'حدث خطأ أثناء التحقق من الرمز';
+    }
+
+    _setLoading(false);
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> register(
     String name,
     String email,
     String password,
     String company,
-    String? phone,
-  ) async {
+    String? phone, {
+    String? username,
+  }) async {
     _setLoading(true);
     _error = null;
 
@@ -391,6 +241,7 @@ class AuthProvider with ChangeNotifier {
         headers: const {'Content-Type': 'application/json'},
         body: json.encode({
           'name': name,
+          'username': username,
           'email': email,
           'password': password,
           'company': company,
@@ -398,40 +249,17 @@ class AuthProvider with ChangeNotifier {
         }),
       );
 
+      final body = json.decode(utf8.decode(response.bodyBytes));
       if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-
-        final receivedToken = data['token'];
-        final userData = data['user'];
-
-        if (receivedToken == null || userData == null) {
-          throw Exception('Token أو User غير موجودين');
-        }
-
-        _token = receivedToken;
-        _user = User.fromJson(userData);
-
-        final prefs = await SharedPreferences.getInstance();
-        final expiry = DateTime.now().add(const Duration(days: 30));
-        _tokenExpiryMillis = expiry.millisecondsSinceEpoch;
-
-        await prefs.setString('token', receivedToken);
-        await prefs.setString('user', json.encode(_user!.toJson()));
-        await prefs.setInt('tokenExpiry', _tokenExpiryMillis!);
-
-        ApiService.setToken(receivedToken);
-        setAuthToken(receivedToken);
-        await _initPushNotificationsSafely();
-
+        await _completeAuthenticatedSession(body);
         _setLoading(false);
         notifyListeners();
         return true;
-      } else {
-        final errorData = json.decode(response.body);
-        _error = errorData['error'] ?? 'فشل إنشاء الحساب';
       }
+
+      _error = body['error']?.toString() ?? 'فشل إنشاء الحساب';
     } catch (e, s) {
-      debugPrint('❌ REGISTER ERROR: $e');
+      debugPrint('REGISTER ERROR: $e');
       debugPrint('STACK: $s');
       _error = 'حدث خطأ غير متوقع أثناء التسجيل';
     }
@@ -441,16 +269,22 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
-  // ================= LOGOUT =================
-  Future<void> logout() async {
+  Future<void> logout({bool notifyServer = true}) async {
+    if (notifyServer) {
+      try {
+        await ApiService.post(ApiEndpoints.logout, const {});
+      } catch (e, s) {
+        debugPrint('LOGOUT NOTIFY ERROR: $e');
+        debugPrint('STACK: $s');
+      }
+    }
+
     await PushNotificationService.unregister();
     final prefs = await SharedPreferences.getInstance();
     await _clearStoredAuthData(prefs);
-
     notifyListeners();
   }
 
-  // ================= UPDATE PROFILE =================
   Future<void> updateProfile(User updatedUser) async {
     _user = updatedUser;
 
@@ -460,7 +294,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ================= HELPERS =================
   void clearError() {
     _error = null;
     notifyListeners();
@@ -480,6 +313,14 @@ class AuthProvider with ChangeNotifier {
     return route;
   }
 
+  void cancelPendingOtp({bool notify = true}) {
+    _pendingLoginType = null;
+    _pendingIdentifier = null;
+    _pendingMaskedEmail = null;
+    if (notify) {
+      notifyListeners();
+    }
+  }
 
   void _setLoading(bool value) {
     _isLoading = value;
@@ -495,8 +336,36 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     _tokenExpiryMillis = null;
     _pendingRoute = null;
-    ApiService.setToken(null);
+    _pendingLoginType = null;
+    _pendingIdentifier = null;
+    _pendingMaskedEmail = null;
+    await ApiService.setToken(null);
     clearAuthToken();
+  }
+
+  Future<void> _completeAuthenticatedSession(Map<String, dynamic> data) async {
+    final receivedToken = data['token'];
+    final userData = data['user'];
+
+    if (receivedToken == null || userData == null) {
+      throw Exception('Token أو بيانات المستخدم غير موجودة في الاستجابة');
+    }
+
+    _token = receivedToken.toString();
+    _user = User.fromJson(Map<String, dynamic>.from(userData));
+
+    final prefs = await SharedPreferences.getInstance();
+    final expiry = DateTime.now().add(const Duration(days: 30));
+    _tokenExpiryMillis = expiry.millisecondsSinceEpoch;
+
+    await Future.wait<dynamic>([
+      prefs.setString('token', _token!),
+      prefs.setString('user', json.encode(_user!.toJson())),
+      prefs.setInt('tokenExpiry', _tokenExpiryMillis!),
+      ApiService.setToken(_token),
+    ]);
+    setAuthToken(_token!);
+    unawaited(_initPushNotificationsSafely());
   }
 
   Future<void> _initPushNotificationsSafely() async {

@@ -1,4 +1,4 @@
-﻿// ignore_for_file: unused_local_variable, dead_code
+// ignore_for_file: unused_local_variable, dead_code
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -166,8 +166,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       candlestickData.add({
         'label': 'طلبات الموردين',
         'value': total,
-        'open': minStatus.value, 
-        'high': maxStatus.value, 
+        'open': minStatus.value,
+        'high': maxStatus.value,
         'low': supplierData.values.reduce((a, b) => a < b ? a : b),
         'close': total ~/ supplierData.length,
         'color': AppColors.primaryBlue,
@@ -289,19 +289,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-
-      await orderProvider.fetchOrders();
-      await Provider.of<NotificationProvider>(
-        context,
-        listen: false,
-      ).fetchNotifications();
-
-      await _loadApproachingTimers();
-
-      _startLiveTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_bootstrapDashboard());
     });
+  }
+
+  Future<void> _bootstrapDashboard() async {
+    final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(
+      context,
+      listen: false,
+    );
+
+    await Future.wait<void>([
+      orderProvider.fetchOrders(),
+      notificationProvider.fetchNotifications(),
+    ]);
+
+    if (!mounted) return;
+    await _loadApproachingTimers();
+    if (!mounted) return;
+    _startLiveTimer();
   }
 
   void _startLiveTimer() {
@@ -429,8 +437,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         driverNameFallback: order.driverName ?? order.driver?.name,
         driverPhoneFallback: order.driverPhone ?? order.driver?.phone,
         vehicleNumberFallback:
-        order.vehicleNumber ?? order.driver?.vehicleNumber,
-       status: order.status,
+            order.vehicleNumber ?? order.driver?.vehicleNumber,
+        status: order.status,
         orderSource: order.orderSource,
         supplierOrderNumber: order.supplierOrderNumber,
         fuelType: order.fuelType,
@@ -439,7 +447,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mergedInfoSummary: mergedInfoSummary,
         mergeStatus: order.mergeStatus,
 
-   
         notes: order.notes,
       );
     } catch (e) {
@@ -560,9 +567,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return orders
         .where((order) {
           final waitingStatuses = [
-            'في انتظار التخصيص', 
-            'في انتظار الدمج', 
-            'في المستودع', 
+            'في انتظار التخصيص',
+            'في انتظار الدمج',
+            'في المستودع',
             'تم الإنشاء',
           ];
 
@@ -583,13 +590,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final width = MediaQuery.of(context).size.width;
 
     if (width > 1200) {
-      return 4; 
+      return 4;
     } else if (width > 800) {
-      return 3; 
+      return 3;
     } else if (width > 600) {
-      return 2; 
+      return 2;
     } else {
-      return 2; 
+      return 2;
     }
   }
 
@@ -1455,7 +1462,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 30),
-                 _buildDesktopPerformanceCard(
+                  _buildDesktopPerformanceCard(
                     totalOrders,
                     completedOrders,
                     supplierPending + customerWaiting,
@@ -1976,7 +1983,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-              
                 Text(
                   timer.supplierName,
                   style: const TextStyle(
@@ -3036,7 +3042,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _formatPdfQuantity(double? quantity, String? unit) {
     if (quantity == null) return '-';
     final bool isWhole = quantity % 1 == 0;
-    final value = isWhole ? quantity.toStringAsFixed(0) : quantity.toStringAsFixed(2);
+    final value = isWhole
+        ? quantity.toStringAsFixed(0)
+        : quantity.toStringAsFixed(2);
     final safeUnit = _sanitizePdfText(unit);
     return safeUnit.isEmpty ? value : '$value $safeUnit';
   }
@@ -3607,7 +3615,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       final filteredOrders = _filterOrdersForPdf(orderProvider.orders);
-      final monthlyStatsOrders = _filterOrdersForStatsMonth(orderProvider.orders);
+      final monthlyStatsOrders = _filterOrdersForStatsMonth(
+        orderProvider.orders,
+      );
       if (filteredOrders.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3673,9 +3683,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF export failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('PDF export failed: $e')));
     } finally {
       _hideExportLoading();
     }
@@ -3935,6 +3945,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
   }
+
   String _pdfStatsTotalLabel() {
     return _exportPdfScope == 'completed'
         ? '\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u0643\u062a\u0645\u0644'
@@ -3967,6 +3978,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         )
         .toList();
   }
+
   pw.Widget _buildOrdersPdfStatsPage(List<Order> orders) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -3976,8 +3988,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<pw.Widget> _buildOrdersPdfStatsWidgets(List<Order> orders) {
     final monthLabel = _statsMonthLabel();
-    final activeOrders =
-        orders.where((order) => !_isCanceledStatus(order.status)).toList();
+    final activeOrders = orders
+        .where((order) => !_isCanceledStatus(order.status))
+        .toList();
     final completedCount = activeOrders
         .where((order) => _isCompletedStatus(order.status))
         .length;
@@ -4089,6 +4102,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
+
   pw.Widget _buildNamedCountTable({
     required String nameHeader,
     required List<MapEntry<String, int>> rows,
@@ -4136,11 +4150,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
   // دالة مساعدة لتنسيق مدة التأخير
   pw.Widget _buildOrdersPdfHeader(pw.MemoryImage logoImage, User? user) {
     final companyName = _sanitizePdfText(
-      user?.company ?? '\u0634\u0631\u0643\u0629 \u0627\u0644\u0628\u062D\u064A\u0631\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629',
+      user?.company ??
+          '\u0634\u0631\u0643\u0629 \u0627\u0644\u0628\u062D\u064A\u0631\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629',
     );
     const unifiedNumber = '7011144750';
     final exportDate = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
@@ -4241,7 +4255,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : _sanitizePdfText(order.fuelType);
       final quantity = _formatPdfQuantity(order.quantity, order.unit);
       final dateText = DateFormat('yyyy/MM/dd').format(order.orderDate);
-      final notes = _truncatePdfText(_sanitizePdfText(order.notes), maxChars: 80);
+      final notes = _truncatePdfText(
+        _sanitizePdfText(order.notes),
+        maxChars: 80,
+      );
       final createdBy = _sanitizePdfText(order.createdByName);
       final orderNumber = _sanitizePdfText(order.orderNumber);
 
@@ -4266,7 +4283,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       cellStyle: const pw.TextStyle(fontSize: 5.6),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
       cellAlignment: pw.Alignment.center,
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 1.2, vertical: 0.6),
+      cellPadding: const pw.EdgeInsets.symmetric(
+        horizontal: 1.2,
+        vertical: 0.6,
+      ),
       columnWidths: {
         0: const pw.FlexColumnWidth(1.0),
         1: const pw.FlexColumnWidth(1.1),
@@ -4968,6 +4988,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: 'السائقين',
           onTap: () => Navigator.pushNamed(context, AppRoutes.drivers),
         ),
+      // if (canViewDrivers)
+      //   _buildDesktopFolderItem(
+      //     icon: Icons.location_searching,
+      //     title: 'المتابعة',
+      //     onTap: () => Navigator.pushNamed(context, AppRoutes.tracking),
+      //   ),
+    ];
+    final moChildren = <Widget>[
+      if (canViewDrivers)
+        _buildDesktopFolderItem(
+          icon: Icons.location_searching,
+          title: 'المتابعة',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.tracking),
+        ),
     ];
 
     final stationsChildren = <Widget>[
@@ -5112,6 +5146,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: 'إدارة المستخدمين',
           onTap: () => Navigator.pushNamed(context, AppRoutes.userManagement),
         ),
+      if (isOwner)
+        _buildDesktopFolderItem(
+          icon: Icons.devices_outlined,
+          title: 'إدارة الأجهزة',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.authDevices),
+        ),
+      if (isAdminOrOwner)
+        _buildDesktopFolderItem(
+          icon: Icons.phonelink_lock_outlined,
+          title: 'الأجهزة المحظورة',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.blockedDevices),
+        ),
       if (canAccessSettings)
         _buildDesktopFolderItem(
           icon: Icons.settings,
@@ -5149,6 +5195,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: 'الأطراف',
           icon: Icons.folder,
           children: partiesChildren,
+        ),
+      if (moChildren.isNotEmpty)
+        _buildDesktopFolderSection(
+          folderKey: 'parties',
+          title: 'المتابعة',
+          icon: Icons.folder,
+          children: moChildren,
         ),
       if (stationsChildren.isNotEmpty)
         _buildDesktopFolderSection(
@@ -6317,7 +6370,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               xValueMapper: (item, _) => (item['label'] ?? '').toString(),
               yValueMapper: (item, _) => item['value'] as int,
               pointColorMapper: (item, _) => item['color'] as Color,
-              dataLabelMapper: (item, _) => (item['labelValue'] ?? '').toString(),
+              dataLabelMapper: (item, _) =>
+                  (item['labelValue'] ?? '').toString(),
               borderColor: Colors.black.withOpacity(0.25),
               borderWidth: 1,
               borderRadius: const BorderRadius.vertical(
@@ -7258,6 +7312,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final canViewCustomers = user?.hasPermission('customers_view') ?? false;
     final canViewSuppliers = user?.hasPermission('suppliers_view') ?? false;
     final canViewDrivers = user?.hasPermission('drivers_view') ?? false;
+    final canViewTracking = user?.hasPermission('tracking_view') ?? false;
     final canAccessSettings = user?.hasPermission('settings_access') ?? false;
     final canManageUsers = user?.hasPermission('users_manage') ?? false;
     final canViewReports = user?.hasPermission('reports_view') ?? false;
@@ -7349,6 +7404,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 title: 'السائقين',
                 color: AppColors.attendanceLate,
                 onTap: () => Navigator.pushNamed(context, AppRoutes.drivers),
+              ),
+            if (canViewTracking)
+              _navItem(
+                icon: Icons.location_searching,
+                title: 'المتابعة',
+                color: AppColors.infoBlue,
+                onTap: () => Navigator.pushNamed(context, AppRoutes.tracking),
               ),
             if (authProvider.user?.role == 'owner' ||
                 authProvider.user?.role == 'admin')
@@ -7474,6 +7536,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.successGreen,
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.userManagement),
+              ),
+            if (authProvider.user?.role == 'owner' ||
+                authProvider.user?.role == 'admin')
+              _navItem(
+                icon: Icons.phonelink_lock_outlined,
+                title: 'الأجهزة المحظورة',
+                color: AppColors.errorRed,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.blockedDevices),
+              ),
+            if (authProvider.user?.role == 'owner')
+              _navItem(
+                icon: Icons.devices_outlined,
+                title: 'إدارة الأجهزة',
+                color: AppColors.primaryBlue,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.authDevices),
               ),
             if (canViewReports)
               _navItem(

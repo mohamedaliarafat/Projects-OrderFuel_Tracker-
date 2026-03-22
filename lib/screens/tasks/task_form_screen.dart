@@ -33,7 +33,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   final _lngController = TextEditingController();
   final _employeeController = TextEditingController();
   DateTime? _dueDate;
-  User? _selectedUser;
+  final List<User> _selectedUsers = [];
   final List<_AttachmentDraft> _attachments = [];
   late final UserManagementProvider _userProvider;
   static const String _manualTitleOption = 'إدخال يدوي';
@@ -72,30 +72,44 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: const ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'pdf', 'jpg', 'png', 'doc', 'docx'],
+      allowedExtensions: const [
+        'mp3',
+        'wav',
+        'm4a',
+        'aac',
+        'ogg',
+        'pdf',
+        'jpg',
+        'png',
+        'doc',
+        'docx',
+      ],
     );
     if (result == null) return;
     setState(() {
       _attachments.addAll(
-        result.paths.whereType<String>().map((path) => _AttachmentDraft(path, 'file')),
+        result.paths.whereType<String>().map(
+          (path) => _AttachmentDraft(path, 'file'),
+        ),
       );
     });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedUser == null) {
+    if (_selectedUsers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('اختر الموظف أولاً')),
+        const SnackBar(content: Text('اختر موظفًا واحدًا على الأقل')),
       );
       return;
     }
+    final primaryAssignee = _selectedUsers.first;
 
     final payload = {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
       'department': _departmentController.text.trim(),
-      'assignedTo': _selectedUser!.id,
+      'assignedTo': primaryAssignee.id,
       'dueDate': _dueDate?.toIso8601String(),
       'location': {
         'address': _locationAddressController.text.trim(),
@@ -112,9 +126,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     final created = await taskProvider.createTask(payload);
 
     if (created == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('فشل إنشاء المهمة')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('فشل إنشاء المهمة')));
       return;
     }
 
@@ -124,6 +139,24 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
         _attachments.map((e) => e.path).toList(),
         attachmentType: 'file',
       );
+    }
+
+    if (_selectedUsers.length > 1) {
+      final participantIds = _selectedUsers
+          .skip(1)
+          .map((user) => user.id)
+          .toList();
+      final updated = await taskProvider.addTaskParticipants(
+        created.id,
+        participantIds,
+      );
+      if (updated == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إنشاء المهمة لكن تعذر إضافة بعض المشاركين'),
+          ),
+        );
+      }
     }
 
     if (!mounted) return;
@@ -172,7 +205,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
             final inputTheme = theme.inputDecorationTheme.copyWith(
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -182,7 +218,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.4),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.primary,
+                  width: 1.4,
+                ),
               ),
             );
 
@@ -239,8 +278,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                   _buildEmployeeSelector(),
                                   const SizedBox(height: 12),
                                   DropdownButtonFormField<String>(
-                                    value: _selectedTitle,
-                                    decoration: const InputDecoration(labelText: 'عنوان المهمة'),
+                                    initialValue: _selectedTitle,
+                                    decoration: const InputDecoration(
+                                      labelText: 'عنوان المهمة',
+                                    ),
                                     items: _taskTitleOptions
                                         .map(
                                           (option) => DropdownMenuItem(
@@ -251,7 +292,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                         .toList(),
                                     onChanged: (value) {
                                       setState(() => _selectedTitle = value);
-                                      if (value != null && value != _manualTitleOption) {
+                                      if (value != null &&
+                                          value != _manualTitleOption) {
                                         _titleController.text = value;
                                       } else {
                                         _titleController.clear();
@@ -268,29 +310,36 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                     const SizedBox(height: 12),
                                     TextFormField(
                                       controller: _titleController,
-                                      decoration: const InputDecoration(labelText: 'عنوان المهمة (يدوي)'),
+                                      decoration: const InputDecoration(
+                                        labelText: 'عنوان المهمة (يدوي)',
+                                      ),
                                       validator: (value) =>
                                           value == null || value.trim().isEmpty
-                                              ? 'العنوان مطلوب'
-                                              : null,
+                                          ? 'العنوان مطلوب'
+                                          : null,
                                     ),
                                   ],
                                   const SizedBox(height: 12),
                                   TextFormField(
                                     controller: _departmentController,
-                                    decoration: const InputDecoration(labelText: 'القسم'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'القسم',
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(
                                     controller: _descriptionController,
-                                    decoration: const InputDecoration(labelText: 'وصف المهمة'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'وصف المهمة',
+                                    ),
                                     maxLines: 4,
                                   ),
                                   const SizedBox(height: 12),
                                   Wrap(
                                     spacing: 12,
                                     runSpacing: 8,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Text(
                                         _dueDate == null
@@ -326,7 +375,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                     child: OutlinedButton.icon(
                                       onPressed: _pickLocation,
                                       icon: const Icon(Icons.map_outlined),
-                                      label: const Text('تحديد الموقع على الخريطة'),
+                                      label: const Text(
+                                        'تحديد الموقع على الخريطة',
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
@@ -335,7 +386,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                       Expanded(
                                         child: TextFormField(
                                           controller: _latController,
-                                          decoration: const InputDecoration(labelText: 'خط العرض'),
+                                          decoration: const InputDecoration(
+                                            labelText: 'خط العرض',
+                                          ),
                                           keyboardType: TextInputType.number,
                                         ),
                                       ),
@@ -343,7 +396,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                       Expanded(
                                         child: TextFormField(
                                           controller: _lngController,
-                                          decoration: const InputDecoration(labelText: 'خط الطول'),
+                                          decoration: const InputDecoration(
+                                            labelText: 'خط الطول',
+                                          ),
                                           keyboardType: TextInputType.number,
                                         ),
                                       ),
@@ -358,7 +413,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                   if (_attachments.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 8),
-                                      child: Text('مرفقات: ${_attachments.length}'),
+                                      child: Text(
+                                        'مرفقات: ${_attachments.length}',
+                                      ),
                                     ),
                                   const SizedBox(height: 16),
                                   ElevatedButton(
@@ -368,7 +425,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                                   const SizedBox(height: 12),
                                   Text(
                                     'يمكن تسجيل الصوت وإرساله من شاشة تفاصيل المهمة.',
-                                    style: TextStyle(color: AppColors.mediumGray),
+                                    style: TextStyle(
+                                      color: AppColors.mediumGray,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -390,36 +449,87 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   Widget _buildEmployeeSelector() {
     return Consumer<UserManagementProvider>(
       builder: (context, provider, _) {
-        return TypeAheadField<User>(
-          controller: _employeeController,
-          builder: (context, controller, focusNode) {
-            return TextField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: const InputDecoration(
-                labelText: 'الموظف المكلف',
-                prefixIcon: Icon(Icons.person),
+        final selectedIds = _selectedUsers.map((user) => user.id).toSet();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TypeAheadField<User>(
+              controller: _employeeController,
+              builder: (context, controller, focusNode) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: const InputDecoration(
+                    labelText: 'الموظفون المكلفون',
+                    hintText: 'ابحث واختر أكثر من موظف',
+                    prefixIcon: Icon(Icons.group_outlined),
+                  ),
+                );
+              },
+              suggestionsCallback: (pattern) async {
+                await provider.fetchUsers(search: pattern);
+                return provider.users
+                    .where(
+                      (user) =>
+                          user.id.isNotEmpty &&
+                          !user.isBlocked &&
+                          !selectedIds.contains(user.id),
+                    )
+                    .toList();
+              },
+              itemBuilder: (context, user) {
+                return ListTile(
+                  title: Text(user.name),
+                  subtitle: Text(user.email),
+                );
+              },
+              onSelected: (user) {
+                if (selectedIds.contains(user.id)) {
+                  _employeeController.clear();
+                  return;
+                }
+                setState(() {
+                  _selectedUsers.add(user);
+                  _employeeController.clear();
+                });
+              },
+              emptyBuilder: (_) => const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('لا يوجد نتائج'),
               ),
-            );
-          },
-          suggestionsCallback: (pattern) async {
-            await provider.fetchUsers(search: pattern);
-            return provider.users;
-          },
-          itemBuilder: (context, user) {
-            return ListTile(
-              title: Text(user.name),
-              subtitle: Text(user.email),
-            );
-          },
-          onSelected: (user) {
-            _selectedUser = user;
-            _employeeController.text = user.name;
-          },
-          emptyBuilder: (_) => const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text('لا يوجد نتائج'),
-          ),
+            ),
+            const SizedBox(height: 8),
+            if (_selectedUsers.isEmpty)
+              Text(
+                'اختر موظفًا واحدًا على الأقل',
+                style: TextStyle(color: AppColors.mediumGray),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: List.generate(_selectedUsers.length, (index) {
+                  final user = _selectedUsers[index];
+                  final label = index == 0
+                      ? '${user.name} (الأساسي)'
+                      : user.name;
+                  return InputChip(
+                    avatar: Icon(
+                      index == 0 ? Icons.check_circle : Icons.person_outline,
+                      size: 18,
+                    ),
+                    label: Text(label),
+                    onDeleted: () {
+                      setState(() {
+                        _selectedUsers.removeWhere(
+                          (item) => item.id == user.id,
+                        );
+                      });
+                    },
+                  );
+                }),
+              ),
+          ],
         );
       },
     );

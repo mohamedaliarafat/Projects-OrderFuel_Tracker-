@@ -65,9 +65,7 @@ class _FaceEnrollmentScreenState extends State<FaceEnrollmentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('تسجيل الوجه'),
-      ),
+      appBar: AppBar(title: const Text('تسجيل الوجه')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -81,15 +79,10 @@ class _FaceEnrollmentScreenState extends State<FaceEnrollmentScreen> {
                 border: Border.all(color: AppColors.lightGray),
               ),
               child: _image == null
-                  ? const Center(
-                      child: Text('التقط صورة واضحة للوجه'),
-                    )
+                  ? const Center(child: Text('التقط صورة واضحة للوجه'))
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(_image!.path),
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.file(File(_image!.path), fit: BoxFit.cover),
                     ),
             ),
             const SizedBox(height: 16),

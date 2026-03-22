@@ -18,15 +18,21 @@ class TaskProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> fetchTasks({bool mine = false, Map<String, dynamic>? filters}) async {
+  Future<void> fetchTasks({
+    bool mine = false,
+    Map<String, dynamic>? filters,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final uri = Uri.parse(
-        '${ApiEndpoints.baseUrl}${mine ? ApiEndpoints.tasksMy : ApiEndpoints.tasks}'
-      ).replace(queryParameters: filters?.map((k, v) => MapEntry(k, v?.toString())));
+      final uri =
+          Uri.parse(
+            '${ApiEndpoints.baseUrl}${mine ? ApiEndpoints.tasksMy : ApiEndpoints.tasks}',
+          ).replace(
+            queryParameters: filters?.map((k, v) => MapEntry(k, v?.toString())),
+          );
 
       final response = await http.get(uri, headers: ApiService.headers);
       if (response.statusCode == 200) {
@@ -65,7 +71,9 @@ class TaskProvider with ChangeNotifier {
       );
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
-        final task = TaskModel.fromJson(Map<String, dynamic>.from(data['task']));
+        final task = TaskModel.fromJson(
+          Map<String, dynamic>.from(data['task']),
+        );
         _tasks.insert(0, task);
         notifyListeners();
         return task;
@@ -125,13 +133,14 @@ class TaskProvider with ChangeNotifier {
     return _patchTask(ApiEndpoints.taskStart(id));
   }
 
-  Future<TaskModel?> completeTask(String id, {String? summary, String? notes}) async {
+  Future<TaskModel?> completeTask(
+    String id, {
+    String? summary,
+    String? notes,
+  }) async {
     return _patchTask(
       ApiEndpoints.taskComplete(id),
-      body: {
-        'summary': summary,
-        'notes': notes,
-      },
+      body: {'summary': summary, 'notes': notes},
     );
   }
 
@@ -150,20 +159,24 @@ class TaskProvider with ChangeNotifier {
     );
   }
 
-  Future<TaskModel?> updateTaskReport(String id, {String? summary, String? notes}) async {
+  Future<TaskModel?> updateTaskReport(
+    String id, {
+    String? summary,
+    String? notes,
+  }) async {
     return _patchTask(
       ApiEndpoints.taskReportUpdate(id),
-      body: {
-        'summary': summary,
-        'notes': notes,
-      },
+      body: {'summary': summary, 'notes': notes},
     );
   }
 
-  Future<List<TaskTrackingPoint>> fetchTrackingPoints(String id, {int limit = 50}) async {
+  Future<List<TaskTrackingPoint>> fetchTrackingPoints(
+    String id, {
+    int limit = 50,
+  }) async {
     try {
       final uri = Uri.parse(
-        '${ApiEndpoints.baseUrl}${ApiEndpoints.taskTrackingPoints(id)}?limit=$limit'
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.taskTrackingPoints(id)}?limit=$limit',
       );
       final response = await http.get(uri, headers: ApiService.headers);
       if (response.statusCode == 200) {
@@ -180,7 +193,9 @@ class TaskProvider with ChangeNotifier {
   Future<bool> addTrackingPoint(String id, Map<String, dynamic> payload) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.taskTrackingPoints(id)}'),
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.taskTrackingPoints(id)}',
+        ),
         headers: ApiService.headers,
         body: json.encode(payload),
       );
@@ -190,13 +205,14 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> uploadAttachments(String id, List<String> paths, {String attachmentType = 'file'}) async {
+  Future<bool> uploadAttachments(
+    String id,
+    List<String> paths, {
+    String attachmentType = 'file',
+  }) async {
     try {
       final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiEndpoints.baseUrl,
-          headers: ApiService.headers,
-        ),
+        BaseOptions(baseUrl: ApiEndpoints.baseUrl, headers: ApiService.headers),
       );
 
       final files = await Future.wait(
@@ -227,16 +243,15 @@ class TaskProvider with ChangeNotifier {
     List<String> filenames, {
     String attachmentType = 'file',
   }) async {
-    if (bytes.isEmpty || filenames.isEmpty || bytes.length != filenames.length) {
+    if (bytes.isEmpty ||
+        filenames.isEmpty ||
+        bytes.length != filenames.length) {
       return false;
     }
 
     try {
       final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiEndpoints.baseUrl,
-          headers: ApiService.headers,
-        ),
+        BaseOptions(baseUrl: ApiEndpoints.baseUrl, headers: ApiService.headers),
       );
 
       final files = <MultipartFile>[];
@@ -262,7 +277,10 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  Future<TaskModel?> _patchTask(String endpoint, {Map<String, dynamic>? body}) async {
+  Future<TaskModel?> _patchTask(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
     try {
       final response = await http.patch(
         Uri.parse('${ApiEndpoints.baseUrl}$endpoint'),
@@ -277,7 +295,10 @@ class TaskProvider with ChangeNotifier {
     return null;
   }
 
-  Future<List<TaskMessage>> fetchTaskMessages(String id, {int limit = 100}) async {
+  Future<List<TaskMessage>> fetchTaskMessages(
+    String id, {
+    int limit = 100,
+  }) async {
     try {
       final uri = Uri.parse(
         '${ApiEndpoints.baseUrl}${ApiEndpoints.taskMessages(id)}?limit=$limit',
@@ -304,7 +325,9 @@ class TaskProvider with ChangeNotifier {
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['message'] is Map<String, dynamic>) {
-          return TaskMessage.fromJson(Map<String, dynamic>.from(data['message']));
+          return TaskMessage.fromJson(
+            Map<String, dynamic>.from(data['message']),
+          );
         }
       }
     } catch (_) {}
@@ -314,7 +337,9 @@ class TaskProvider with ChangeNotifier {
   Future<bool> markTaskMessagesRead(String id) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.taskMessagesRead(id)}'),
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.taskMessagesRead(id)}',
+        ),
         headers: ApiService.headers,
       );
       return response.statusCode == 200;
@@ -331,10 +356,7 @@ class TaskProvider with ChangeNotifier {
   }) async {
     try {
       final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiEndpoints.baseUrl,
-          headers: ApiService.headers,
-        ),
+        BaseOptions(baseUrl: ApiEndpoints.baseUrl, headers: ApiService.headers),
       );
 
       final files = await Future.wait(
@@ -342,7 +364,8 @@ class TaskProvider with ChangeNotifier {
       );
 
       final form = FormData.fromMap({
-        if (caption != null && caption.trim().isNotEmpty) 'caption': caption.trim(),
+        if (caption != null && caption.trim().isNotEmpty)
+          'caption': caption.trim(),
         if (messageType != null && messageType.trim().isNotEmpty)
           'messageType': messageType.trim(),
         'attachments': files,
@@ -368,16 +391,15 @@ class TaskProvider with ChangeNotifier {
     String? caption,
     String? messageType,
   }) async {
-    if (bytes.isEmpty || filenames.isEmpty || bytes.length != filenames.length) {
+    if (bytes.isEmpty ||
+        filenames.isEmpty ||
+        bytes.length != filenames.length) {
       return false;
     }
 
     try {
       final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiEndpoints.baseUrl,
-          headers: ApiService.headers,
-        ),
+        BaseOptions(baseUrl: ApiEndpoints.baseUrl, headers: ApiService.headers),
       );
 
       final files = <MultipartFile>[];
@@ -386,7 +408,8 @@ class TaskProvider with ChangeNotifier {
       }
 
       final form = FormData.fromMap({
-        if (caption != null && caption.trim().isNotEmpty) 'caption': caption.trim(),
+        if (caption != null && caption.trim().isNotEmpty)
+          'caption': caption.trim(),
         if (messageType != null && messageType.trim().isNotEmpty)
           'messageType': messageType.trim(),
         'attachments': files,
@@ -405,10 +428,15 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  Future<TaskModel?> addTaskParticipants(String id, List<String> userIds) async {
+  Future<TaskModel?> addTaskParticipants(
+    String id,
+    List<String> userIds,
+  ) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.taskParticipants(id)}'),
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.taskParticipants(id)}',
+        ),
         headers: ApiService.headers,
         body: json.encode({'userIds': userIds}),
       );
@@ -425,7 +453,9 @@ class TaskProvider with ChangeNotifier {
   Future<TaskModel?> removeTaskParticipant(String id, String userId) async {
     try {
       final response = await http.delete(
-        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.taskParticipant(id, userId)}'),
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.taskParticipant(id, userId)}',
+        ),
         headers: ApiService.headers,
       );
       if (response.statusCode == 200) {

@@ -72,6 +72,11 @@ class Order {
   final DateTime? notificationSentAt;
   final DateTime? arrivalNotificationSentAt;
   final DateTime? loadingCompletedAt;
+  final String? actualFuelType;
+  final double? actualLoadedLiters;
+  final String? loadingStationName;
+  final String? driverLoadingNotes;
+  final DateTime? driverLoadingSubmittedAt;
   final String? actualArrivalTime;
   final int? loadingDuration;
   final String? delayReason;
@@ -152,6 +157,11 @@ class Order {
     this.notificationSentAt,
     this.arrivalNotificationSentAt,
     this.loadingCompletedAt,
+    this.actualFuelType,
+    this.actualLoadedLiters,
+    this.loadingStationName,
+    this.driverLoadingNotes,
+    this.driverLoadingSubmittedAt,
     this.actualArrivalTime,
     this.loadingDuration,
     this.delayReason,
@@ -305,24 +315,24 @@ class Order {
 
     // ⭐ إذا لم يكن العميل موجوداً في JSON ولكن هناك معلومات منفصلة، ننشئ كائن Customer
     if (customer == null && customerName != null) {
-        customer = Customer(
-          id: '',
-          name: customerName,
-          code: customerCode ?? '',
-          phone: customerPhone ?? '',
+      customer = Customer(
+        id: '',
+        name: customerName,
+        code: customerCode ?? '',
+        phone: customerPhone ?? '',
         email: customerEmail ?? '',
         city: json['city']?.toString(),
         area: json['area']?.toString(),
         address: customerAddress ?? json['address']?.toString(),
-          company: '',
-          contactPerson: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          isActive: true,
-          status: 'active',
-          createdById: '',
-        );
-      }
+        company: '',
+        contactPerson: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        isActive: true,
+        status: 'active',
+        createdById: '',
+      );
+    }
 
     return Order(
       id: json['_id']?.toString() ?? '',
@@ -410,6 +420,15 @@ class Order {
       ),
       loadingCompletedAt: DateTime.tryParse(
         json['loadingCompletedAt']?.toString() ?? '',
+      ),
+      actualFuelType: json['actualFuelType']?.toString(),
+      actualLoadedLiters: json['actualLoadedLiters'] != null
+          ? double.tryParse(json['actualLoadedLiters'].toString())
+          : null,
+      loadingStationName: json['loadingStationName']?.toString(),
+      driverLoadingNotes: json['driverLoadingNotes']?.toString(),
+      driverLoadingSubmittedAt: DateTime.tryParse(
+        json['driverLoadingSubmittedAt']?.toString() ?? '',
       ),
       actualArrivalTime: json['actualArrivalTime']?.toString(),
       loadingDuration: json['loadingDuration'] is int
@@ -516,6 +535,11 @@ class Order {
       'notificationSentAt': notificationSentAt?.toIso8601String(),
       'arrivalNotificationSentAt': arrivalNotificationSentAt?.toIso8601String(),
       'loadingCompletedAt': loadingCompletedAt?.toIso8601String(),
+      'actualFuelType': actualFuelType,
+      'actualLoadedLiters': actualLoadedLiters,
+      'loadingStationName': loadingStationName,
+      'driverLoadingNotes': driverLoadingNotes,
+      'driverLoadingSubmittedAt': driverLoadingSubmittedAt?.toIso8601String(),
       'actualArrivalTime': actualArrivalTime,
       'loadingDuration': loadingDuration,
       'delayReason': delayReason,
@@ -770,60 +794,55 @@ class Order {
     return parts.isEmpty ? 'أقل من دقيقة' : parts.join(' ، ');
   }
 
-  
-
-String get effectiveRequestType {
-  // 1️⃣ لو موجود على الطلب نفسه
-  if (requestType != null && requestType!.trim().isNotEmpty) {
-    return requestType!;
-  }
-
-  // 2️⃣ لو طلب مدمج وخزّن نوع العملية داخل mergedWithInfo
-  if (mergedWithInfo != null) {
-    const directKeys = [
-      'requestType',
-      'customerRequestType',
-      'clientRequestType',
-      'orderRequestType',
-      'purchaseType',
-      'operationType',
-    ];
-
-    for (final key in directKeys) {
-      final value = mergedWithInfo![key];
-      if (value != null && value.toString().trim().isNotEmpty) {
-        return value.toString();
-      }
+  String get effectiveRequestType {
+    // 1️⃣ لو موجود على الطلب نفسه
+    if (requestType != null && requestType!.trim().isNotEmpty) {
+      return requestType!;
     }
 
-    const nestedKeys = [
-      'customerOrder',
-      'customer',
-      'clientOrder',
-      'client',
-      'order',
-    ];
+    // 2️⃣ لو طلب مدمج وخزّن نوع العملية داخل mergedWithInfo
+    if (mergedWithInfo != null) {
+      const directKeys = [
+        'requestType',
+        'customerRequestType',
+        'clientRequestType',
+        'orderRequestType',
+        'purchaseType',
+        'operationType',
+      ];
 
-    for (final key in nestedKeys) {
-      final nested = mergedWithInfo![key];
-      if (nested is Map) {
-        final nestedValue =
-            nested['requestType'] ??
-            nested['customerRequestType'] ??
-            nested['purchaseType'] ??
-            nested['operationType'];
-        if (nestedValue != null &&
-            nestedValue.toString().trim().isNotEmpty) {
-          return nestedValue.toString();
+      for (final key in directKeys) {
+        final value = mergedWithInfo![key];
+        if (value != null && value.toString().trim().isNotEmpty) {
+          return value.toString();
+        }
+      }
+
+      const nestedKeys = [
+        'customerOrder',
+        'customer',
+        'clientOrder',
+        'client',
+        'order',
+      ];
+
+      for (final key in nestedKeys) {
+        final nested = mergedWithInfo![key];
+        if (nested is Map) {
+          final nestedValue =
+              nested['requestType'] ??
+              nested['customerRequestType'] ??
+              nested['purchaseType'] ??
+              nested['operationType'];
+          if (nestedValue != null && nestedValue.toString().trim().isNotEmpty) {
+            return nestedValue.toString();
+          }
         }
       }
     }
+
+    return 'غير محدد';
   }
-
-  return 'غير محدد';
-}
-
-
 
   /// ⭐ تحديث: دالة للحصول على المؤقت المنسق للتحميل
   String get formattedLoadingCountdown {
@@ -888,6 +907,11 @@ String get effectiveRequestType {
     DateTime? notificationSentAt,
     DateTime? arrivalNotificationSentAt,
     DateTime? loadingCompletedAt,
+    String? actualFuelType,
+    double? actualLoadedLiters,
+    String? loadingStationName,
+    String? driverLoadingNotes,
+    DateTime? driverLoadingSubmittedAt,
     String? actualArrivalTime,
     int? loadingDuration,
     String? delayReason,
@@ -951,6 +975,12 @@ String get effectiveRequestType {
       arrivalNotificationSentAt:
           arrivalNotificationSentAt ?? this.arrivalNotificationSentAt,
       loadingCompletedAt: loadingCompletedAt ?? this.loadingCompletedAt,
+      actualFuelType: actualFuelType ?? this.actualFuelType,
+      actualLoadedLiters: actualLoadedLiters ?? this.actualLoadedLiters,
+      loadingStationName: loadingStationName ?? this.loadingStationName,
+      driverLoadingNotes: driverLoadingNotes ?? this.driverLoadingNotes,
+      driverLoadingSubmittedAt:
+          driverLoadingSubmittedAt ?? this.driverLoadingSubmittedAt,
       actualArrivalTime: actualArrivalTime ?? this.actualArrivalTime,
       loadingDuration: loadingDuration ?? this.loadingDuration,
       delayReason: delayReason ?? this.delayReason,

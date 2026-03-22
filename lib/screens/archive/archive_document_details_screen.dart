@@ -17,7 +17,8 @@ class ArchiveDocumentDetailsScreen extends StatefulWidget {
       _ArchiveDocumentDetailsScreenState();
 }
 
-class _ArchiveDocumentDetailsScreenState extends State<ArchiveDocumentDetailsScreen> {
+class _ArchiveDocumentDetailsScreenState
+    extends State<ArchiveDocumentDetailsScreen> {
   Map<String, dynamic>? _doc;
   bool _loading = false;
   bool _saving = false;
@@ -72,7 +73,10 @@ class _ArchiveDocumentDetailsScreenState extends State<ArchiveDocumentDetailsScr
   Future<void> _openAttachment(Map<String, dynamic> att) async {
     final url = ArchiveDocsUi.attachmentUrl(att);
     if (url == null) return _snack('رابط المرفق غير متاح');
-    final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.platformDefault);
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.platformDefault,
+    );
     if (!ok) _snack('تعذر فتح المرفق');
   }
 
@@ -97,30 +101,33 @@ class _ArchiveDocumentDetailsScreenState extends State<ArchiveDocumentDetailsScr
       body: _loading && d == null
           ? const Center(child: CircularProgressIndicator())
           : d == null
-              ? const Center(child: Text('لا توجد بيانات'))
-              : Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1680),
-                    child: RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          _buildHeaderAndDetailsCard(d, isWide: isWide),
-                          const SizedBox(height: 12),
-                          _buildAttachmentsCard(
-                            attachments: attachments,
-                            isWide: isWide,
-                          ),
-                        ],
+          ? const Center(child: Text('لا توجد بيانات'))
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1680),
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _buildHeaderAndDetailsCard(d, isWide: isWide),
+                      const SizedBox(height: 12),
+                      _buildAttachmentsCard(
+                        attachments: attachments,
+                        isWide: isWide,
                       ),
-                    ),
+                    ],
                   ),
                 ),
+              ),
+            ),
     );
   }
 
-  Widget _buildHeaderAndDetailsCard(Map<String, dynamic> d, {required bool isWide}) {
+  Widget _buildHeaderAndDetailsCard(
+    Map<String, dynamic> d, {
+    required bool isWide,
+  }) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -236,12 +243,7 @@ class _ArchiveDocumentDetailsScreenState extends State<ArchiveDocumentDetailsScr
       spacing: 16,
       runSpacing: 8,
       children: items
-          .map(
-            (e) => SizedBox(
-              width: 790,
-              child: _detailRow(e.key, e.value),
-            ),
-          )
+          .map((e) => SizedBox(width: 790, child: _detailRow(e.key, e.value)))
           .toList(),
     );
   }

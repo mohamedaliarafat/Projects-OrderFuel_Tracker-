@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:order_tracker/models/notification_model.dart';
 import 'package:order_tracker/models/task_model.dart';
+import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/task_provider.dart';
 import 'package:order_tracker/screens/tasks/task_detail_screen.dart';
+import 'package:order_tracker/screens/tracking/driver_delivery_tracking_screen.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:provider/provider.dart';
@@ -212,6 +214,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final provider = Provider.of<NotificationProvider>(context, listen: false);
     provider.markAsRead(notification.id);
 
+    final reportType = notification.data?['reportType']?.toString();
+    if (reportType == 'blocked_login_device') {
+      Navigator.pushNamed(context, AppRoutes.blockedDevices);
+      return;
+    }
+
     final conversationId = _extractConversationId(notification);
     if (conversationId != null) {
       Navigator.pushNamed(
@@ -228,7 +236,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final orderId = _extractOrderId(notification);
     if (orderId != null) {
-      Navigator.pushNamed(context, AppRoutes.orderDetails, arguments: orderId);
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final isDriverUser =
+          auth.user?.role == 'driver' &&
+          (auth.user?.driverId?.trim().isNotEmpty ?? false);
+      if (isDriverUser) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DriverDeliveryTrackingScreen(orderId: orderId),
+          ),
+        );
+      } else {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.orderDetails,
+          arguments: orderId,
+        );
+      }
       return;
     }
 

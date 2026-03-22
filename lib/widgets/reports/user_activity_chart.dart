@@ -5,7 +5,11 @@ import 'package:order_tracker/utils/constants.dart';
 class UserActivityChart extends StatelessWidget {
   final List<dynamic> users;
 
-  const UserActivityChart({super.key, required this.users, required bool isLargeScreen});
+  const UserActivityChart({
+    super.key,
+    required this.users,
+    required bool isLargeScreen,
+  });
 
   @override
   Widget build(BuildContext context) {

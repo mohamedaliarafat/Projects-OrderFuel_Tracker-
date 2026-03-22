@@ -247,4 +247,3 @@ class _StationFilterDialogState extends State<StationFilterDialog> {
     );
   }
 }
-

@@ -13,10 +13,7 @@ import 'package:intl/intl.dart';
 class SessionEditScreen extends StatefulWidget {
   final PumpSession session;
 
-  const SessionEditScreen({
-    super.key,
-    required this.session,
-  });
+  const SessionEditScreen({super.key, required this.session});
 
   @override
   State<SessionEditScreen> createState() => _SessionEditScreenState();
@@ -26,6 +23,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _openingControllers = {};
   final Map<String, TextEditingController> _closingControllers = {};
+  final TextEditingController _sessionDateController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _differenceReasonController =
       TextEditingController();
@@ -37,10 +35,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   final TextEditingController _otherController = TextEditingController();
   final TextEditingController _fuelTypeController = TextEditingController();
   final TextEditingController _fuelQuantityController = TextEditingController();
-  final TextEditingController _tankerNumberController =
-      TextEditingController();
-  final TextEditingController _supplierNameController =
-      TextEditingController();
+  final TextEditingController _tankerNumberController = TextEditingController();
+  final TextEditingController _supplierNameController = TextEditingController();
   bool _isSaving = false;
   final ImagePicker _imagePicker = ImagePicker();
   final Map<String, XFile?> _selectedReadingImages = {};
@@ -48,15 +44,20 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   final List<_EditableExpense> _expenseItems = [];
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
   final DateFormat _dateTimeFormat = DateFormat('yyyy/MM/dd HH:mm');
+  DateTime _selectedSessionDateTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    _selectedSessionDateTime = widget.session.sessionDate.toLocal();
+    _sessionDateController.text = _dateTimeFormat.format(
+      _selectedSessionDateTime,
+    );
     final payment = widget.session.paymentTypes;
     _notesController.text = widget.session.notes ?? '';
     _differenceReasonController.text = widget.session.differenceReason ?? '';
-    _carriedForwardController.text =
-        widget.session.carriedForwardBalance.toStringAsFixed(2);
+    _carriedForwardController.text = widget.session.carriedForwardBalance
+        .toStringAsFixed(2);
     _cashController.text = payment.cash.toStringAsFixed(2);
     _cardController.text = payment.card.toStringAsFixed(2);
     _madaController.text = payment.mada.toStringAsFixed(2);
@@ -83,8 +84,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
     _expenseItems.addAll(
       (widget.session.expenses ?? []).map(
-            (expense) => _EditableExpense.fromExpense(expense),
-          ),
+        (expense) => _EditableExpense.fromExpense(expense),
+      ),
     );
 
     if (_expenseItems.isEmpty) {
@@ -94,6 +95,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   @override
   void dispose() {
+    _sessionDateController.dispose();
     _notesController.dispose();
     _differenceReasonController.dispose();
     _carriedForwardController.dispose();
@@ -133,6 +135,48 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   double _parseOrFallback(String? value, double fallback) {
     final parsed = _parseNullable(value);
     return parsed ?? fallback;
+  }
+
+  Future<void> _pickSessionDateTime() async {
+    final firstAllowedDate = DateTime(2000);
+    final lastAllowedDate = DateTime.now().add(const Duration(days: 3650));
+    final initialDate = _selectedSessionDateTime.isBefore(firstAllowedDate)
+        ? firstAllowedDate
+        : _selectedSessionDateTime;
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstAllowedDate,
+      lastDate: lastAllowedDate,
+      helpText: 'اختر تاريخ ووقت الجلسة',
+      confirmText: 'اعتماد',
+      cancelText: 'إلغاء',
+    );
+
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedSessionDateTime),
+    );
+
+    if (!mounted) return;
+
+    final selectedTime =
+        pickedTime ?? TimeOfDay.fromDateTime(_selectedSessionDateTime);
+    final nextDateTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    setState(() {
+      _selectedSessionDateTime = nextDateTime;
+      _sessionDateController.text = _dateTimeFormat.format(nextDateTime);
+    });
   }
 
   Future<void> _submitForm() async {
@@ -185,33 +229,38 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         'closingReading': _parseNullable(
           _closingControllers[_fieldKey(reading, 'closing')]!.text,
         ),
-        'openingImageUrl': uploadedImageUrls[openingKey] ??
-            reading.openingImageUrl,
-        'closingImageUrl': uploadedImageUrls[closingKey] ??
-            reading.closingImageUrl,
+        'openingImageUrl':
+            uploadedImageUrls[openingKey] ?? reading.openingImageUrl,
+        'closingImageUrl':
+            uploadedImageUrls[closingKey] ?? reading.closingImageUrl,
       };
     }).toList();
 
-    final expensesPayload = _expenseItems.map((item) {
-      final amount = _parseNullable(item.amountController.text);
-      if (amount == null) return null;
+    final expensesPayload = _expenseItems
+        .map((item) {
+          final amount = _parseNullable(item.amountController.text);
+          if (amount == null) return null;
 
-      final data = <String, dynamic>{
-        'amount': amount,
-        'description': item.descriptionController.text.trim(),
-        'category': item.categoryController.text.trim(),
-      };
+          final data = <String, dynamic>{
+            'amount': amount,
+            'description': item.descriptionController.text.trim(),
+            'category': item.categoryController.text.trim(),
+          };
 
-      if (item.source?.id.isNotEmpty ?? false) {
-        data['id'] = item.source!.id;
-      }
+          if (item.source?.id.isNotEmpty ?? false) {
+            data['id'] = item.source!.id;
+          }
 
-      return data;
-    }).whereType<Map<String, dynamic>>().toList();
+          return data;
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
 
     final fuelQuantity = _parseNullable(_fuelQuantityController.text);
 
     final payload = {
+      'sessionDate': _selectedSessionDateTime.toIso8601String(),
+      'openingTime': _selectedSessionDateTime.toIso8601String(),
       'notes': _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
@@ -240,7 +289,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
           widget.session.paymentTypes.other,
         ),
       },
-      'fuelSupply': (_fuelTypeController.text.trim().isNotEmpty &&
+      'fuelSupply':
+          (_fuelTypeController.text.trim().isNotEmpty &&
               fuelQuantity != null &&
               fuelQuantity > 0)
           ? {
@@ -255,8 +305,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       'expensesTotal': _expensesTotal,
     };
 
-    final stationProvider =
-        Provider.of<StationProvider>(context, listen: false);
+    final stationProvider = Provider.of<StationProvider>(
+      context,
+      listen: false,
+    );
     final success = await stationProvider.editSession(
       widget.session.id,
       payload,
@@ -267,16 +319,14 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ التعديلات')),
-      );
-      Navigator.pop(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حفظ التعديلات')));
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            stationProvider.error ?? 'فشل حفظ التعديلات',
-          ),
+          content: Text(stationProvider.error ?? 'فشل حفظ التعديلات'),
           backgroundColor: AppColors.errorRed,
         ),
       );
@@ -284,8 +334,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   }
 
   Widget _buildNozzleEditor(NozzleReading reading) {
-    final openingController = _openingControllers[_fieldKey(reading, 'opening')]!;
-    final closingController = _closingControllers[_fieldKey(reading, 'closing')]!;
+    final openingController =
+        _openingControllers[_fieldKey(reading, 'opening')]!;
+    final closingController =
+        _closingControllers[_fieldKey(reading, 'closing')]!;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -297,10 +349,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
           children: [
             Text(
               'المضخات ${reading.pumpNumber} · لي ${reading.nozzleNumber}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 4),
             Text(
@@ -313,8 +362,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: openingController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'قراءة الفتح',
                       hintText: '0.00',
@@ -332,8 +382,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: closingController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'قراءة الغلق',
                       hintText: '0.00',
@@ -402,9 +453,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final fileName =
         'pump_${reading.pumpNumber}_nozzle_${reading.nozzleNumber}_${suffix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('sessions/${widget.session.id}/edit/$suffix/$fileName');
+    final ref = FirebaseStorage.instance.ref().child(
+      'sessions/${widget.session.id}/edit/$suffix/$fileName',
+    );
 
     final bytes = await image.readAsBytes();
     final metadata = SettableMetadata(contentType: 'image/jpeg');
@@ -415,8 +466,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   Widget _buildReadingImagePicker(NozzleReading reading, bool isOpening) {
     final key = _readingImageKey(reading, isOpening);
     final label = isOpening ? 'صورة الفتح' : 'صورة الغلق';
-    final existingUrl =
-        isOpening ? reading.openingImageUrl : reading.closingImageUrl;
+    final existingUrl = isOpening
+        ? reading.openingImageUrl
+        : reading.closingImageUrl;
 
     return Expanded(
       child: Column(
@@ -501,9 +553,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   Widget _buildSessionInfoCard() {
     final session = widget.session;
-    final openingTime = session.openingTime != null
-        ? _dateTimeFormat.format(session.openingTime)
-        : '-';
+    final openingTime = _dateTimeFormat.format(_selectedSessionDateTime);
     final closingTime = session.closingTime != null
         ? _dateTimeFormat.format(session.closingTime!)
         : '-';
@@ -533,12 +583,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                     session.sessionNumber,
                   ),
                 ),
-                Expanded(
-                  child: _buildSessionInfoRow(
-                    'الوضع',
-                    session.status,
-                  ),
-                ),
+                Expanded(child: _buildSessionInfoRow('الوضع', session.status)),
               ],
             ),
             const SizedBox(height: 8),
@@ -547,14 +592,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 Expanded(
                   child: _buildSessionInfoRow(
                     'تاريخ الجلسة',
-                    _dateFormat.format(session.sessionDate),
+                    _dateFormat.format(_selectedSessionDateTime),
                   ),
                 ),
                 Expanded(
-                  child: _buildSessionInfoRow(
-                    'الوردية',
-                    session.shiftType,
-                  ),
+                  child: _buildSessionInfoRow('الوردية', session.shiftType),
                 ),
               ],
             ),
@@ -562,16 +604,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _buildSessionInfoRow(
-                    'فتح الجلسة',
-                    openingTime,
-                  ),
+                  child: _buildSessionInfoRow('فتح الجلسة', openingTime),
                 ),
                 Expanded(
-                  child: _buildSessionInfoRow(
-                    'غلق الجلسة',
-                    closingTime,
-                  ),
+                  child: _buildSessionInfoRow('غلق الجلسة', closingTime),
                 ),
               ],
             ),
@@ -598,26 +634,31 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     );
   }
 
+  Widget _buildSessionDateField() {
+    return TextFormField(
+      controller: _sessionDateController,
+      readOnly: true,
+      onTap: _isSaving ? null : _pickSessionDateTime,
+      decoration: const InputDecoration(
+        labelText: 'تاريخ ووقت الجلسة',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.calendar_today),
+        suffixIcon: Icon(Icons.edit_outlined),
+      ),
+    );
+  }
+
   Widget _buildSessionInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(right: 8, bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.grey,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -670,10 +711,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
           children: [
             const Text(
               'المصروفات',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const Spacer(),
             ElevatedButton.icon(
@@ -681,7 +719,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               icon: const Icon(Icons.add),
               label: const Text('إضافة مصروف'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -745,13 +786,16 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: item.amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'المبلغ',
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'أدخل قيمة';
+                      if (value == null || value.trim().isEmpty)
+                        return 'أدخل قيمة';
                       if (_parseNullable(value) == null) return 'رقم غير صالح';
                       return null;
                     },
@@ -802,10 +846,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               'المحطة: ${widget.session.stationName} · الوردية: ${widget.session.shiftType}',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
         ),
@@ -828,6 +869,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildSessionInfoCard(),
+                      const SizedBox(height: 12),
+                      _buildSessionDateField(),
                       if (stationProvider.isLoading || _isSaving)
                         const LinearProgressIndicator(),
                       const SizedBox(height: 12),
@@ -893,7 +936,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                             child: TextFormField(
                               controller: _fuelQuantityController,
                               keyboardType:
-                                  const TextInputType.numberWithOptions(decimal: true),
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               decoration: const InputDecoration(
                                 labelText: 'الكمية (لتر)',
                                 border: OutlineInputBorder(),
@@ -931,8 +976,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _carriedForwardController,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         decoration: const InputDecoration(
                           labelText: 'الرصيد المرحل',
                           border: OutlineInputBorder(),
@@ -941,7 +987,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'أدخل قيمة';
                           }
-                          if (_parseNullable(value) == null) return 'رقم غير صالح';
+                          if (_parseNullable(value) == null)
+                            return 'رقم غير صالح';
                           return null;
                         },
                       ),
@@ -995,13 +1042,13 @@ class _EditableExpense {
   final TextEditingController categoryController;
 
   _EditableExpense({this.source})
-      : amountController = TextEditingController(
-          text: source != null ? source.amount.toStringAsFixed(2) : '',
-        ),
-        descriptionController =
-            TextEditingController(text: source?.description ?? ''),
-        categoryController =
-            TextEditingController(text: source?.category ?? '');
+    : amountController = TextEditingController(
+        text: source != null ? source.amount.toStringAsFixed(2) : '',
+      ),
+      descriptionController = TextEditingController(
+        text: source?.description ?? '',
+      ),
+      categoryController = TextEditingController(text: source?.category ?? '');
 
   double? get parsedAmount {
     final value = amountController.text.trim().replaceAll(',', '.');

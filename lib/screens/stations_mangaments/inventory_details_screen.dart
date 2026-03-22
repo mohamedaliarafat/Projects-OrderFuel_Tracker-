@@ -37,6 +37,213 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
     ).fetchInventoryById(widget.inventoryId);
   }
 
+  Future<void> _editInventory(DailyInventory inventory) async {
+    final receivedCtrl = TextEditingController(
+      text: inventory.receivedQuantity.toStringAsFixed(2),
+    );
+    final tankerCountCtrl = TextEditingController(
+      text: inventory.tankerCount.toString(),
+    );
+    final actualCtrl = TextEditingController(
+      text: inventory.actualBalance?.toStringAsFixed(2) ?? '',
+    );
+    final diffReasonCtrl = TextEditingController(
+      text: inventory.differenceReason ?? '',
+    );
+    final notesCtrl = TextEditingController(text: inventory.notes ?? '');
+
+    double? parseDecimal(String value) {
+      final normalized = value.trim().replaceAll(',', '.');
+      if (normalized.isEmpty) return null;
+      return double.tryParse(normalized);
+    }
+
+    void showMessage(
+      String message, {
+      Color backgroundColor = AppColors.errorRed,
+    }) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: backgroundColor),
+      );
+    }
+
+    try {
+      final updates = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('تعديل الجرد'),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundGray,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.lightGray),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildEditSummaryRow(
+                          label: 'الرصيد السابق',
+                          value:
+                              '${inventory.previousBalance.toStringAsFixed(2)} لتر',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildEditSummaryRow(
+                          label: 'المبيعات',
+                          value:
+                              '${inventory.totalSales.toStringAsFixed(2)} لتر',
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'هذه القيم تأتي من الباك إند وتُعرض هنا فقط.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.mediumGray),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: receivedCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'الكمية المستلمة',
+                      suffixText: 'لتر',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: tankerCountCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'عدد التنكرات',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: actualCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'الرصيد الفعلي',
+                      suffixText: 'لتر',
+                      helperText:
+                          'اتركه فارغًا ليُعاد ضبطه تلقائيًا من النظام.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: diffReasonCtrl,
+                    decoration: const InputDecoration(labelText: 'سبب الفرق'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(labelText: 'ملاحظات'),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final receivedText = receivedCtrl.text.trim();
+                final tankerCountText = tankerCountCtrl.text.trim();
+                final actualText = actualCtrl.text.trim();
+
+                if (receivedText.isEmpty) {
+                  showMessage('أدخل الكمية المستلمة.');
+                  return;
+                }
+
+                final receivedQuantity = parseDecimal(receivedText);
+                if (receivedQuantity == null || receivedQuantity < 0) {
+                  showMessage('قيمة الكمية المستلمة غير صحيحة.');
+                  return;
+                }
+
+                if (tankerCountText.isEmpty) {
+                  showMessage('أدخل عدد التنكرات.');
+                  return;
+                }
+
+                final tankerCount = int.tryParse(tankerCountText);
+                if (tankerCount == null || tankerCount < 0) {
+                  showMessage('عدد التنكرات غير صحيح.');
+                  return;
+                }
+
+                final actualBalance = actualText.isEmpty
+                    ? null
+                    : parseDecimal(actualText);
+                if (actualText.isNotEmpty &&
+                    (actualBalance == null || actualBalance < 0)) {
+                  showMessage('قيمة الرصيد الفعلي غير صحيحة.');
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop({
+                  'receivedQuantity': receivedQuantity,
+                  'tankerCount': tankerCount,
+                  'actualBalance': actualText.isEmpty ? null : actualBalance,
+                  'differenceReason': diffReasonCtrl.text.trim().isEmpty
+                      ? null
+                      : diffReasonCtrl.text.trim(),
+                  'notes': notesCtrl.text.trim().isEmpty
+                      ? null
+                      : notesCtrl.text.trim(),
+                  'updatedAt': DateTime.now().toIso8601String(),
+                });
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      );
+
+      if (updates == null) return;
+
+      final provider = Provider.of<StationProvider>(context, listen: false);
+      final success = await provider.updateInventory(inventory.id, updates);
+
+      if (!mounted) return;
+
+      if (success) {
+        await _loadInventoryDetails();
+        if (!mounted) return;
+        showMessage(
+          'تم تحديث الجرد بنجاح.',
+          backgroundColor: AppColors.successGreen,
+        );
+      } else {
+        showMessage(provider.error ?? 'فشل تحديث الجرد.');
+      }
+    } finally {
+      receivedCtrl.dispose();
+      tankerCountCtrl.dispose();
+      actualCtrl.dispose();
+      diffReasonCtrl.dispose();
+      notesCtrl.dispose();
+    }
+  }
+
   Future<void> _exportReport(
     DailyInventory inventory,
     List<PumpSession> sessions,
@@ -56,7 +263,6 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
       );
 
       pdf.addPage(
-        
         pw.Page(
           theme: theme,
           build: (context) {
@@ -84,7 +290,9 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                               'شركة البحيرة العربية للنقليات',
                               style: pw.TextStyle(
                                 fontSize: 12,
-                                color: PdfColor.fromInt(AppColors.mediumGray.value),
+                                color: PdfColor.fromInt(
+                                  AppColors.mediumGray.value,
+                                ),
                               ),
                             ),
                             pw.Text(
@@ -115,32 +323,52 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                     pw.Table.fromTextArray(
                       headers: ['الرصيد', 'البند'],
                       data: [
-                        ['${inventory.previousBalance.toStringAsFixed(2)} لتر', 'الرصيد السابق'],
-                        ['${inventory.receivedQuantity.toStringAsFixed(2)} لتر', 'كمية التوريد'],
-                        ['${inventory.totalSales.toStringAsFixed(2)} لتر', 'المبيعات'],
+                        [
+                          '${inventory.previousBalance.toStringAsFixed(2)} لتر',
+                          'الرصيد السابق',
+                        ],
+                        [
+                          '${inventory.receivedQuantity.toStringAsFixed(2)} لتر',
+                          'كمية التوريد',
+                        ],
+                        [
+                          '${inventory.totalSales.toStringAsFixed(2)} لتر',
+                          'المبيعات',
+                        ],
                         [
                           '${inventory.calculatedBalance?.toStringAsFixed(2) ?? '---'} لتر',
-                          'الرصيد المتوقع'
+                          'الرصيد المتوقع',
                         ],
                         [
                           '${inventory.actualBalance?.toStringAsFixed(2) ?? '---'} لتر',
-                          'الرصيد الفعلي'
+                          'الرصيد الفعلي',
                         ],
                         [
                           '${inventory.difference?.toStringAsFixed(2) ?? '---'} لتر (${inventory.differencePercentage?.toStringAsFixed(1) ?? '---'}%)',
-                          'الفرق'
+                          'الفرق',
                         ],
-                        ['${inventory.totalRevenue.toStringAsFixed(2)} ريال', 'الإيرادات'],
-                        ['${inventory.totalExpenses.toStringAsFixed(2)} ريال', 'المصروفات'],
+                        [
+                          '${inventory.totalRevenue.toStringAsFixed(2)} ريال',
+                          'الإيرادات',
+                        ],
+                        [
+                          '${inventory.totalExpenses.toStringAsFixed(2)} ريال',
+                          'المصروفات',
+                        ],
                         [
                           '${inventory.netRevenue?.toStringAsFixed(2) ?? '---'} ريال',
-                          'صافي الربح'
+                          'صافي الربح',
                         ],
                       ],
                       cellAlignment: pw.Alignment.centerRight,
                       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFE0E0E0)),
-                      cellPadding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                      headerDecoration: const pw.BoxDecoration(
+                        color: PdfColor.fromInt(0xFFE0E0E0),
+                      ),
+                      cellPadding: const pw.EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 4,
+                      ),
                     ),
                     if (sessions.isNotEmpty) ...[
                       pw.Divider(height: 24),
@@ -150,7 +378,12 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                       ),
                       pw.SizedBox(height: 8),
                       pw.Table.fromTextArray(
-                        headers: ['الجلسة', 'الوردية', 'الحالة', 'الكمية (لتر)'],
+                        headers: [
+                          'الجلسة',
+                          'الوردية',
+                          'الحالة',
+                          'الكمية (لتر)',
+                        ],
                         data: sessions.map((session) {
                           final sessionLiters =
                               session.totalLiters ?? session.totalSales ?? 0;
@@ -161,13 +394,18 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                             sessionLiters.toStringAsFixed(2),
                           ];
                         }).toList(),
-                        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFE0E0E0)),
+                        headerStyle: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                        headerDecoration: const pw.BoxDecoration(
+                          color: PdfColor.fromInt(0xFFE0E0E0),
+                        ),
                         cellHeight: 28,
                         cellAlignment: pw.Alignment.centerRight,
                       ),
                     ],
-                    if (inventory.notes != null && inventory.notes!.isNotEmpty) ...[
+                    if (inventory.notes != null &&
+                        inventory.notes!.isNotEmpty) ...[
                       pw.Divider(height: 24),
                       pw.Text(
                         'ملاحظات:',
@@ -180,7 +418,10 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                     pw.Divider(),
                     pw.Text(
                       'عنوان الشركة: مدينة الرياض، شارع الملك فهد، مبنى 12',
-                      style: pw.TextStyle(fontSize: 10, color: PdfColor.fromInt(AppColors.mediumGray.value)),
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColor.fromInt(AppColors.mediumGray.value),
+                      ),
                     ),
                   ],
                 ),
@@ -224,6 +465,23 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
     }
   }
 
+  Widget _buildEditSummaryRow({required String label, required String value}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.mediumGray,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final stationProvider = Provider.of<StationProvider>(context);
@@ -238,7 +496,12 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
 
     if (inventory == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('تفاصيل المخزون', style: TextStyle(color: Colors.white),)),
+        appBar: AppBar(
+          title: const Text(
+            'تفاصيل المخزون',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
         body: const Center(child: Text('لا يوجد بيانات لهذا الجرد')),
       );
     }
@@ -249,13 +512,23 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
         actions: [
           if (isOwner)
             IconButton(
+              tooltip: 'تعديل الجرد',
+              icon: const Icon(Icons.edit),
+              onPressed: stationProvider.isLoading
+                  ? null
+                  : () => _editInventory(inventory),
+            ),
+          if (isOwner)
+            IconButton(
               tooltip: '\u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f',
               icon: const Icon(Icons.delete),
               onPressed: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('??\u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f'),
+                    title: const Text(
+                      '??\u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f',
+                    ),
                     content: const Text(
                       '?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f ?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f? ?? ?\u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f?? ?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f??.',
                     ),
@@ -287,7 +560,9 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f \u0625\u0644\u063a\u0627\u0621'),
+                      content: Text(
+                        '?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f \u0625\u0644\u063a\u0627\u0621',
+                      ),
                       backgroundColor: AppColors.successGreen,
                     ),
                   );
@@ -295,7 +570,8 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        stationProvider.error ?? '??? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f',
+                        stationProvider.error ??
+                            '??? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f',
                       ),
                       backgroundColor: AppColors.errorRed,
                     ),

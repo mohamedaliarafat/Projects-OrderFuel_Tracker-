@@ -90,8 +90,9 @@ class _StationsDashboardScreenState extends State<StationsDashboardScreen> {
     final complianceText = stats != null
         ? '${math.min(math.max(complianceValue, 0.0), 100.0).toStringAsFixed(1)}%'
         : '-';
-    final revenueText =
-        stats != null ? riyalFormatter.format(stats.totalSales) : '-';
+    final revenueText = stats != null
+        ? riyalFormatter.format(stats.totalSales)
+        : '-';
     final sessionsText = stats?.totalSessions.toString() ?? '-';
     final stationsText = stationProvider.stations.isNotEmpty
         ? stationProvider.stations.length.toString()

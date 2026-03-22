@@ -2,17 +2,14 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:order_tracker/models/order_model.dart';
 import 'package:order_tracker/models/supplier_model.dart';
 import 'package:order_tracker/models/driver_model.dart';
-import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/order_provider.dart';
 import 'package:order_tracker/providers/supplier_provider.dart';
@@ -20,6 +17,7 @@ import 'package:order_tracker/providers/driver_provider.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/saudi_cities.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
 import 'package:order_tracker/widgets/attachment_item.dart';
 import 'package:order_tracker/widgets/custom_text_field.dart';
 import 'package:order_tracker/widgets/gradient_button.dart';
@@ -61,7 +59,7 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
   String? _selectedRegion;
 
   String? _companyLogoPath;
-  List<String> _newAttachmentPaths = [];
+  final List<PlatformFile> _newAttachments = [];
 
   Supplier? _selectedSupplier;
   String? _selectedSupplierId;
@@ -171,22 +169,34 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
   }
 
   PreferredSizeWidget _buildDesktopAppBar() {
+    final title = widget.orderToEdit != null
+        ? 'تعديل طلب المورد'
+        : 'طلب مورد جديد';
+
     return AppBar(
       elevation: 0,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
+      flexibleSpace: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+      ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new),
         tooltip: 'رجوع',
-        color: AppColors.primaryBlue,
-        onPressed: () {
-          Navigator.pop(context);
-        },
+        color: Colors.white,
+        onPressed: () => Navigator.pop(context),
       ),
       title: Text(
-        widget.orderToEdit != null ? 'تعديل طلب المورد' : 'طلب مورد جديد',
+        title,
         style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: AppColors.primaryBlue,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
         ),
       ),
       centerTitle: true,
@@ -546,20 +556,32 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
   Future<void> _pickAttachments() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
+      withData: true,
       type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
+      allowedExtensions: [
+        'jpg',
+        'jpeg',
+        'png',
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'zip',
+        'txt',
+      ],
     );
 
     if (result != null) {
       setState(() {
-        _newAttachmentPaths.addAll(result.paths.whereType<String>());
+        _newAttachments.addAll(result.files);
       });
     }
   }
 
   void _removeAttachment(int index) {
     setState(() {
-      _newAttachmentPaths.removeAt(index);
+      _newAttachments.removeAt(index);
     });
   }
 
@@ -708,14 +730,14 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
       success = await orderProvider.updateOrderFull(
         widget.orderToEdit!.id,
         order,
-        _newAttachmentPaths,
+        _newAttachments,
         null,
         _selectedDriverId,
       );
     } else {
       success = await orderProvider.createOrder(
         order,
-        _newAttachmentPaths,
+        _newAttachments,
         null,
         _selectedDriverId,
       );
@@ -775,19 +797,17 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
     );
   }
 
-  String _formatFileSize(String path) {
-    try {
-      final file = File(path);
-      final size = file.lengthSync();
-      if (size < 1024) {
-        return '${size} B';
-      } else if (size < 1024 * 1024) {
-        return '${(size / 1024).toStringAsFixed(1)} KB';
-      } else {
-        return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-      }
-    } catch (e) {
+  String _formatFileSize(PlatformFile file) {
+    final size = file.size;
+    if (size <= 0) {
       return 'غير معروف';
+    }
+    if (size < 1024) {
+      return '$size B';
+    } else if (size < 1024 * 1024) {
+      return '${(size / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
   }
 
@@ -799,21 +819,18 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
     final orderProvider = Provider.of<OrderProvider>(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
+    final content = _isDesktop
+        ? _buildDesktopLayout(context, orderProvider, screenWidth)
+        : _buildMobileLayout(context, orderProvider);
+
     return Scaffold(
-      appBar: _isDesktop
-          ? _buildDesktopAppBar()
-          : AppBar(
-              title: Text(
-                widget.orderToEdit != null
-                    ? 'تعديل طلب المورد'
-                    : 'طلب مورد جديد',
-                style: const TextStyle(color: Colors.white),
-              ),
-              centerTitle: true,
-            ),
-      body: _isDesktop
-          ? _buildDesktopLayout(context, orderProvider, screenWidth)
-          : _buildMobileLayout(context, orderProvider),
+      appBar: _buildDesktopAppBar(),
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Positioned.fill(child: content),
+        ],
+      ),
     );
   }
 
@@ -863,188 +880,248 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
     OrderProvider orderProvider,
     double screenWidth,
   ) {
-    return Scaffold(
-      body: Form(
-        key: _formKey,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Sidebar
-            Container(
-              width: 280,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  right: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+    final title = widget.orderToEdit != null
+        ? 'تعديل طلب المورد'
+        : 'طلب مورد جديد';
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1500),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 320, child: _buildDesktopSidebar(title: title)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Scrollbar(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(8),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.orderToEdit != null
-                                ? 'تعديل طلب المورد'
-                                : 'طلب مورد جديد',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryBlue,
-                            ),
+                          _buildDesktopHeaderBar(
+                            title: title,
+                            isLoading: orderProvider.isLoading,
                           ),
-                          const SizedBox(height: 8),
-                          if (widget.orderToEdit != null)
-                            Text(
-                              widget.orderToEdit!.orderNumber,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: AppColors.mediumGray,
+                          const SizedBox(height: 18),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildSupplierCardDesktop(context),
+                                    const SizedBox(height: 24),
+                                    _buildLocationCardDesktop(context),
+                                    const SizedBox(height: 24),
+                                    _buildDriverCardDesktop(context),
+                                    const SizedBox(height: 24),
+                                    _buildAttachmentsCardDesktop(context),
+                                  ],
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildBasicInfoCardDesktop(context),
+                                    const SizedBox(height: 24),
+                                    _buildTimesCardDesktop(context),
+                                    const SizedBox(height: 24),
+                                    _buildFuelInfoCardDesktop(context),
+                                    const SizedBox(height: 24),
+                                    _buildStatusNotesCardDesktop(context),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                    _buildDesktopNavItem(
-                      icon: Icons.business,
-                      title: 'اختيار المورد',
-                      isSelected: true,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.location_on,
-                      title: 'موقع المورد',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.directions_car,
-                      title: 'اختيار السائق',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.info_outline,
-                      title: 'معلومات الطلب',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.access_time,
-                      title: 'المواعيد',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.local_gas_station,
-                      title: 'معلومات الوقود',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.note_outlined,
-                      title: 'الحالة والملاحظات',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDesktopNavItem(
-                      icon: Icons.attach_file,
-                      title: 'المرفقات',
-                    ),
-                  ],
+  Widget _buildDesktopHeaderBar({
+    required String title,
+    required bool isLoading,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(18, 14, 14, 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.appBarWaterDeep,
                 ),
               ),
             ),
-
-            // Main content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top bar
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          widget.orderToEdit != null
-                              ? 'تعديل طلب المورد'
-                              : 'طلب مورد جديد',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: orderProvider.isLoading
-                              ? null
-                              : _submitForm,
-                          icon: orderProvider.isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.save_outlined),
-                          label: Text(
-                            orderProvider.isLoading
-                                ? 'جاري الحفظ...'
-                                : (widget.orderToEdit != null
-                                      ? 'تحديث الطلب'
-                                      : 'حفظ الطلب'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildSupplierCardDesktop(context),
-                              const SizedBox(height: 24),
-                              _buildLocationCardDesktop(context),
-                              const SizedBox(height: 24),
-                              _buildDriverCardDesktop(context),
-                              const SizedBox(height: 24),
-                              _buildAttachmentsCardDesktop(context),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 32),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildBasicInfoCardDesktop(context),
-                              const SizedBox(height: 24),
-                              _buildTimesCardDesktop(context),
-                              const SizedBox(height: 24),
-                              _buildFuelInfoCardDesktop(context),
-                              const SizedBox(height: 24),
-                              _buildStatusNotesCardDesktop(context),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            FilledButton.icon(
+              onPressed: isLoading ? null : _submitForm,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(
+                isLoading
+                    ? 'جاري الحفظ...'
+                    : (widget.orderToEdit != null
+                          ? 'تحديث الطلب'
+                          : 'حفظ الطلب'),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.appBarWaterDeep,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopSidebar({required String title}) {
+    final header = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: AppColors.appBarGradient,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.appBarWaterDeep.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (widget.orderToEdit != null)
+            Text(
+              widget.orderToEdit!.orderNumber,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.75),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            children: [
+              header,
+              const SizedBox(height: 18),
+              _buildDesktopNavItem(
+                icon: Icons.business_outlined,
+                title: 'اختيار المورد',
+                isSelected: true,
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(
+                icon: Icons.location_on_outlined,
+                title: 'موقع المورد',
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(
+                icon: Icons.directions_car_outlined,
+                title: 'اختيار السائق',
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(
+                icon: Icons.info_outline,
+                title: 'معلومات الطلب',
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(
+                icon: Icons.access_time_outlined,
+                title: 'المواعيد',
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(
+                icon: Icons.local_gas_station_outlined,
+                title: 'معلومات الوقود',
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(
+                icon: Icons.note_outlined,
+                title: 'الحالة والملاحظات',
+              ),
+              const SizedBox(height: 8),
+              _buildDesktopNavItem(icon: Icons.attach_file, title: 'المرفقات'),
+            ],
+          ),
         ),
       ),
     );
@@ -1788,7 +1865,7 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            if (_newAttachmentPaths.isEmpty)
+            if (_newAttachments.isEmpty)
               Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
@@ -1823,14 +1900,14 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
                   ],
                 ),
               ),
-            if (_newAttachmentPaths.isNotEmpty)
+            if (_newAttachments.isNotEmpty)
               Column(
-                children: _newAttachmentPaths
+                children: _newAttachments
                     .asMap()
                     .entries
                     .map(
                       (entry) => AttachmentItem(
-                        fileName: entry.value.split('/').last,
+                        fileName: entry.value.name,
                         fileSize: _formatFileSize(entry.value),
                         onDelete: () => _removeAttachment(entry.key),
                         canDelete: true,
@@ -1902,35 +1979,50 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
     required String title,
     bool isSelected = false,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    final foreground = isSelected
+        ? AppColors.appBarWaterDeep
+        : AppColors.mediumGray.withValues(alpha: 0.95);
+
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: isSelected
-            ? AppColors.primaryBlue.withOpacity(0.1)
+            ? AppColors.appBarWaterBright.withValues(alpha: 0.14)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isSelected
-              ? AppColors.primaryBlue.withOpacity(0.3)
+              ? AppColors.appBarWaterBright.withValues(alpha: 0.65)
               : Colors.transparent,
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isSelected ? AppColors.primaryBlue : Colors.grey.shade700,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? AppColors.primaryBlue : Colors.grey.shade700,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: foreground),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                  color: foreground,
+                ),
+              ),
             ),
-          ),
-        ],
+            if (isSelected)
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.appBarWaterDeep,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2802,7 +2894,7 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            if (_newAttachmentPaths.isEmpty)
+            if (_newAttachments.isEmpty)
               Container(
                 padding: const EdgeInsets.all(40),
                 decoration: BoxDecoration(
@@ -2838,14 +2930,14 @@ class _SupplierOrderFormScreenState extends State<SupplierOrderFormScreen> {
                   ],
                 ),
               ),
-            if (_newAttachmentPaths.isNotEmpty)
+            if (_newAttachments.isNotEmpty)
               Column(
-                children: _newAttachmentPaths
+                children: _newAttachments
                     .asMap()
                     .entries
                     .map(
                       (entry) => AttachmentItem(
-                        fileName: entry.value.split('/').last,
+                        fileName: entry.value.name,
                         fileSize: _formatFileSize(entry.value),
                         onDelete: () => _removeAttachment(entry.key),
                         canDelete: true,

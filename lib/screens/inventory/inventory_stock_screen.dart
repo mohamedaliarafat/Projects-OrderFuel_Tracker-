@@ -42,11 +42,11 @@ class _InventoryStockScreenState extends State<InventoryStockScreen> {
 
   void _applyFilters() {
     context.read<InventoryProvider>().fetchStock(
-          branchId: _filterBranchId,
-          warehouseId: _filterWarehouseId,
-          from: _fromDate,
-          to: _toDate,
-        );
+      branchId: _filterBranchId,
+      warehouseId: _filterWarehouseId,
+      from: _fromDate,
+      to: _toDate,
+    );
   }
 
   Future<void> _pickFromDate() async {
@@ -165,7 +165,10 @@ class _InventoryStockScreenState extends State<InventoryStockScreen> {
                   ],
                 )
                 .toList(),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 8,
+            ),
             cellStyle: const pw.TextStyle(fontSize: 7),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
             cellAlignment: pw.Alignment.center,
@@ -410,10 +413,7 @@ class _InventoryStockScreenState extends State<InventoryStockScreen> {
         value: value,
         items: [
           if (allowAll)
-            const DropdownMenuItem<String?>(
-              value: null,
-              child: Text('الكل'),
-            ),
+            const DropdownMenuItem<String?>(value: null, child: Text('الكل')),
           ...items,
         ],
         onChanged: onChanged,

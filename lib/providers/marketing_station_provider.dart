@@ -221,10 +221,7 @@ class MarketingStationProvider with ChangeNotifier {
     }
   }
 
-  Future<MarketingStation?> setLease(
-    String id,
-    LeaseContract lease,
-  ) async {
+  Future<MarketingStation?> setLease(String id, LeaseContract lease) async {
     _setLoading(true);
     _setError(null);
     try {
@@ -301,17 +298,12 @@ class MarketingStationProvider with ChangeNotifier {
     }
   }
 
-  Future<MarketingStation?> updatePump(
-    String id,
-    MarketingPump pump,
-  ) async {
+  Future<MarketingStation?> updatePump(String id, MarketingPump pump) async {
     _setLoading(true);
     _setError(null);
     try {
       final response = await http.put(
-        Uri.parse(
-          _baseUrl('/station-marketing/stations/$id/pumps/${pump.id}'),
-        ),
+        Uri.parse(_baseUrl('/station-marketing/stations/$id/pumps/${pump.id}')),
         headers: ApiService.headers,
         body: json.encode(pump.toJson(includeId: true)),
       );
@@ -371,9 +363,9 @@ class MarketingStationProvider with ChangeNotifier {
 
     for (final file in files) {
       final safeName = file.name.replaceAll(' ', '_');
-      final ref = storage
-          .ref()
-          .child('station_marketing/$stationId/${DateTime.now().millisecondsSinceEpoch}_$safeName');
+      final ref = storage.ref().child(
+        'station_marketing/$stationId/${DateTime.now().millisecondsSinceEpoch}_$safeName',
+      );
 
       if (kIsWeb) {
         final bytes = await file.readAsBytes();
@@ -397,7 +389,9 @@ class MarketingStationProvider with ChangeNotifier {
     _setError(null);
     try {
       final response = await http.post(
-        Uri.parse(_baseUrl('/station-marketing/stations/$stationId/attachments')),
+        Uri.parse(
+          _baseUrl('/station-marketing/stations/$stationId/attachments'),
+        ),
         headers: ApiService.headers,
         body: json.encode({'attachments': attachments}),
       );

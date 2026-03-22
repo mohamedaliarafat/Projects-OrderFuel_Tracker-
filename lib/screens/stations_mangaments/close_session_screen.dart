@@ -87,7 +87,6 @@
 //   String? _arabicLocaleId;
 //   final Map<String, double> _soldLitersByFuel = {};
 
-
 //   final List<String> _differenceReasons = [
 //     'عادي',
 //     'تهوية',
@@ -219,8 +218,6 @@
 //       _calculatedDifference = _shortageResolved ? 0 : rawDifference;
 //     });
 //   }
-
-
 
 //   double _calculateNozzleLiters(NozzleReading nozzle) {
 //     final closing = nozzle.closingReading;
@@ -1947,7 +1944,6 @@
 //   }
 // }
 
-
 // ignore_for_file: avoid_web_libraries_in_flutter
 
 import 'package:flutter/foundation.dart';
@@ -2035,6 +2031,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
   final TextEditingController _expenseNotesController = TextEditingController();
 
   PumpSession? _session;
+  DateTime? _nextOpeningDate;
 
   PumpSession get session => _session!;
   late stt.SpeechToText _speech;
@@ -2084,6 +2081,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
         }
 
         _session = args;
+        _nextOpeningDate = _defaultNextOpeningDate(_session!);
 
         _selectedFuelType =
             (_session!.nozzleReadings != null &&
@@ -2259,19 +2257,18 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       }
     }
 
-    final match = (session.nozzleReadings ?? [])
-        .firstWhere(
-          (n) => _normalizeFuelType(n.fuelType) == normalized,
-          orElse: () => NozzleReading(
-            nozzleId: '',
-            nozzleNumber: '',
-            position: 'left',
-            fuelType: fuelType,
-            pumpId: '',
-            pumpNumber: '',
-            openingReading: 0,
-          ),
-        );
+    final match = (session.nozzleReadings ?? []).firstWhere(
+      (n) => _normalizeFuelType(n.fuelType) == normalized,
+      orElse: () => NozzleReading(
+        nozzleId: '',
+        nozzleNumber: '',
+        position: 'left',
+        fuelType: fuelType,
+        pumpId: '',
+        pumpNumber: '',
+        openingReading: 0,
+      ),
+    );
     if (match.unitPrice != null && match.unitPrice! > 0) {
       return match.unitPrice!;
     }
@@ -2574,10 +2571,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
 
     try {
       await provider.fetchInventories(
-        filters: {
-          'stationId': stationId,
-          'endDate': _formatDate(sessionDate),
-        },
+        filters: {'stationId': stationId, 'endDate': _formatDate(sessionDate)},
       );
     } catch (_) {
       return {};
@@ -2638,8 +2632,9 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     try {
       await stationProvider.fetchCurrentStock(session.stationId);
 
-      Map<String, double> baseStock =
-          _buildBaseStockFromCurrentStock(stationProvider.currentStock);
+      Map<String, double> baseStock = _buildBaseStockFromCurrentStock(
+        stationProvider.currentStock,
+      );
       bool usingCurrentStock = baseStock.isNotEmpty;
 
       if (!usingCurrentStock) {
@@ -2779,8 +2774,6 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
   //   }
   // }
 
-
-
   Future<String> _uploadClosingImage({
     required XFile image,
     required PumpSession session,
@@ -2832,7 +2825,103 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     });
   }
 
- Future<void> _submitForm() async {
+  DateTime _defaultNextOpeningDate(PumpSession session) {
+    final source = session.sessionDate.toLocal();
+    return DateTime(
+      source.year,
+      source.month,
+      source.day + 1,
+      source.hour,
+      source.minute,
+    );
+  }
+
+  DateTime _mergeDateWithSessionTime(PumpSession session, DateTime dateOnly) {
+    final source = session.sessionDate.toLocal();
+    return DateTime(
+      dateOnly.year,
+      dateOnly.month,
+      dateOnly.day,
+      source.hour,
+      source.minute,
+      source.second,
+    );
+  }
+
+  String _formatDateOnly(DateTime value) {
+    return DateFormat('yyyy-MM-dd').format(value);
+  }
+
+  Future<DateTime?> _askNextOpeningDate(PumpSession session) async {
+    final fallback = _defaultNextOpeningDate(session);
+    final current = _nextOpeningDate ?? fallback;
+    final minDate = DateTime(2000);
+
+    final initialDateOnly = DateTime(current.year, current.month, current.day);
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDateOnly.isBefore(minDate)
+          ? minDate
+          : initialDateOnly,
+      firstDate: minDate,
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      helpText: 'اختر تاريخ الفتح الجديد',
+      confirmText: 'اعتماد',
+      cancelText: 'إلغاء',
+    );
+
+    if (pickedDate == null) {
+      return null;
+    }
+
+    final selected = _mergeDateWithSessionTime(session, pickedDate);
+    if (mounted) {
+      setState(() {
+        _nextOpeningDate = selected;
+      });
+    }
+    return selected;
+  }
+
+  bool _isSameDateTimeToMinute(DateTime a, DateTime b) {
+    return a.year == b.year &&
+        a.month == b.month &&
+        a.day == b.day &&
+        a.hour == b.hour &&
+        a.minute == b.minute;
+  }
+
+  Future<void> _syncAutoOpenedSessionDate({
+    required StationProvider stationProvider,
+    required DateTime desiredOpeningDate,
+  }) async {
+    final autoOpened = stationProvider.lastAutoOpenedSession;
+    if (autoOpened == null) return;
+
+    if (_isSameDateTimeToMinute(autoOpened.sessionDate, desiredOpeningDate)) {
+      return;
+    }
+
+    final updates = <String, dynamic>{
+      'sessionDate': desiredOpeningDate.toIso8601String(),
+      'openingTime': desiredOpeningDate.toIso8601String(),
+    };
+
+    final updated = await stationProvider.editSession(autoOpened.id, updates);
+    if (!updated && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تم الإغلاق لكن تعذر ضبط تاريخ فتح الجلسة الجديدة تلقائيًا',
+          ),
+          backgroundColor: AppColors.warningOrange,
+        ),
+      );
+    }
+  }
+
+  Future<void> _submitForm() async {
     if (_session == null) return;
     final session = _session!;
 
@@ -2896,6 +2985,11 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       }
     }
 
+    final nextOpeningDate = await _askNextOpeningDate(session);
+    if (nextOpeningDate == null) {
+      return;
+    }
+
     try {
       // =========================
       // 🔹 رفع صور الغلق وتجهيز القراءات
@@ -2935,18 +3029,17 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
         0,
         (sum, e) => sum + e.amount,
       );
-      final fuelReturns = _fuelReturnEntries
-          .where((e) => e.quantity > 0)
-          .map((e) {
-            final amount = e.quantity * _resolveFuelUnitPrice(e.fuelType);
-            return {
-              'fuelType': e.fuelType,
-              'quantity': e.quantity,
-              'reason': e.reason,
-              'amount': amount,
-            };
-          })
-          .toList();
+      final fuelReturns = _fuelReturnEntries.where((e) => e.quantity > 0).map((
+        e,
+      ) {
+        final amount = e.quantity * _resolveFuelUnitPrice(e.fuelType);
+        return {
+          'fuelType': e.fuelType,
+          'quantity': e.quantity,
+          'reason': e.reason,
+          'amount': amount,
+        };
+      }).toList();
 
       // =========================
       // 🔹 هل يوجد عجز تمت تسويته؟
@@ -2960,6 +3053,24 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       // =========================
       // 🔹 تجهيز بيانات الإغلاق
       // =========================
+      final normalizedBefore = _normalizeFuelMap(_stockBeforeSalesByFuel);
+      final normalizedSold = _normalizeFuelMap(_soldLitersByFuel);
+      final normalizedAfter = _normalizeFuelMap(_stockAfterSalesByFuel);
+      final normalizedReturns = _normalizeFuelMap(_returnsByFuel());
+      final suppliedQuantity = double.tryParse(_fuelQuantityController.text) ?? 0;
+      final suppliedFuelType = _selectedFuelType == null
+          ? ''
+          : _normalizeFuelType(_selectedFuelType!);
+      final fuelStockSummary = <String>{
+        ...normalizedBefore.keys,
+        ...normalizedSold.keys,
+        ...normalizedAfter.keys,
+        ...normalizedReturns.keys,
+        if (suppliedFuelType.isNotEmpty && suppliedQuantity > 0)
+          suppliedFuelType,
+      }.toList()
+        ..sort();
+
       final Map<String, dynamic> closingData = {
         'nozzleReadings': closingNozzles,
 
@@ -2982,6 +3093,22 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
             : null,
         'fuelReturns': fuelReturns.isNotEmpty ? fuelReturns : null,
         'fuelReturn': fuelReturns.isNotEmpty ? fuelReturns.first : null,
+        'fuelStockSummary': fuelStockSummary.isNotEmpty
+            ? fuelStockSummary
+                  .map(
+                    (fuelType) => {
+                      'fuelType': fuelType,
+                      'stockBeforeSales': normalizedBefore[fuelType] ?? 0,
+                      'sales': normalizedSold[fuelType] ?? 0,
+                      'supplied': fuelType == suppliedFuelType
+                          ? suppliedQuantity
+                          : 0,
+                      'returns': normalizedReturns[fuelType] ?? 0,
+                      'stockAfterSales': normalizedAfter[fuelType] ?? 0,
+                    },
+                  )
+                  .toList()
+            : null,
 
         'carriedForwardBalance':
             double.tryParse(_carriedForwardController.text) ?? 0,
@@ -2997,6 +3124,8 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
         'differenceReason': hasShortage ? 'تمت تسوية العجز' : _differenceReason,
 
         'notes': _notesController.text,
+        'nextOpeningDate': nextOpeningDate.toIso8601String(),
+        'nextOpeningDateOnly': _formatDateOnly(nextOpeningDate),
       };
 
       // =========================
@@ -3010,6 +3139,12 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       if (!mounted) return;
 
       if (success) {
+        await _syncAutoOpenedSessionDate(
+          stationProvider: stationProvider,
+          desiredOpeningDate: nextOpeningDate,
+        );
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(context.tr(loc.AppStrings.closingSessionSuccess)),
@@ -3571,20 +3706,16 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
 
   Widget _buildMobileFuelReturn() {
     final fuelOptions = _availableFuelTypes();
-    final selectedValue =
-        fuelOptions.contains(_selectedReturnFuelType) ? _selectedReturnFuelType : null;
+    final selectedValue = fuelOptions.contains(_selectedReturnFuelType)
+        ? _selectedReturnFuelType
+        : null;
 
     return Column(
       children: [
         DropdownButtonFormField<String>(
           value: selectedValue,
           items: fuelOptions
-              .map(
-                (fuel) => DropdownMenuItem(
-                  value: fuel,
-                  child: Text(fuel),
-                ),
-              )
+              .map((fuel) => DropdownMenuItem(value: fuel, child: Text(fuel)))
               .toList(),
           onChanged: (value) {
             setState(() {
@@ -3594,9 +3725,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
           },
           decoration: InputDecoration(
             labelText: 'نوع الوقود',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
         const SizedBox(height: 12),
@@ -3639,41 +3768,41 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
         ),
         if (_fuelReturnEntries.isNotEmpty) ...[
           const SizedBox(height: 12),
-          ..._fuelReturnEntries.map(
-            (entry) {
-              final amount =
-                  entry.quantity * _resolveFuelUnitPrice(entry.fuelType);
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text('${entry.fuelType} - ${entry.quantity.toStringAsFixed(2)} لتر'),
-                  subtitle: entry.reason?.isNotEmpty == true
-                      ? Text(entry.reason!)
-                      : null,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${amount.toStringAsFixed(2)} ريال'),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _fuelReturnEntries.remove(entry);
-                            _recalculateTotals();
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+          ..._fuelReturnEntries.map((entry) {
+            final amount =
+                entry.quantity * _resolveFuelUnitPrice(entry.fuelType);
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(
+                  '${entry.fuelType} - ${entry.quantity.toStringAsFixed(2)} لتر',
                 ),
-              );
-            },
-          ),
+                subtitle: entry.reason?.isNotEmpty == true
+                    ? Text(entry.reason!)
+                    : null,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${amount.toStringAsFixed(2)} ريال'),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
+                        color: Colors.red,
+                        size: 18,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _fuelReturnEntries.remove(entry);
+                          _recalculateTotals();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ],
       ],
     );
@@ -3964,7 +4093,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     );
   }
 
-Widget _buildWebDataTable(StationProvider stationProvider) {
+  Widget _buildWebDataTable(StationProvider stationProvider) {
     final nozzleReadings = session.nozzleReadings ?? [];
     final returnFuelOptions = _availableFuelTypes();
     final returnFuelValue = returnFuelOptions.contains(_selectedReturnFuelType)
@@ -3982,11 +4111,11 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
         final sideW = width * 0.08;
         final openW = width * 0.09;
         final closeW = width * 0.10;
-       final beforeW = width * 0.08;
+        final beforeW = width * 0.08;
         final literW = width * 0.07;
         final afterW = width * 0.08;
         final amountW = width * 0.10;
-        final actionsW = width * 0.18; 
+        final actionsW = width * 0.18;
         final columnWidths = _TableColumnWidths(
           pump: pumpW,
           nozzle: nozzleW,
@@ -4029,7 +4158,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
                 _header('الجهة', sideW),
                 _header('فتح', openW),
                 _header('غلق', closeW),
-                 _header('رصيد الخزان قبل', beforeW),
+                _header('رصيد الخزان قبل', beforeW),
                 _header('لترات', literW),
                 _header('رصيد الخزان بعد', afterW),
                 _header('قيمة', amountW),
@@ -4046,30 +4175,30 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
                   final amount = _calculateNozzleAmount(nozzle);
                   final stockKey = _normalizeFuelType(nozzle.fuelType);
                   final compactKey = _compactFuelKey(nozzle.fuelType);
-                  final compactBefore =
-                      _compactFuelMap(_stockBeforeSalesByFuel);
+                  final compactBefore = _compactFuelMap(
+                    _stockBeforeSalesByFuel,
+                  );
                   final compactSold = _compactFuelMap(_soldLitersByFuel);
                   final compactReturns = _compactFuelMap(_returnsByFuel());
                   final beforeStock = compactBefore[compactKey];
                   final afterStock = _stockAfterSalesByFuel[stockKey];
-                  final computedAfter =
-                      beforeStock == null
-                          ? null
-                          : beforeStock -
-                              (compactSold[compactKey] ?? 0) +
-                              (compactReturns[compactKey] ?? 0);
+                  final computedAfter = beforeStock == null
+                      ? null
+                      : beforeStock -
+                            (compactSold[compactKey] ?? 0) +
+                            (compactReturns[compactKey] ?? 0);
                   final beforeText = _isStockLoading
                       ? '...'
                       : (beforeStock == null
-                          ? '-'
-                          : beforeStock.toStringAsFixed(2));
+                            ? '-'
+                            : beforeStock.toStringAsFixed(2));
                   final afterText = _isStockLoading
                       ? '...'
                       : (computedAfter != null
-                          ? computedAfter.toStringAsFixed(2)
-                          : (afterStock == null
-                              ? '-'
-                              : afterStock.toStringAsFixed(2)));
+                            ? computedAfter.toStringAsFixed(2)
+                            : (afterStock == null
+                                  ? '-'
+                                  : afterStock.toStringAsFixed(2)));
 
                   return DataRow(
                     cells: [
@@ -4170,7 +4299,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
                         ),
                       ),
 
-                        _cell(
+                      _cell(
                         Text(
                           beforeText,
                           style: const TextStyle(
@@ -4191,7 +4320,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
                         ),
                         literW,
                       ),
-                    
+
                       _cell(
                         Text(
                           afterText,
@@ -4282,7 +4411,6 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
                     ],
                   );
                 }),
-
 
                 // ================= Fuel Stock Section =================
                 // _buildSectionRow('المخزون بالخزان'),
@@ -4585,98 +4713,96 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
 
                 // ================= Fuel Return Section =================
                 _buildSectionRow('إرجاع وقود للخزان'),
-                ..._fuelReturnEntries.map(
-                  (entry) {
-                    final amount =
-                        entry.quantity * _resolveFuelUnitPrice(entry.fuelType);
-                    return DataRow(
-                      cells: [
-                        _cell(Text('إرجاع'), pumpW),
-                        _cell(const Text(''), nozzleW),
-                        DataCell(
-                          SizedBox(
-                            width: fuelW,
-                            child: Center(
-                              child: Text(
-                                entry.fuelType,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
+                ..._fuelReturnEntries.map((entry) {
+                  final amount =
+                      entry.quantity * _resolveFuelUnitPrice(entry.fuelType);
+                  return DataRow(
+                    cells: [
+                      _cell(Text('إرجاع'), pumpW),
+                      _cell(const Text(''), nozzleW),
+                      DataCell(
+                        SizedBox(
+                          width: fuelW,
+                          child: Center(
+                            child: Text(
+                              entry.fuelType,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ),
-                        DataCell(
-                          SizedBox(
-                            width: sideW,
-                            child: Center(
-                              child: Text(
-                                entry.reason?.isNotEmpty == true
-                                    ? entry.reason!
-                                    : '-',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.mediumGray,
-                                ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: sideW,
+                          child: Center(
+                            child: Text(
+                              entry.reason?.isNotEmpty == true
+                                  ? entry.reason!
+                                  : '-',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mediumGray,
                               ),
                             ),
                           ),
                         ),
-                        _cell(const Text(''), openW),
-                        _cell(const Text(''), closeW),
-                        DataCell(
-                          SizedBox(
-                            width: literW,
-                            child: Center(
-                              child: Text(
-                                entry.quantity.toStringAsFixed(2),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                      ),
+                      _cell(const Text(''), openW),
+                      _cell(const Text(''), closeW),
+                      DataCell(
+                        SizedBox(
+                          width: literW,
+                          child: Center(
+                            child: Text(
+                              entry.quantity.toStringAsFixed(2),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ),
-                        _cell(const Text(''), beforeW),
-                        _cell(const Text(''), afterW),
-                        DataCell(
-                          SizedBox(
-                            width: amountW,
-                            child: Center(
-                              child: Text(
-                                '${amount.toStringAsFixed(2)} ريال',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.warningOrange,
-                                ),
+                      ),
+                      _cell(const Text(''), beforeW),
+                      _cell(const Text(''), afterW),
+                      DataCell(
+                        SizedBox(
+                          width: amountW,
+                          child: Center(
+                            child: Text(
+                              '${amount.toStringAsFixed(2)} ريال',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.warningOrange,
                               ),
                             ),
                           ),
                         ),
-                        DataCell(
-                          SizedBox(
-                            width: actionsW,
-                            child: Center(
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _fuelReturnEntries.remove(entry);
-                                    _recalculateTotals();
-                                  });
-                                },
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: actionsW,
+                          child: Center(
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 18,
                               ),
+                              onPressed: () {
+                                setState(() {
+                                  _fuelReturnEntries.remove(entry);
+                                  _recalculateTotals();
+                                });
+                              },
                             ),
                           ),
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                    ],
+                  );
+                }),
                 DataRow(
                   cells: [
                     DataCell(
@@ -4799,10 +4925,9 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
                               ),
                             ),
                           ),
-                          keyboardType:
-                              const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -5133,10 +5258,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
         final paymentsCard = _buildSummaryCard(
           title: 'التحصيل النقدي',
           rows: [
-            _buildSummaryWidgetRow(
-              'نقدي',
-              _buildSummaryInput(_cashController),
-            ),
+            _buildSummaryWidgetRow('نقدي', _buildSummaryInput(_cashController)),
             _buildSummaryWidgetRow(
               'شبكة (مدى)',
               _buildSummaryInput(_cardController),
@@ -5150,11 +5272,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
 
         if (isStacked) {
           return Column(
-            children: [
-              totalsCard,
-              const SizedBox(height: 16),
-              paymentsCard,
-            ],
+            children: [totalsCard, const SizedBox(height: 16), paymentsCard],
           );
         }
 
@@ -5201,10 +5319,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
             ),
           ),
           Table(
-            columnWidths: const {
-              0: FlexColumnWidth(1),
-              1: FlexColumnWidth(1),
-            },
+            columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             border: TableBorder(
               horizontalInside: BorderSide(color: AppColors.lightGray),
@@ -5237,10 +5352,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
         _summaryCell(
           Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           ),
         ),
         _summaryCell(value),
@@ -5252,7 +5364,9 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
     final isPositive = _calculatedDifference >= 0;
     final shortageResolved = _calculatedDifference < 0 && _shortageResolved;
 
-    final label = shortageResolved ? 'عجز مسوّى' : (isPositive ? 'فائض' : 'عجز');
+    final label = shortageResolved
+        ? 'عجز مسوّى'
+        : (isPositive ? 'فائض' : 'عجز');
     final accentColor = shortageResolved
         ? AppColors.warningOrange
         : (isPositive ? AppColors.successGreen : AppColors.errorRed);
@@ -5316,7 +5430,6 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
       ),
     );
   }
-
 
   DataRow _buildSectionRow(String title) {
     return DataRow(
@@ -5466,8 +5579,7 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
       ...after.keys,
       ...sold.keys,
       ...returns.keys,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
 
     if (allFuelTypes.isEmpty) {
       return [
@@ -5497,7 +5609,8 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
     return allFuelTypes.map((fuelType) {
       final compactKey = _compactFuelKey(fuelType);
       final beforeValue = compactBefore[compactKey] ?? 0;
-      final afterValue = beforeValue -
+      final afterValue =
+          beforeValue -
           (compactSold[compactKey] ?? 0) +
           (compactReturns[compactKey] ?? 0);
       final soldValue = sold[fuelType] ?? 0;
@@ -5533,25 +5646,19 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
           DataCell(
             SizedBox(
               width: widths.liter,
-              child: Center(
-                child: Text(soldValue.toStringAsFixed(2)),
-              ),
+              child: Center(child: Text(soldValue.toStringAsFixed(2))),
             ),
           ),
           DataCell(
             SizedBox(
               width: widths.before,
-              child: Center(
-                child: Text(beforeValue.toStringAsFixed(2)),
-              ),
+              child: Center(child: Text(beforeValue.toStringAsFixed(2))),
             ),
           ),
           DataCell(
             SizedBox(
               width: widths.after,
-              child: Center(
-                child: Text(afterValue.toStringAsFixed(2)),
-              ),
+              child: Center(child: Text(afterValue.toStringAsFixed(2))),
             ),
           ),
           _cell(const Text(''), widths.amount),
@@ -5620,8 +5727,6 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
     );
   }
 
-
-
   DataColumn _header(String title, double width) {
     return DataColumn(
       label: SizedBox(
@@ -5645,8 +5750,6 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
       ),
     );
   }
-
-
 
   // Widget _buildWebSummarySection() {
   //   return Container(
@@ -5832,8 +5935,6 @@ Widget _buildWebDataTable(StationProvider stationProvider) {
   //     ),
   //   );
   // }
-
-
 
   @override
   void dispose() {

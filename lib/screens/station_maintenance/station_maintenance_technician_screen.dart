@@ -27,8 +27,7 @@ class _StationMaintenanceTechnicianScreenState
   Future<void> _loadData() async {
     final provider = context.read<StationMaintenanceProvider>();
     final authProvider = context.read<AuthProvider>();
-    final technicianId = authProvider.user?.id;
-    await provider.fetchRequests(technicianId: technicianId);
+    await provider.fetchRequests(technicianId: authProvider.user?.id);
   }
 
   @override
@@ -37,26 +36,30 @@ class _StationMaintenanceTechnicianScreenState
     final provider = context.watch<StationMaintenanceProvider>();
     final requests = provider.requests;
 
-    final activeRequests = requests
+    final assignedRequests = requests
         .where(
           (request) =>
-              request.status == 'assigned' || request.status == 'in_progress',
+              request.entryType != 'technician_report' &&
+              (request.status == 'assigned' || request.status == 'in_progress'),
         )
         .toList();
 
-    final historyRequests = requests
+    final fieldReports = requests
+        .where((request) => request.entryType == 'technician_report')
+        .toList();
+
+    final followUpRequests = requests
         .where(
           (request) =>
-              request.status == 'under_review' ||
-              request.status == 'approved' ||
-              request.status == 'rejected' ||
-              request.status == 'closed',
+              request.entryType != 'technician_report' &&
+              request.status != 'assigned' &&
+              request.status != 'in_progress',
         )
         .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('طلبات الفني'),
+        title: const Text('الصيانة الميدانية'),
         actions: [
           IconButton(
             tooltip: 'الإشعارات',
@@ -116,30 +119,136 @@ class _StationMaintenanceTechnicianScreenState
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openCreateReport,
+        icon: const Icon(Icons.note_alt_outlined),
+        label: const Text('تقرير جديد'),
+      ),
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSectionTitle('الطلبات الجديدة'),
+            _buildSummaryCard(
+              assignedCount: assignedRequests.length,
+              reportsCount: fieldReports.length,
+              pendingReviews: fieldReports
+                  .where(
+                    (report) =>
+                        report.status == 'under_review' ||
+                        report.status == 'needs_revision',
+                  )
+                  .length,
+            ),
+            const SizedBox(height: 20),
+            _buildSectionTitle('الطلبات المسندة'),
             const SizedBox(height: 12),
             if (provider.isLoading)
               const Center(child: CircularProgressIndicator())
-            else if (activeRequests.isEmpty)
-              _buildEmptyState('لا توجد طلبات مسندة حاليا')
+            else if (assignedRequests.isEmpty)
+              _buildEmptyState('لا توجد طلبات مسندة حالياً')
             else
-              ...activeRequests.map(_buildRequestCard),
+              ...assignedRequests.map(_buildRequestCard),
             const SizedBox(height: 24),
-            _buildSectionTitle('سجل الطلبات'),
+            _buildSectionTitle('تقارير الزيارة'),
             const SizedBox(height: 12),
             if (provider.isLoading)
               const Center(child: CircularProgressIndicator())
-            else if (historyRequests.isEmpty)
-              _buildEmptyState('لا يوجد سجل طلبات بعد')
+            else if (fieldReports.isEmpty)
+              _buildEmptyState('لا توجد تقارير ميدانية بعد')
             else
-              ...historyRequests.map(_buildRequestCard),
+              ...fieldReports.map(_buildRequestCard),
+            const SizedBox(height: 24),
+            _buildSectionTitle('سجل المتابعة'),
+            const SizedBox(height: 12),
+            if (provider.isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (followUpRequests.isEmpty)
+              _buildEmptyState('لا يوجد سجل متابعة بعد')
+            else
+              ...followUpRequests.map(_buildRequestCard),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _openCreateReport() async {
+    await Navigator.pushNamed(
+      context,
+      AppRoutes.stationMaintenanceForm,
+      arguments: const {'mode': 'technician_report'},
+    );
+    if (!mounted) return;
+    await _loadData();
+  }
+
+  Widget _buildSummaryCard({
+    required int assignedCount,
+    required int reportsCount,
+    required int pendingReviews,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'لوحة الفني',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'أنشئ تقرير زيارة جديد أو تابع الطلبات الحالية وحالة مراجعتها.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.88),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildMetricChip('طلبات نشطة', assignedCount.toString()),
+              _buildMetricChip('تقارير', reportsCount.toString()),
+              _buildMetricChip('بانتظار مراجعة', pendingReviews.toString()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.92))),
+        ],
       ),
     );
   }
@@ -148,9 +257,9 @@ class _StationMaintenanceTechnicianScreenState
     return Text(
       title,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryBlue,
-          ),
+        fontWeight: FontWeight.bold,
+        color: AppColors.primaryBlue,
+      ),
     );
   }
 
@@ -162,10 +271,7 @@ class _StationMaintenanceTechnicianScreenState
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.lightGray),
       ),
-      child: Text(
-        text,
-        style: TextStyle(color: AppColors.mediumGray),
-      ),
+      child: Text(text, style: TextStyle(color: AppColors.mediumGray)),
     );
   }
 
@@ -173,6 +279,8 @@ class _StationMaintenanceTechnicianScreenState
     final isAssigned = request.status == 'assigned';
     final title = request.title.isNotEmpty
         ? request.title
+        : request.entryType == 'technician_report'
+        ? 'تقرير زيارة محطة'
         : _typeLabel(request.type);
 
     return Card(
@@ -184,6 +292,7 @@ class _StationMaintenanceTechnicianScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
@@ -191,11 +300,59 @@ class _StationMaintenanceTechnicianScreenState
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                const SizedBox(width: 8),
                 _buildStatusChip(request.status),
               ],
             ),
             const SizedBox(height: 8),
-            Text('المحطة: ${request.stationName.isNotEmpty ? request.stationName : 'غير محدد'}'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildInfoBadge(
+                  request.entryType == 'technician_report'
+                      ? 'تقرير ميداني'
+                      : 'طلب عمل',
+                  request.entryType == 'technician_report'
+                      ? AppColors.secondaryTeal
+                      : AppColors.primaryBlue,
+                ),
+                if (request.entryType == 'technician_report')
+                  _buildInfoBadge(
+                    request.needsMaintenance ? 'تحتاج صيانة' : 'لا تحتاج صيانة',
+                    request.needsMaintenance
+                        ? AppColors.warningOrange
+                        : AppColors.successGreen,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'المحطة: ${request.stationName.isNotEmpty ? request.stationName : 'غير محدد'}',
+            ),
+            if (request.description.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                request.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: AppColors.mediumGray),
+              ),
+            ],
+            if (request.review?.notes?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundGray,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'ملاحظة الإدارة: ${request.review!.notes!.trim()}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -212,6 +369,25 @@ class _StationMaintenanceTechnicianScreenState
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -240,7 +416,7 @@ class _StationMaintenanceTechnicianScreenState
       context,
       AppRoutes.stationMaintenanceDetails,
       arguments: request.id,
-    );
+    ).then((_) => _loadData());
   }
 
   Widget _buildStatusChip(String status) {
@@ -254,7 +430,11 @@ class _StationMaintenanceTechnicianScreenState
       ),
       child: Text(
         _statusLabel(status),
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -267,6 +447,8 @@ class _StationMaintenanceTechnicianScreenState
         return 'قيد التنفيذ';
       case 'under_review':
         return 'تحت المراجعة';
+      case 'needs_revision':
+        return 'رد بملاحظة';
       case 'approved':
         return 'مقبول';
       case 'rejected':
@@ -286,6 +468,8 @@ class _StationMaintenanceTechnicianScreenState
         return Colors.orange;
       case 'under_review':
         return Colors.amber;
+      case 'needs_revision':
+        return AppColors.infoBlue;
       case 'approved':
         return Colors.green;
       case 'rejected':

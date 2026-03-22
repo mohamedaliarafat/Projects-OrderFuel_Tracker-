@@ -370,10 +370,10 @@ class _HRDashboardScreenState extends State<HRDashboardScreen> {
       onViewAll: () {
         _showAllUpcomingEvents();
       },
-          onAddEvent: () {
-            _addNewEvent();
-          },
-        );
+      onAddEvent: () {
+        _addNewEvent();
+      },
+    );
   }
 
   void _showDateRangePicker() {

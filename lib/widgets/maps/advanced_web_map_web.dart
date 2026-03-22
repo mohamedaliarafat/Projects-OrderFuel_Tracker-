@@ -99,6 +99,7 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
     if (maps == null) {
       return;
     }
+
     if (!js_util.hasProperty(maps, 'Map')) {
       _setInitError(
         'Google Maps failed to load. Check your API key, Map ID, and billing.',
@@ -116,10 +117,10 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
     }
     final mapOptions = js_util.jsify(options);
     try {
-      _map = js_util.callConstructor(
-        js_util.getProperty(maps, 'Map'),
-        [_element, mapOptions],
-      );
+      _map = js_util.callConstructor(js_util.getProperty(maps, 'Map'), [
+        _element,
+        mapOptions,
+      ]);
       _mapReady = true;
       _attachTapListener();
       _syncMarkers();
@@ -134,20 +135,16 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
 
   void _attachTapListener() {
     if (!_mapReady || widget.onTap == null) return;
-    _tapListener = js_util.callMethod(
-      _map,
-      'addListener',
-      [
-        'click',
-        js_util.allowInterop((dynamic event) {
-          final latLng = js_util.getProperty(event, 'latLng');
-          if (latLng == null) return;
-          final lat = js_util.callMethod(latLng, 'lat', const []);
-          final lng = js_util.callMethod(latLng, 'lng', const []);
-          widget.onTap?.call(LatLng(lat as double, lng as double));
-        }),
-      ],
-    );
+    _tapListener = js_util.callMethod(_map, 'addListener', [
+      'click',
+      js_util.allowInterop((dynamic event) {
+        final latLng = js_util.getProperty(event, 'latLng');
+        if (latLng == null) return;
+        final lat = js_util.callMethod(latLng, 'lat', const []);
+        final lng = js_util.callMethod(latLng, 'lng', const []);
+        widget.onTap?.call(LatLng(lat as double, lng as double));
+      }),
+    ]);
   }
 
   void _detachTapListener() {
@@ -158,11 +155,9 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
 
   void _syncCamera() {
     if (!_mapReady) return;
-    js_util.callMethod(
-      _map,
-      'setCenter',
-      [js_util.jsify(_toJsLatLng(widget.center))],
-    );
+    js_util.callMethod(_map, 'setCenter', [
+      js_util.jsify(_toJsLatLng(widget.center)),
+    ]);
     js_util.callMethod(_map, 'setZoom', [widget.zoom]);
   }
 
@@ -225,9 +220,7 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
       if (iconUrl != null && iconUrl.isNotEmpty) {
         options['icon'] = iconUrl;
       }
-      return js_util.callConstructor(markerCtor, [
-        js_util.jsify(options),
-      ]);
+      return js_util.callConstructor(markerCtor, [js_util.jsify(options)]);
     }
     final options = <String, dynamic>{
       'map': _map,
@@ -237,7 +230,9 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
     if (iconUrl != null && iconUrl.isNotEmpty) {
       options['content'] = _buildMarkerContent(iconUrl);
     }
-    return js_util.callConstructor(_advancedMarkerCtor, [js_util.jsify(options)]);
+    return js_util.callConstructor(_advancedMarkerCtor, [
+      js_util.jsify(options),
+    ]);
   }
 
   html.DivElement _buildMarkerContent(String iconUrl) {
@@ -277,7 +272,7 @@ class _AdvancedWebMapState extends State<AdvancedWebMap> {
             'strokeOpacity': 0.9,
             'strokeWeight': 4,
             'map': _map,
-          })
+          }),
         ]);
         if (signature != _lastPolylineSignature) {
           _lastPolylineSignature = signature;

@@ -1,120 +1,168 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
+import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/widgets/chat_floating_button.dart';
 import 'package:order_tracker/widgets/stations/service_card.dart';
 import 'package:provider/provider.dart';
 
-class MainHomeScreen extends StatelessWidget {
+class MainHomeScreen extends StatefulWidget {
   const MainHomeScreen({super.key});
 
-  bool isisWeb(BuildContext context) =>
+  static const double _maxContentWidth = 1200;
+
+  @override
+  State<MainHomeScreen> createState() => _MainHomeScreenState();
+}
+
+class _MainHomeScreenState extends State<MainHomeScreen> {
+  _HomeQuickStats? _quickStats;
+  bool _isLoadingQuickStats = false;
+  String? _quickStatsError;
+
+  bool _isDesktop(BuildContext context) =>
       MediaQuery.of(context).size.width >= 1100;
 
-  bool isTablet(BuildContext context) {
+  bool _isTablet(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     return w >= 600 && w < 1100;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadQuickStats();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final bool isSalesManager = authProvider.role == 'sales_manager_statiun';
+    final String? role = authProvider.role;
+    final bool isStationDashboardUser =
+        role == 'sales_manager_statiun' || role == 'owner_station';
+    final bool isOwnerStation = role == 'owner_station';
 
-    final bool tablet = isTablet(context);
-    final bool isWeb = MediaQuery.of(context).size.width >= 900;
+    final media = MediaQuery.of(context);
+    final bool isDesktop = _isDesktop(context);
+    final bool tablet = _isTablet(context);
+    final bool wideAppBar = media.size.width >= 900;
+
+    final int gridColumns = isDesktop ? 4 : (tablet ? 3 : 2);
+    final double horizontalPadding = isDesktop ? 18 : 14;
+
+    final services = <Widget>[
+      _service(
+        context,
+        'مبيعات المحطات',
+        'إدارة محطات الوقود والمبيعات',
+        Icons.local_gas_station_rounded,
+        [AppColors.secondaryTeal, const Color(0xFF1D976C)],
+        '/stations/dashboard',
+      ),
+      if (!isOwnerStation)
+        _service(
+          context,
+          'إدارة المحطات',
+          'إضافة وتعديل محطات الوقود',
+          Icons.apartment_rounded,
+          [AppColors.warningOrange, const Color(0xFFFF6B00)],
+          '/stations/list',
+        ),
+      _service(
+        context,
+        'قراءات المضخات',
+        'فتح وإغلاق قراءات المبيعات',
+        Icons.gas_meter_rounded,
+        [AppColors.successGreen, const Color(0xFF16A34A)],
+        '/sessions/list',
+      ),
+      _service(
+        context,
+        'المخزون اليومي',
+        'متابعة مخزون الوقود',
+        Icons.inventory_2_rounded,
+        [AppColors.infoBlue, const Color(0xFF2563EB)],
+        '/inventory/list',
+      ),
+      _service(
+        context,
+        'خزنة المحطات',
+        'متابعة النقدي والشبكة وسندات الصرف',
+        Icons.account_balance_wallet_rounded,
+        [const Color(0xFF0F766E), const Color(0xFF0EA5A4)],
+        AppRoutes.stationTreasury,
+      ),
+      _service(
+        context,
+        'التقرير الشهري للمحطات',
+        'تقرير شهري شامل للمبيعات والمصروفات والعجز',
+        Icons.query_stats_rounded,
+        [const Color(0xFF334155), const Color(0xFF0F172A)],
+        AppRoutes.monthlyStationsReport,
+      ),
+      if (!isOwnerStation)
+        _service(
+          context,
+          'المهام اليومية',
+          'متابعة المهام اليومية',
+          Icons.task_alt_rounded,
+          [AppColors.primaryBlue, AppColors.appBarWaterBright],
+          AppRoutes.tasks,
+        ),
+      if (!isOwnerStation)
+        _service(
+          context,
+          'صرف سندات العهدة',
+          'صرف سندات العهدة ومتابعتها',
+          Icons.receipt_long_rounded,
+          [const Color(0xFF0EA5E9), const Color(0xFF1D4ED8)],
+          AppRoutes.custodyDocuments,
+        ),
+      if (user?.role == 'admin')
+        _service(
+          context,
+          'المستخدمين',
+          'إدارة حسابات المستخدمين',
+          Icons.manage_accounts_rounded,
+          [const Color(0xFFEC4899), const Color(0xFFDB2777)],
+          '',
+        ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: !isSalesManager, // ❌ إخفاء سهم الرجوع له
-        elevation: 2,
-        title: const Text(
-          'نظام إدارة مبيعات المحطات وتكاليفها',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
+        automaticallyImplyLeading: !isStationDashboardUser,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: const _GradientAppBarBackground(),
+        title: const Text('نظام إدارة مبيعات المحطات وتكاليفها'),
         actions: [
-          // 🔔 الإشعارات
-          IconButton(
+          _appBarIconAction(
             tooltip: 'الإشعارات',
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.notifications);
-            },
+            icon: Icons.notifications_rounded,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.notifications),
           ),
-
-          // 👤 البروفايل (احترافي)
-          InkWell(
-            onTap: () {
-              Navigator.pushNamed(context, AppRoutes.profile);
-            },
-            borderRadius: BorderRadius.circular(30),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white.withOpacity(0.15)),
-              ),
-              child: Row(
-                children: [
-                  // 🔵 Avatar
-                  Container(
-                    width: isWeb ? 36 : 32,
-                    height: isWeb ? 36 : 32,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [AppColors.primaryBlue, AppColors.lightTeal],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (user?.name.isNotEmpty == true
-                            ? user!.name[0].toUpperCase()
-                            : 'U'),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: isWeb ? 16 : 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // الاسم في الويب فقط
-                  if (isWeb) ...[
-                    const SizedBox(width: 10),
-                    Text(
-                      user?.name ?? '',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Colors.white70,
-                      size: 20,
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          const SizedBox(width: 4),
+          _profileAction(
+            context: context,
+            name: user?.name ?? '',
+            showName: wideAppBar,
           ),
-
-          // 🚪 تسجيل الخروج (sales_manager فقط)
-          if (isSalesManager)
-            IconButton(
+          if (isStationDashboardUser) ...[
+            const SizedBox(width: 4),
+            _appBarIconAction(
               tooltip: 'تسجيل الخروج',
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
+              icon: Icons.logout_rounded,
+              onTap: () async {
                 await authProvider.logout();
                 if (!context.mounted) return;
 
@@ -125,257 +173,81 @@ class MainHomeScreen extends StatelessWidget {
                 );
               },
             ),
-
+          ],
           const SizedBox(width: 8),
         ],
       ),
-
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [
-              AppColors.primaryBlue.withOpacity(0.06),
-              AppColors.backgroundGray,
-            ],
-          ),
-        ),
-        child: Center(
-          // ⭐ يمنع التمدد الزائد على الويب
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Padding(
-              padding: EdgeInsets.all(isWeb ? 12 : 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ================== Welcome Card ==================
-                  Card(
-                    elevation: isWeb ? 2 : 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+      body: Stack(
+        children: [
+          const _DashboardBackground(),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: MainHomeScreen._maxContentWidth,
+              ),
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      isDesktop ? 20 : 16,
+                      horizontalPadding,
+                      12,
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      padding: EdgeInsets.all(isWeb ? 16 : 24),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'مرحباً ${user?.name ?? ''}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isWeb ? 18 : 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  user?.company ?? '',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: isWeb ? 13 : 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isWeb ? 12 : 16,
-                                    vertical: isWeb ? 6 : 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    _getGreeting(),
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: isWeb ? 12 : 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: isWeb ? 56 : 80,
-                            height: isWeb ? 40 : 80,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.local_gas_station,
-                              size: isWeb ? 28 : 40,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+                    sliver: SliverToBoxAdapter(
+                      child: _buildWelcomeHeader(
+                        context,
+                        name: user?.name ?? '',
+                        company: user?.company ?? '',
+                        isDesktop: isDesktop,
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 22),
-
-                  // ================== Title ==================
-                  Text(
-                    'الخدمات المتاحة',
-                    style: TextStyle(
-                      fontSize: isWeb ? 18 : 22,
-                      fontWeight: FontWeight.bold,
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      6,
+                      horizontalPadding,
+                      12,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: _buildSectionHeader(context),
                     ),
                   ),
-                  const SizedBox(height: 14),
-
-                  // ================== Services Grid ==================
-                  Expanded(
-                    child: GridView.count(
-                      crossAxisCount: isWeb
-                          ? 4
-                          : tablet
-                          ? 3
-                          : 2,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: isWeb ? 1.1 : 0.8,
-                      children: [
-                        // _service(
-                        //   context,
-                        //   'متابعة الطلبات',
-                        //   'إدارة طلبات تزويد الوقود',
-                        //   Icons.inventory_2_outlined,
-                        //   [AppColors.primaryBlue, AppColors.primaryDarkBlue],
-                        //   '/orders',
-                        // ),
-                        _service(
-                          context,
-                          'مبيعات المحطات',
-                          'إدارة محطات الوقود والمبيعات',
-                          Icons.local_gas_station,
-                          [AppColors.secondaryTeal, const Color(0xFF1D976C)],
-                          '/stations/dashboard',
-                        ),
-                        _service(
-                          context,
-                          'إدارة المحطات',
-                          'إضافة وتعديل محطات الوقود',
-                          Icons.business,
-                          [AppColors.warningOrange, Colors.orange],
-                          '/stations/list',
-                        ),
-                        _service(
-                          context,
-                          'قرائات المضخات',
-                          'فتح وإغلاق قرائات المبيعات',
-                          Icons.play_circle_outline,
-                          [AppColors.successGreen, Colors.green],
-                          '/sessions/list',
-                        ),
-                        _service(
-                          context,
-                          'المخزون اليومي',
-                          'متابعة مخزون الوقود',
-                          Icons.inventory,
-                          [AppColors.infoBlue, Colors.blue],
-                          '/inventory/list',
-                        ),
-                        _service(
-                          context,
-                          'المهام اليومية',
-                          'متابعة المهام اليومية',
-                          Icons.assignment_turned_in,
-                          [AppColors.primaryBlue, AppColors.secondaryTeal],
-                          AppRoutes.tasks,
-                        ),
-                        _service(
-                          context,
-                          'صرف سندات العهدة',
-                          'صرف سندات العهدة ومتابعتها',
-                          Icons.assignment_turned_in,
-                          [AppColors.infoBlue, Colors.blueGrey],
-                          AppRoutes.custodyDocuments,
-                        ),
-                        if (user?.role == 'admin') ...[
-                          _service(
-                            context,
-                            'المستخدمين',
-                            'إدارة حسابات المستخدمين',
-                            Icons.people_outline,
-                            [Colors.pink, Colors.pinkAccent],
-                            '',
-                          ),
-                          // _service(
-                          //   context,
-                          //   'الإعدادات',
-                          //   'إعدادات النظام',
-                          //   Icons.settings_outlined,
-                          //   [Colors.grey, Colors.grey.shade700],
-                          //   '/settings',
-                          // ),
-                        ],
-                      ],
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      0,
+                      horizontalPadding,
+                      16,
                     ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // ================== Quick Stats ==================
-                  Card(
-                    elevation: isWeb ? 1 : 3,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: isWeb ? 10 : 16,
-                        horizontal: isWeb ? 12 : 16,
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: gridColumns,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        mainAxisExtent: isDesktop ? 148 : 156,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildQuickStat(
-                            Icons.local_gas_station,
-                            '12',
-                            'محطة',
-                            AppColors.primaryBlue,
-                            isWeb,
-                          ),
-                          _buildQuickStat(
-                            Icons.play_circle_outline,
-                            '48',
-                            'جلسة نشطة',
-                            AppColors.successGreen,
-                            isWeb,
-                          ),
-                          _buildQuickStat(
-                            Icons.attach_money,
-                            '٥٠٨٫٢٥٠',
-                            'ريال اليوم',
-                            AppColors.warningOrange,
-                            isWeb,
-                          ),
-                          _buildQuickStat(
-                            Icons.inventory,
-                            '٩٨٫٥٪',
-                            'مطابقة',
-                            AppColors.infoBlue,
-                            isWeb,
-                          ),
-                        ],
-                      ),
+                      delegate: SliverChildListDelegate(services),
                     ),
                   ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      0,
+                      horizontalPadding,
+                      16,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: _buildStatsPanel(context),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 110)),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
       floatingActionButton: const ChatFloatingButton(
         heroTag: 'main_home_chat_fab',
@@ -383,7 +255,140 @@ class MainHomeScreen extends StatelessWidget {
     );
   }
 
-  // ================== Helpers ==================
+  Future<void> _loadQuickStats() async {
+    if (_isLoadingQuickStats) return;
+
+    setState(() {
+      _isLoadingQuickStats = true;
+      _quickStatsError = null;
+    });
+
+    try {
+      await ApiService.loadToken();
+
+      final date = DateTime.now();
+      final dateKey = _formatDateKey(date);
+
+      final stationIds = await _fetchStationIds();
+      if (stationIds.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _quickStats = const _HomeQuickStats(
+            stationsCount: 0,
+            sessionsCount: 0,
+            todaySales: 0,
+            compliancePercent: 0,
+          );
+        });
+        return;
+      }
+
+      final statsList = await Future.wait(
+        stationIds.map((id) async {
+          try {
+            return await _fetchStationStats(
+              id,
+              startDate: dateKey,
+              endDate: dateKey,
+            );
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+
+      final valid = statsList.whereType<StationStats>().toList();
+      if (valid.isEmpty) {
+        throw Exception('تعذر جلب إحصائيات اليوم');
+      }
+
+      double totalSales = 0;
+      double totalNet = 0;
+      int totalSessions = 0;
+
+      for (final s in valid) {
+        totalSales += s.totalSales;
+        totalNet += s.netRevenue;
+        totalSessions += s.totalSessions;
+      }
+
+      final compliance = totalSales > 0 ? (totalNet / totalSales) * 100 : 0.0;
+      final clampedCompliance = compliance.clamp(0.0, 100.0);
+
+      if (!mounted) return;
+      setState(() {
+        _quickStats = _HomeQuickStats(
+          stationsCount: stationIds.length,
+          sessionsCount: totalSessions,
+          todaySales: totalSales,
+          compliancePercent: clampedCompliance,
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _quickStatsError = e.toString();
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoadingQuickStats = false);
+    }
+  }
+
+  String _formatDateKey(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  Future<List<String>> _fetchStationIds() async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.isOwnerStation && authProvider.stationIds.isNotEmpty) {
+      return authProvider.stationIds;
+    }
+
+    final uri = Uri.parse(
+      '${ApiEndpoints.baseUrl}/stations/stations',
+    ).replace(queryParameters: const {'page': '1', 'limit': '0'});
+
+    final response = await http.get(uri, headers: ApiService.headers);
+    if (response.statusCode != 200) {
+      throw Exception('فشل جلب المحطات');
+    }
+
+    final decoded = json.decode(utf8.decode(response.bodyBytes));
+    final stations =
+        (decoded is Map ? decoded['stations'] : null) as List? ?? [];
+
+    return stations
+        .whereType<Map>()
+        .map((e) => (e['_id'] ?? e['id'] ?? '').toString())
+        .where((id) => id.trim().isNotEmpty)
+        .toList();
+  }
+
+  Future<StationStats> _fetchStationStats(
+    String stationId, {
+    required String startDate,
+    required String endDate,
+  }) async {
+    final uri = Uri.parse(
+      '${ApiEndpoints.baseUrl}/stations/stations/$stationId/stats',
+    ).replace(queryParameters: {'startDate': startDate, 'endDate': endDate});
+
+    final response = await http.get(uri, headers: ApiService.headers);
+    if (response.statusCode != 200) {
+      throw Exception('فشل جلب الإحصائيات');
+    }
+
+    final decoded = json.decode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('بيانات إحصائيات غير صالحة');
+    }
+
+    return StationStats.fromJson(decoded);
+  }
 
   Widget _service(
     BuildContext context,
@@ -393,13 +398,380 @@ class MainHomeScreen extends StatelessWidget {
     List<Color> colors,
     String route,
   ) {
+    final gradient = LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: colors,
+    );
+
     return ServiceCard(
       title: title,
       subtitle: subtitle,
       icon: icon,
-      gradient: LinearGradient(colors: colors),
+      gradient: gradient,
       onTap: route.isEmpty ? null : () => Navigator.pushNamed(context, route),
     );
+  }
+
+  Widget _buildSectionHeader(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'الخدمات',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'اختر الخدمة المطلوبة للبدء',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWelcomeHeader(
+    BuildContext context, {
+    required String name,
+    required String company,
+    required bool isDesktop,
+  }) {
+    final theme = Theme.of(context);
+    final greeting = _getGreeting();
+    final greetingIcon = _greetingIcon();
+
+    final trimmedName = name.trim();
+    final trimmedCompany = company.trim();
+    final title = trimmedName.isEmpty ? 'مرحباً' : 'مرحباً، $trimmedName';
+
+    return Container(
+      padding: EdgeInsets.all(isDesktop ? 22 : 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        color: Colors.white.withValues(alpha: 0.92),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                if (trimmedCompany.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    trimmedCompany,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF475569),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                _infoPill(icon: greetingIcon, label: greeting),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          _welcomeMark(isDesktop: isDesktop),
+        ],
+      ),
+    );
+  }
+
+  Widget _welcomeMark({required bool isDesktop}) {
+    final double size = isDesktop ? 84 : 74;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: AppColors.appBarGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.appBarWaterDeep.withValues(alpha: 0.28),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.local_gas_station_rounded,
+        color: Colors.white,
+        size: 34,
+      ),
+    );
+  }
+
+  Widget _buildStatsPanel(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final quickStats = _quickStats;
+    final numberAr = NumberFormat.decimalPattern('ar');
+    final complianceAr = NumberFormat('##0.##', 'ar');
+
+    final String stationsValue;
+    final String sessionsValue;
+    final String revenueValue;
+    final String complianceValue;
+
+    if (quickStats != null) {
+      stationsValue = numberAr.format(quickStats.stationsCount);
+      sessionsValue = numberAr.format(quickStats.sessionsCount);
+      revenueValue = numberAr.format(quickStats.todaySales);
+      complianceValue = complianceAr.format(quickStats.compliancePercent);
+    } else if (_isLoadingQuickStats) {
+      stationsValue = '...';
+      sessionsValue = '...';
+      revenueValue = '...';
+      complianceValue = '...';
+    } else {
+      stationsValue = '—';
+      sessionsValue = '—';
+      revenueValue = '—';
+      complianceValue = '—';
+    }
+
+    final stats = <_QuickStat>[
+      _QuickStat(
+        icon: Icons.local_gas_station_rounded,
+        value: stationsValue,
+        label: 'محطة',
+        color: AppColors.primaryBlue,
+      ),
+      _QuickStat(
+        icon: Icons.play_circle_rounded,
+        value: sessionsValue,
+        label: 'جلسة نشطة',
+        color: AppColors.successGreen,
+      ),
+      _QuickStat(
+        icon: Icons.payments_rounded,
+        value: revenueValue,
+        label: 'ريال اليوم',
+        color: AppColors.warningOrange,
+      ),
+      _QuickStat(
+        icon: Icons.verified_rounded,
+        value: complianceValue,
+        label: 'مطابقة',
+        color: AppColors.infoBlue,
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: Colors.white.withValues(alpha: 0.90),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'إحصائيات اليوم',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'تحديث',
+                onPressed: _isLoadingQuickStats ? null : _loadQuickStats,
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.78),
+                ),
+              ),
+            ],
+          ),
+          if (_isLoadingQuickStats) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                backgroundColor: Colors.black.withValues(alpha: 0.04),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.appBarWaterBright,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_quickStatsError != null && _quickStats == null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.errorRed.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.errorRed.withValues(alpha: 0.16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.errorRed,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'تعذر تحميل الإحصائيات من السيرفر',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF7F1D1D),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              final double itemWidth;
+              if (w >= 900) {
+                itemWidth = (w - (3 * 12)) / 4;
+              } else if (w >= 560) {
+                itemWidth = (w - 12) / 2;
+              } else {
+                itemWidth = w;
+              }
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final s in stats)
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatTile(context, stat: s),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatTile(BuildContext context, {required _QuickStat stat}) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: stat.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(stat.icon, color: stat.color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  stat.value,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  stat.label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoPill({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.appBarWaterDeep.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.appBarWaterDeep.withValues(alpha: 0.10),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: AppColors.appBarWaterDeep),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _greetingIcon() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return Icons.wb_sunny_rounded;
+    if (hour < 18) return Icons.wb_sunny_outlined;
+    return Icons.nights_stay_rounded;
   }
 
   String _getGreeting() {
@@ -409,40 +781,212 @@ class MainHomeScreen extends StatelessWidget {
     return 'مساء الخير';
   }
 
-  Widget _buildQuickStat(
-    IconData icon,
-    String value,
-    String label,
-    Color color,
-    bool isWeb,
-  ) {
-    return Column(
-      children: [
-        Container(
-          padding: EdgeInsets.all(isWeb ? 3 : 12),
+  Widget _appBarIconAction({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 40,
+          height: 40,
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           ),
-          child: Icon(icon, color: color, size: isWeb ? 18 : 24),
+          child: Icon(icon, color: Colors.white),
         ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isWeb ? 9 : 10,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isWeb ? 11 : 12,
-            color: AppColors.mediumGray,
-          ),
-        ),
-      ],
+      ),
     );
   }
+
+  Widget _profileAction({
+    required BuildContext context,
+    required String name,
+    required bool showName,
+  }) {
+    final trimmed = name.trim();
+    final initial = trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'U';
+
+    return InkWell(
+      onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: showName ? 10 : 8,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: showName ? 32 : 30,
+              height: showName ? 32 : 30,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.secondaryTeal,
+                    AppColors.appBarWaterBright,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: showName ? 14 : 13,
+                  ),
+                ),
+              ),
+            ),
+            if (showName) ...[
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Text(
+                  trimmed,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70,
+                size: 20,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientAppBarBackground extends StatelessWidget {
+  const _GradientAppBarBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          height: 1,
+          color: Colors.white.withValues(alpha: 0.12),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardBackground extends StatelessWidget {
+  const _DashboardBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: [const Color(0xFFF8FAFF), AppColors.backgroundGray],
+            ),
+          ),
+          child: Stack(
+            children: const [
+              Positioned(
+                top: -170,
+                left: -150,
+                child: _SoftBlob(
+                  size: 420,
+                  colors: [Color(0x3342E8E0), Color(0x001A2980)],
+                ),
+              ),
+              Positioned(
+                bottom: -220,
+                right: -170,
+                child: _SoftBlob(
+                  size: 520,
+                  colors: [Color(0x33FF9800), Color(0x00000000)],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SoftBlob extends StatelessWidget {
+  final double size;
+  final List<Color> colors;
+
+  const _SoftBlob({required this.size, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: colors),
+      ),
+    );
+  }
+}
+
+class _QuickStat {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  const _QuickStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+}
+
+class _HomeQuickStats {
+  final int stationsCount;
+  final int sessionsCount;
+  final double todaySales;
+  final double compliancePercent;
+
+  const _HomeQuickStats({
+    required this.stationsCount,
+    required this.sessionsCount,
+    required this.todaySales,
+    required this.compliancePercent,
+  });
 }

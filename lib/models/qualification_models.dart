@@ -49,7 +49,8 @@ class QualificationStation {
               Map<String, dynamic>.from(json['location']),
             )
           : const QualificationLocation(lat: 0, lng: 0),
-      createdByName: json['createdByName']?.toString() ??
+      createdByName:
+          json['createdByName']?.toString() ??
           (json['createdBy'] is Map
               ? json['createdBy']['name']?.toString()
               : null),
@@ -63,12 +64,17 @@ class QualificationStation {
             )
           : null,
       attachments: (json['attachments'] as List<dynamic>? ?? [])
-          .map((e) =>
-              QualificationAttachment.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) =>
+                QualificationAttachment.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList(),
       statusHistory: (json['statusHistory'] as List<dynamic>? ?? [])
-          .map((e) =>
-              QualificationStatusChange.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => QualificationStatusChange.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
           .toList(),
     );
   }
@@ -192,8 +198,10 @@ class QualificationStatusChange {
       status: qualificationStatusFromString(json['status']?.toString()),
       reason: json['reason']?.toString() ?? '',
       attachments: (json['attachments'] as List<dynamic>? ?? [])
-          .map((e) =>
-              QualificationAttachment.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) =>
+                QualificationAttachment.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList(),
       createdAt: createdAtValue != null
           ? DateTime.tryParse(createdAtValue)?.toLocal() ?? DateTime.now()

@@ -4,6 +4,7 @@ import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/order_model.dart';
 import 'package:order_tracker/providers/order_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
 import 'package:order_tracker/widgets/gradient_button.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -87,27 +88,37 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
   }
 
   PreferredSizeWidget _buildDesktopAppBar() {
+    final title = _isEditingMergedOrder ? 'تعديل الطلب المدمج' : 'دمج الطلبات';
+
     return AppBar(
       elevation: 0,
+      backgroundColor: Colors.transparent,
+      flexibleSpace: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+      ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new),
-        color: AppColors.primaryBlue,
         tooltip: 'رجوع',
-        onPressed: () {
-          Navigator.pop(context);
-        },
+        color: Colors.white,
+        onPressed: () => Navigator.pop(context),
       ),
-      title: const Text(
-        'دمج الطلبات',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: AppColors.primaryBlue,
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
         ),
       ),
       centerTitle: true,
     );
   }
-
 
   void _selectMergedOrders(List<Order> allOrders) {
     if (_mergedOrder == null) return;
@@ -168,10 +179,10 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
       // طلبات العملاء (عميل فقط + غير مدموجة)
       // =========================
       _customerOrders = allOrders.where((order) {
-  return order.orderSource == 'عميل' &&
-      order.mergeStatus != 'مدمج' &&
-      order.status == 'في انتظار التخصيص';
-}).toList();
+        return order.orderSource == 'عميل' &&
+            order.mergeStatus != 'مدمج' &&
+            order.status == 'في انتظار التخصيص';
+      }).toList();
 
       _filteredCustomerOrders = List.from(_customerOrders);
 
@@ -354,7 +365,9 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
     if (!_areOrdersCompatible()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('الطلبات غير متوافقة (تختلف في نوع الوقود أو الكمية)'),
+          content: const Text(
+            'الطلبات غير متوافقة (تختلف في نوع الوقود أو الكمية)',
+          ),
           backgroundColor: AppColors.errorRed,
         ),
       );
@@ -405,7 +418,6 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
       }
     }
   }
-
 
   // ============================================
   // ✅ التحقق من التوافق
@@ -466,48 +478,73 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
   // 💻 واجهة سطح المكتب
   // ============================================
   Widget _buildDesktopLayout() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // العمود الأيسر: طلب المورد + معلومات التوافق
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildHeaderCard(),
-                const SizedBox(height: 20),
-                _buildSupplierOrderCard(),
-                const SizedBox(height: 20),
-                if (_selectedSupplierOrder != null &&
-                    _selectedCustomerOrder != null)
-                  _buildCompatibilityInfo(),
-              ],
-            ),
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1500),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildPaneSurface(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        _buildHeaderCard(),
+                        const SizedBox(height: 20),
+                        _buildSupplierOrderCard(),
+                        const SizedBox(height: 20),
+                        if (_selectedSupplierOrder != null &&
+                            _selectedCustomerOrder != null)
+                          _buildCompatibilityInfo(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildPaneSurface(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        _buildCustomerOrderCard(),
+                        const SizedBox(height: 20),
+                        _buildMergeButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
 
-        // الخط الفاصل
-        Container(
-          width: 1,
-          margin: const EdgeInsets.symmetric(vertical: 20),
-          color: Colors.grey.shade300,
-        ),
-
-        // العمود الأيمن: طلب العميل + زر الدمج
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildCustomerOrderCard(),
-                const SizedBox(height: 20),
-                _buildMergeButton(),
-              ],
+  Widget _buildPaneSurface({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
             ),
-          ),
+          ],
         ),
-      ],
+        child: Material(color: Colors.transparent, child: child),
+      ),
     );
   }
 
@@ -515,38 +552,58 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
   // 🎴 مكونات الواجهة
   // ============================================
   Widget _buildHeaderCard() {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(20),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: AppColors.accentGradient,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.link, size: 48, color: Colors.white),
-            const SizedBox(height: 16),
-            Text(
-              _isEditMode ? 'تعديل الطلب المدمج' : 'دمج الطلبات المتوافقة',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-            Text(
-              'اختر طلب مورد وطلب عميل متوافقين للدمج',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
-              ),
-              textAlign: TextAlign.center,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 26,
+              offset: const Offset(0, 12),
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: const Icon(Icons.link, size: 28, color: Colors.white),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _isEditMode ? 'تعديل الطلب المدمج' : 'دمج الطلبات المتوافقة',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'اختر طلب مورد وطلب عميل متوافقين للدمج',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.88),
+                  height: 1.35,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1400,19 +1457,16 @@ class _MergeOrdersScreenState extends State<MergeOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    final content = isDesktop ? _buildDesktopLayout() : _buildMobileLayout();
 
     return Scaffold(
-      appBar: isDesktop
-          ? _buildDesktopAppBar()
-          : AppBar(
-              title: Text(
-                _isEditingMergedOrder ? 'تعديل الطلب المدمج' : 'دمج الطلبات',
-              ),
-              centerTitle: true,
-            ),
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+      appBar: _buildDesktopAppBar(),
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Positioned.fill(child: content),
+        ],
+      ),
     );
   }
-
-
 }

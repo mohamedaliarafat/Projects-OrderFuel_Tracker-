@@ -7,6 +7,7 @@ class Driver {
   final String? address;
   final String vehicleType;
   final String? vehicleNumber;
+  final String vehicleStatus;
   final DateTime? licenseExpiryDate;
   final String status;
   final bool isActive;
@@ -25,6 +26,7 @@ class Driver {
     this.address,
     required this.vehicleType,
     this.vehicleNumber,
+    this.vehicleStatus = 'فاضي',
     this.licenseExpiryDate,
     required this.status,
     required this.isActive,
@@ -43,6 +45,7 @@ class Driver {
       licenseNumber: '',
       phone: '',
       vehicleType: 'غير محدد',
+      vehicleStatus: 'فاضي',
       status: 'نشط',
       isActive: true,
       createdById: '',
@@ -63,6 +66,7 @@ class Driver {
       isActive: json['isActive'] ?? true,
       vehicleType: json['vehicleType']?.toString() ?? 'غير محدد',
       vehicleNumber: json['vehicleNumber']?.toString(),
+      vehicleStatus: json['vehicleStatus']?.toString() ?? 'فاضي',
       licenseExpiryDate: json['licenseExpiryDate'] != null
           ? DateTime.tryParse(json['licenseExpiryDate'].toString())
           : null,
@@ -93,6 +97,7 @@ class Driver {
       'address': address,
       'vehicleType': vehicleType,
       'vehicleNumber': vehicleNumber,
+      'vehicleStatus': vehicleStatus,
       'licenseExpiryDate': licenseExpiryDate?.toIso8601String(),
       'status': status,
       'notes': notes,

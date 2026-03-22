@@ -2579,6 +2579,21 @@
         });
     });
 </script>
+<script>
+    document.addEventListener('contextmenu', function (event) {
+        event.preventDefault();
+    }, { capture: true });
+
+    document.addEventListener('keydown', function (event) {
+        const isKeyboardContextMenu =
+            event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+
+        if (isKeyboardContextMenu) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, { capture: true });
+</script>
 
   
 </body>

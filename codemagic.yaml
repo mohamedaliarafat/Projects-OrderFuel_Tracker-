@@ -1,0 +1,78 @@
+workflows:
+  ios-app-store-release:
+    name: iOS App Store Release
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    # Replace this with the App Store Connect API key name you add in Codemagic UI.
+    integrations:
+      app_store_connect: YOUR_APP_STORE_CONNECT_KEY_NAME
+
+    environment:
+      flutter: 3.38.3
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.albuhaira.nipras
+      vars:
+        XCODE_WORKSPACE: Runner.xcworkspace
+        XCODE_SCHEME: Runner
+        APP_STORE_APPLE_ID: "0000000000"
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - ~/.pub-cache
+        - ~/Library/Caches/CocoaPods
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Generate iOS app icons
+        script: |
+          chmod +x scripts/generate_ios_app_icons.sh
+          ./scripts/generate_ios_app_icons.sh
+
+      - name: Install CocoaPods dependencies
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Apply provisioning profiles
+        script: |
+          xcode-project use-profiles --workspace="ios/$XCODE_WORKSPACE" --scheme="$XCODE_SCHEME"
+
+      - name: Build signed IPA
+        script: |
+          set -e
+
+          PUBSPEC_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed -E 's/.*\+([0-9]+)$/\1/')
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || true)
+
+          if [ -n "$LATEST_BUILD_NUMBER" ]; then
+            NEXT_BUILD_NUMBER=$(($LATEST_BUILD_NUMBER + 1))
+          else
+            NEXT_BUILD_NUMBER="${PUBSPEC_BUILD_NUMBER:-1}"
+          fi
+
+          echo "Using iOS build number: $NEXT_BUILD_NUMBER"
+
+          flutter build ipa --release \
+            --build-number="$NEXT_BUILD_NUMBER" \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: true
+        cancel_previous_submissions: true
+        release_type: AFTER_APPROVAL

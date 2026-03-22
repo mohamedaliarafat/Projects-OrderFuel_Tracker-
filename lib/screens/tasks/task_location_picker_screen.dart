@@ -74,14 +74,15 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
   @override
   void initState() {
     super.initState();
-    final hasInitial =
-        widget.initialLat != null && widget.initialLng != null;
+    final hasInitial = widget.initialLat != null && widget.initialLng != null;
     final lat = widget.initialLat ?? 24.7136;
     final lng = widget.initialLng ?? 46.6753;
     _selected = LatLng(lat, lng);
     final initialAddress = widget.initialAddress?.trim();
     _addressController.text =
-        (initialAddress != null && initialAddress.isNotEmpty) ? initialAddress : 'الرياض';
+        (initialAddress != null && initialAddress.isNotEmpty)
+        ? initialAddress
+        : 'الرياض';
     if (!hasInitial) {
       _loadCurrentLocation();
     }
@@ -138,28 +139,29 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.latitude}&lon=${pos.longitude}&addressdetails=1',
       );
-      final response = await http.get(uri, headers: {
-        'User-Agent': 'order-tracker-app',
-      });
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'order-tracker-app'},
+      );
       if (response.statusCode != 200) return;
       final data = json.decode(response.body);
       if (data is! Map) return;
       final address = data['address'];
       if (address is! Map) return;
 
-      final city = address['city'] ??
+      final city =
+          address['city'] ??
           address['town'] ??
           address['village'] ??
           address['state'] ??
           '';
-      final district = address['suburb'] ??
+      final district =
+          address['suburb'] ??
           address['neighbourhood'] ??
           address['city_district'] ??
           '';
-      final street = address['road'] ??
-          address['street'] ??
-          address['residential'] ??
-          '';
+      final street =
+          address['road'] ?? address['street'] ?? address['residential'] ?? '';
       final postalCode = address['postcode'] ?? '';
       final displayName = data['display_name']?.toString() ?? '';
 
@@ -196,9 +198,10 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=5',
       );
-      final response = await http.get(uri, headers: {
-        'User-Agent': 'order-tracker-app',
-      });
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'order-tracker-app'},
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is List && data.isNotEmpty) {
@@ -208,7 +211,9 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
             final lon = double.tryParse(item['lon']?.toString() ?? '');
             if (lat == null || lon == null) continue;
             final name = item['display_name']?.toString() ?? '';
-            results.add(_SearchResult(latitude: lat, longitude: lon, name: name));
+            results.add(
+              _SearchResult(latitude: lat, longitude: lon, name: name),
+            );
           }
 
           if (results.isNotEmpty) {
@@ -243,9 +248,7 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
       if (clearResults) _searchResults = const [];
     });
     _mapController?.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: pos, zoom: 14),
-      ),
+      CameraUpdate.newCameraPosition(CameraPosition(target: pos, zoom: 14)),
     );
   }
 
@@ -268,16 +271,8 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
       );
     }
     return GoogleMap(
-      initialCameraPosition: CameraPosition(
-        target: _selected,
-        zoom: 13,
-      ),
-      markers: {
-        Marker(
-          markerId: const MarkerId('task'),
-          position: _selected,
-        ),
-      },
+      initialCameraPosition: CameraPosition(target: _selected, zoom: 13),
+      markers: {Marker(markerId: const MarkerId('task'), position: _selected)},
       onMapCreated: (controller) => _mapController = controller,
       onTap: (pos) => _selectLocation(pos),
       myLocationEnabled: true,
@@ -376,23 +371,17 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
         const SizedBox(height: 12),
         TextField(
           controller: _cityController,
-          decoration: const InputDecoration(
-            labelText: 'المدينة (اختياري)',
-          ),
+          decoration: const InputDecoration(labelText: 'المدينة (اختياري)'),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _districtController,
-          decoration: const InputDecoration(
-            labelText: 'الحي (اختياري)',
-          ),
+          decoration: const InputDecoration(labelText: 'الحي (اختياري)'),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _streetController,
-          decoration: const InputDecoration(
-            labelText: 'الشارع (اختياري)',
-          ),
+          decoration: const InputDecoration(labelText: 'الشارع (اختياري)'),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -451,10 +440,7 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: child,
-      ),
+      child: ClipRRect(borderRadius: radius, child: child),
     );
   }
 
@@ -474,17 +460,21 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
           final inputTheme = theme.inputDecorationTheme.copyWith(
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
             ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.4),
+              borderSide: BorderSide(
+                color: theme.colorScheme.primary,
+                width: 1.4,
+              ),
             ),
           );
 
@@ -529,19 +519,23 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 12),
-                  _buildSearchResultsBox(context, resultsHeight),
-                  if (_searchResults.isNotEmpty)
-                    const SizedBox(height: 12),
-                  _buildInfoPanel(),
-                ],
-              ),
-            ),
-          ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildSearchBar(),
+                                        const SizedBox(height: 12),
+                                        _buildSearchResultsBox(
+                                          context,
+                                          resultsHeight,
+                                        ),
+                                        if (_searchResults.isNotEmpty)
+                                          const SizedBox(height: 12),
+                                        _buildInfoPanel(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -556,7 +550,10 @@ class _TaskLocationPickerScreenState extends State<TaskLocationPickerScreen> {
                           if (_searchResults.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                              child: _buildSearchResultsBox(context, resultsHeight),
+                              child: _buildSearchResultsBox(
+                                context,
+                                resultsHeight,
+                              ),
                             ),
                           Expanded(
                             child: Padding(

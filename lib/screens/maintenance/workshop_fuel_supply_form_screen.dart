@@ -87,9 +87,7 @@ class _WorkshopFuelSupplyFormScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('إضافة توريد'),
-      ),
+      appBar: AppBar(title: const Text('إضافة توريد')),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -98,8 +96,9 @@ class _WorkshopFuelSupplyFormScreenState
             children: [
               TextFormField(
                 controller: _quantityController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'الكمية (لتر)'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -111,8 +110,9 @@ class _WorkshopFuelSupplyFormScreenState
               const SizedBox(height: 12),
               TextFormField(
                 controller: _priceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'سعر اللتر'),
               ),
               const SizedBox(height: 12),

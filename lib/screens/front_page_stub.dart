@@ -172,13 +172,7 @@ class _GlowCircle extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color,
-        boxShadow: [
-          BoxShadow(
-            color: color,
-            blurRadius: 60,
-            spreadRadius: 10,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: color, blurRadius: 60, spreadRadius: 10)],
       ),
     );
   }

@@ -40,8 +40,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   final _contactPersonPhoneController = TextEditingController();
   final _notesController = TextEditingController();
   bool _showDocumentSection = false;
-  final Map<String, PlatformFile?> _documentFiles =
-      Map.fromEntries(_customerDocumentTypeLabels.keys.map((key) => MapEntry(key, null)));
+  final Map<String, PlatformFile?> _documentFiles = Map.fromEntries(
+    _customerDocumentTypeLabels.keys.map((key) => MapEntry(key, null)),
+  );
 
   @override
   void initState() {
@@ -104,7 +105,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       index++;
     }
 
-    final displayValue = size < 10 ? size.toStringAsFixed(1) : size.toStringAsFixed(0);
+    final displayValue = size < 10
+        ? size.toStringAsFixed(1)
+        : size.toStringAsFixed(0);
     return '$displayValue ${suffixes[index]}';
   }
 
@@ -113,11 +116,13 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
 
     _documentFiles.forEach((docType, file) {
       if (file == null || file.path == null) return;
-      uploads.add(CustomerDocumentUpload(
-        docType: docType,
-        fileName: file.name,
-        file: File(file.path!),
-      ));
+      uploads.add(
+        CustomerDocumentUpload(
+          docType: docType,
+          fileName: file.name,
+          file: File(file.path!),
+        ),
+      );
     });
 
     return uploads;
@@ -445,9 +450,12 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                                 ),
                                 if (_showDocumentSection) ...[
                                   const SizedBox(height: 12),
-                                  for (final entry in _customerDocumentTypeLabels.entries)
+                                  for (final entry
+                                      in _customerDocumentTypeLabels.entries)
                                     Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
                                       child: _buildDocumentPicker(
                                         entry.key,
                                         entry.value,

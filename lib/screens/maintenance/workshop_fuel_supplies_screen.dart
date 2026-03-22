@@ -13,7 +13,8 @@ class WorkshopFuelSuppliesScreen extends StatefulWidget {
       _WorkshopFuelSuppliesScreenState();
 }
 
-class _WorkshopFuelSuppliesScreenState extends State<WorkshopFuelSuppliesScreen> {
+class _WorkshopFuelSuppliesScreenState
+    extends State<WorkshopFuelSuppliesScreen> {
   String? _stationId;
   String? _stationName;
   DateTime? _startDate;
@@ -34,10 +35,10 @@ class _WorkshopFuelSuppliesScreenState extends State<WorkshopFuelSuppliesScreen>
   Future<void> _loadSupplies() async {
     if (_stationId == null) return;
     await context.read<WorkshopFuelProvider>().fetchSupplies(
-          stationId: _stationId!,
-          startDate: _startDate,
-          endDate: _endDate,
-        );
+      stationId: _stationId!,
+      startDate: _startDate,
+      endDate: _endDate,
+    );
   }
 
   Future<void> _pickDateRange() async {
@@ -79,7 +80,8 @@ class _WorkshopFuelSuppliesScreenState extends State<WorkshopFuelSuppliesScreen>
           itemCount: supplies.length,
           itemBuilder: (context, index) {
             final supply = supplies[index];
-            final date = DateTime.tryParse(supply['createdAt']?.toString() ?? '') ??
+            final date =
+                DateTime.tryParse(supply['createdAt']?.toString() ?? '') ??
                 DateTime.now();
             return Card(
               child: ListTile(
@@ -112,10 +114,7 @@ class _WorkshopFuelSuppliesScreenState extends State<WorkshopFuelSuppliesScreen>
           Navigator.pushNamed(
             context,
             AppRoutes.workshopFuelSupplyForm,
-            arguments: {
-              'stationId': _stationId,
-              'stationName': _stationName,
-            },
+            arguments: {'stationId': _stationId, 'stationName': _stationName},
           );
         },
         child: const Icon(Icons.add),

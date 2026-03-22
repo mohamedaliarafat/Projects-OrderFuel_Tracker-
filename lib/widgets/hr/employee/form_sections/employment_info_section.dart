@@ -81,9 +81,18 @@ class EmploymentInfoSection extends StatelessWidget {
           const SizedBox(height: 12),
           _buildTextField('المسمى الوظيفي', jobTitle ?? '', onJobTitleChanged),
           const SizedBox(height: 12),
-          _buildTextField('نوع التوظيف', employmentType, onEmploymentTypeChanged),
+          _buildTextField(
+            'نوع التوظيف',
+            employmentType,
+            onEmploymentTypeChanged,
+          ),
           const SizedBox(height: 12),
-          _buildDatePicker(context, 'تاريخ التعيين', hireDate, onHireDateChanged),
+          _buildDatePicker(
+            context,
+            'تاريخ التعيين',
+            hireDate,
+            onHireDateChanged,
+          ),
           const SizedBox(height: 12),
           _buildDatePicker(
             context,

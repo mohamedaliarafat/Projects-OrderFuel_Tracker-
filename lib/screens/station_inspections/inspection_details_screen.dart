@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
@@ -36,9 +36,9 @@ class _StationInspectionDetailsScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context
-          .read<StationInspectionProvider>()
-          .fetchInspectionById(widget.inspectionId);
+      context.read<StationInspectionProvider>().fetchInspectionById(
+        widget.inspectionId,
+      );
     });
   }
 
@@ -56,25 +56,24 @@ class _StationInspectionDetailsScreenState
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _editInspection(StationInspection inspection) async {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => StationInspectionFormScreen(
-          inspectionToEdit: inspection,
-        ),
+        builder: (_) =>
+            StationInspectionFormScreen(inspectionToEdit: inspection),
       ),
     );
 
     if (result == true && mounted) {
-      await context
-          .read<StationInspectionProvider>()
-          .fetchInspectionById(inspection.id);
+      await context.read<StationInspectionProvider>().fetchInspectionById(
+        inspection.id,
+      );
     }
   }
 
@@ -82,9 +81,10 @@ class _StationInspectionDetailsScreenState
     StationInspection inspection,
     InspectionStatus status,
   ) async {
-    await context
-        .read<StationInspectionProvider>()
-        .updateStatus(inspection.id, status);
+    await context.read<StationInspectionProvider>().updateStatus(
+      inspection.id,
+      status,
+    );
   }
 
   Future<void> _addClosingReadings(StationInspection inspection) async {
@@ -95,8 +95,8 @@ class _StationInspectionDetailsScreenState
 
     if (updated == null) return;
     await context.read<StationInspectionProvider>().updateInspection(
-          inspection.copyWith(pumps: updated),
-        );
+      inspection.copyWith(pumps: updated),
+    );
   }
 
   Future<void> _printInspection(StationInspection inspection) async {
@@ -140,18 +140,23 @@ class _StationInspectionDetailsScreenState
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('تفاصيل المعاينة',
-                style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'تفاصيل المعاينة',
+              style: TextStyle(color: Colors.white),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf),
-                onPressed: _exporting ? null : () => _printInspection(inspection),
+                onPressed: _exporting
+                    ? null
+                    : () => _printInspection(inspection),
                 tooltip: 'تصدير PDF',
               ),
               IconButton(
                 icon: const Icon(Icons.download),
-                onPressed:
-                    _exporting ? null : () => _downloadInspection(inspection),
+                onPressed: _exporting
+                    ? null
+                    : () => _downloadInspection(inspection),
                 tooltip: 'تحميل',
               ),
               IconButton(
@@ -195,6 +200,7 @@ class _StationInspectionDetailsScreenState
       },
     );
   }
+
   Widget _headerSection(StationInspection inspection) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -297,11 +303,12 @@ class _StationInspectionDetailsScreenState
           const SizedBox(height: 8),
           _detailRow('العنوان', inspection.address),
           const SizedBox(height: 8),
-          _detailRow('تاريخ الإضافة',
-              DateFormat('yyyy-MM-dd HH:mm').format(inspection.createdAt)),
-          const SizedBox(height: 8),
           _detailRow(
-              'تمت الإضافة بواسطة', inspection.createdByName ?? '-'),
+            'تاريخ الإضافة',
+            DateFormat('yyyy-MM-dd HH:mm').format(inspection.createdAt),
+          ),
+          const SizedBox(height: 8),
+          _detailRow('تمت الإضافة بواسطة', inspection.createdByName ?? '-'),
           if (inspection.location != null) ...[
             const SizedBox(height: 8),
             _detailRow(
@@ -319,8 +326,8 @@ class _StationInspectionDetailsScreenState
                   label: const Text('فتح الموقع'),
                 ),
                 OutlinedButton.icon(
-                  onPressed:
-                      () => _openMapLink(_routeLink(inspection.location!)),
+                  onPressed: () =>
+                      _openMapLink(_routeLink(inspection.location!)),
                   icon: const Icon(Icons.directions),
                   label: const Text('فتح المسار'),
                 ),
@@ -354,11 +361,12 @@ class _StationInspectionDetailsScreenState
           else ...[
             _detailRow('اسم المالك', owner.name.isEmpty ? '-' : owner.name),
             const SizedBox(height: 8),
-            _detailRow(
-                'رقم الجوال', owner.phone.isEmpty ? '-' : owner.phone),
+            _detailRow('رقم الجوال', owner.phone.isEmpty ? '-' : owner.phone),
             const SizedBox(height: 8),
             _detailRow(
-                'عنوان المالك', owner.address.isEmpty ? '-' : owner.address),
+              'عنوان المالك',
+              owner.address.isEmpty ? '-' : owner.address,
+            ),
           ],
           const SizedBox(height: 12),
           _sectionTitle('حالة المعاينة'),
@@ -400,8 +408,7 @@ class _StationInspectionDetailsScreenState
         children: [
           _sectionTitle('المضخات والقراءات'),
           const SizedBox(height: 12),
-          if (inspection.pumps.isEmpty)
-            const Text('لا توجد مضخات مسجلة'),
+          if (inspection.pumps.isEmpty) const Text('لا توجد مضخات مسجلة'),
           if (inspection.pumps.isNotEmpty)
             ...inspection.pumps.map((pump) {
               return Card(
@@ -438,8 +445,10 @@ class _StationInspectionDetailsScreenState
           _sectionTitle('ملخص اللترات المباعة'),
           const SizedBox(height: 12),
           if (totals.isEmpty)
-            Text('لا توجد بيانات بيع بعد',
-                style: TextStyle(color: AppColors.mediumGray))
+            Text(
+              'لا توجد بيانات بيع بعد',
+              style: TextStyle(color: AppColors.mediumGray),
+            )
           else
             ...totals.entries.map((entry) {
               return Padding(
@@ -458,12 +467,15 @@ class _StationInspectionDetailsScreenState
   }
 
   Widget _attachmentsSection(StationInspection inspection) {
-    final images =
-        inspection.attachments.where((a) => a.type == 'image').toList();
-    final audios =
-        inspection.attachments.where((a) => a.type == 'audio').toList();
-    final videos =
-        inspection.attachments.where((a) => a.type == 'video').toList();
+    final images = inspection.attachments
+        .where((a) => a.type == 'image')
+        .toList();
+    final audios = inspection.attachments
+        .where((a) => a.type == 'audio')
+        .toList();
+    final videos = inspection.attachments
+        .where((a) => a.type == 'video')
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -478,8 +490,10 @@ class _StationInspectionDetailsScreenState
           _sectionTitle('مرفقات المعاينة'),
           const SizedBox(height: 12),
           if (images.isEmpty && audios.isEmpty && videos.isEmpty)
-            Text('لا توجد مرفقات بعد',
-                style: TextStyle(color: AppColors.mediumGray)),
+            Text(
+              'لا توجد مرفقات بعد',
+              style: TextStyle(color: AppColors.mediumGray),
+            ),
           if (images.isNotEmpty) ...[
             const Text('الصور', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -487,14 +501,19 @@ class _StationInspectionDetailsScreenState
           ],
           if (videos.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Text('الفيديو', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'الفيديو',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             _attachmentList(videos, icon: Icons.videocam),
           ],
           if (audios.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Text('التسجيلات الصوتية',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'التسجيلات الصوتية',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             _attachmentList(audios, icon: Icons.audiotrack),
           ],
@@ -567,7 +586,8 @@ class _StationInspectionDetailsScreenState
                         return Container(
                           color: AppColors.backgroundGray,
                           child: const Center(
-                              child: CircularProgressIndicator()),
+                            child: CircularProgressIndicator(),
+                          ),
                         );
                       },
                       errorBuilder: (context, error, stackTrace) {
@@ -605,8 +625,10 @@ class _StationInspectionDetailsScreenState
     );
   }
 
-  Widget _attachmentList(List<InspectionAttachment> attachments,
-      {required IconData icon}) {
+  Widget _attachmentList(
+    List<InspectionAttachment> attachments, {
+    required IconData icon,
+  }) {
     return Column(
       children: attachments.map((attachment) {
         return ListTile(
@@ -663,15 +685,9 @@ class _StationInspectionDetailsScreenState
     return Row(
       children: [
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(color: AppColors.mediumGray),
-          ),
+          child: Text(label, style: TextStyle(color: AppColors.mediumGray)),
         ),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -703,10 +719,7 @@ class _StationInspectionDetailsScreenState
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 12),
-      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 12)),
     );
   }
 
@@ -961,10 +974,9 @@ class _ClosingReadingsDialogState extends State<_ClosingReadingsDialog> {
                       )
                     else
                       Column(
-                        children: pump.nozzles
-                            .asMap()
-                            .entries
-                            .map((nozzleEntry) {
+                        children: pump.nozzles.asMap().entries.map((
+                          nozzleEntry,
+                        ) {
                           final nozzleIndex = nozzleEntry.key;
                           final nozzle = nozzleEntry.value;
                           return Padding(
@@ -974,8 +986,7 @@ class _ClosingReadingsDialogState extends State<_ClosingReadingsDialog> {
                               children: [
                                 Text(
                                   'لي رقم ${nozzle.nozzleNumber} • ${_fuelTypeLabel(nozzle.fuelType)} • فتح: ${nozzle.openingReading.toStringAsFixed(2)}',
-                                  style:
-                                      TextStyle(color: AppColors.mediumGray),
+                                  style: TextStyle(color: AppColors.mediumGray),
                                 ),
                                 const SizedBox(height: 6),
                                 TextField(
@@ -1011,10 +1022,7 @@ class _ClosingReadingsDialogState extends State<_ClosingReadingsDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('إلغاء'),
         ),
-        ElevatedButton(
-          onPressed: _save,
-          child: const Text('حفظ القراءات'),
-        ),
+        ElevatedButton(onPressed: _save, child: const Text('حفظ القراءات')),
       ],
     );
   }

@@ -55,7 +55,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _chatOpen = false;
   bool _markingRead = false;
   final TextEditingController _messageController = TextEditingController();
-  final TextEditingController _reportSummaryController = TextEditingController();
+  final TextEditingController _reportSummaryController =
+      TextEditingController();
   final TextEditingController _reportNotesController = TextEditingController();
   bool _savingReport = false;
   final ScrollController _chatScrollController = ScrollController();
@@ -239,9 +240,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       },
                       suggestionsCallback: (pattern) =>
                           _fetchUsersForParticipants(
-                        pattern,
-                        selected.keys.toSet(),
-                      ),
+                            pattern,
+                            selected.keys.toSet(),
+                          ),
                       itemBuilder: (context, user) {
                         return ListTile(
                           leading: const Icon(Icons.person_outline),
@@ -291,10 +292,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ElevatedButton(
                   onPressed: selected.isEmpty
                       ? null
-                      : () => Navigator.pop(
-                            context,
-                            selected.values.toList(),
-                          ),
+                      : () => Navigator.pop(context, selected.values.toList()),
                   child: Text('إضافة (${selected.length})'),
                 ),
               ],
@@ -382,7 +380,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     setState(() => _sendingMessage = false);
   }
 
-  Future<void> _pickAndSendChatFiles(FileType type, {String? messageType}) async {
+  Future<void> _pickAndSendChatFiles(
+    FileType type, {
+    String? messageType,
+  }) async {
     if (_task == null) return;
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -593,8 +594,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('إنهاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('إنهاء'),
+          ),
         ],
       ),
     );
@@ -626,20 +633,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           decoration: const InputDecoration(labelText: 'سبب الرفض'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('رفض')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('رفض'),
+          ),
         ],
       ),
     );
 
     if (result != true) return;
     final provider = context.read<TaskProvider>();
-    final updated = await provider.rejectTask(widget.taskId, reasonController.text.trim());
+    final updated = await provider.rejectTask(
+      widget.taskId,
+      reasonController.text.trim(),
+    );
     if (updated != null && mounted) setState(() => _task = updated);
   }
 
   Future<void> _openPdf() async {
-    if (_task?.report?.pdfPath == null || _task!.report!.pdfPath.isEmpty) return;
+    if (_task?.report?.pdfPath == null || _task!.report!.pdfPath.isEmpty)
+      return;
     final pdfPath = _task!.report!.pdfPath;
     final url = _resolveFileUrl(pdfPath);
     final uri = Uri.parse(url);
@@ -692,15 +709,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       final bytes = await pdf.save();
       final fileName =
           'task_${task.taskCode}_${DateFormat('yyyyMMdd').format(now)}.pdf';
-      await Printing.layoutPdf(
-        onLayout: (_) async => bytes,
-        name: fileName,
-      );
+      await Printing.layoutPdf(onLayout: (_) async => bytes, name: fileName);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء تصدير PDF: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء تصدير PDF: $e')));
       }
     }
   }
@@ -750,12 +764,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                   ),
                   pw.SizedBox(height: 3),
-                  pw.Text('رقم المهمة: ${task.taskCode}',
-                      style: const pw.TextStyle(fontSize: 8)),
-                  pw.Text('الحالة: $status',
-                      style: const pw.TextStyle(fontSize: 8)),
-                  pw.Text('تاريخ الإصدار: $date',
-                      style: const pw.TextStyle(fontSize: 8)),
+                  pw.Text(
+                    'رقم المهمة: ${task.taskCode}',
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                  pw.Text(
+                    'الحالة: $status',
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                  pw.Text(
+                    'تاريخ الإصدار: $date',
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
                 ],
               ),
             ),
@@ -784,11 +804,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               pw.Text(
                 'البحيرة العربية للنقليات',
-                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                style: const pw.TextStyle(
+                  fontSize: 8,
+                  color: PdfColors.grey700,
+                ),
               ),
               pw.Text(
                 'صفحة ${context.pageNumber} من ${context.pagesCount}',
-                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                style: const pw.TextStyle(
+                  fontSize: 8,
+                  color: PdfColors.grey700,
+                ),
               ),
             ],
           ),
@@ -802,8 +828,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final locationText = (location?.address?.trim().isNotEmpty ?? false)
         ? location!.address!
         : (location?.latitude != null && location?.longitude != null)
-            ? '${location!.latitude}, ${location.longitude}'
-            : '-';
+        ? '${location!.latitude}, ${location.longitude}'
+        : '-';
     final summary = task.report?.summary?.trim().isNotEmpty == true
         ? task.report!.summary
         : '-';
@@ -814,10 +840,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final rows = <Map<String, String>>[
       {'label': 'عنوان المهمة', 'value': task.title},
       {'label': 'رقم المهمة', 'value': task.taskCode},
-      {'label': 'القسم', 'value': task.department.isEmpty ? '-' : task.department},
+      {
+        'label': 'القسم',
+        'value': task.department.isEmpty ? '-' : task.department,
+      },
       {'label': 'الحالة', 'value': _statusLabel(task.status)},
       {'label': 'الموظف', 'value': task.assignedToName},
-      if (task.description.isNotEmpty) {'label': 'وصف المهمة', 'value': task.description},
+      if (task.description.isNotEmpty)
+        {'label': 'وصف المهمة', 'value': task.description},
       {'label': 'الموقع', 'value': locationText},
       if (task.assignedAt != null)
         {'label': 'تاريخ الإسناد', 'value': _formatDate(task.assignedAt)},
@@ -825,7 +855,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         {'label': 'تاريخ الاستلام', 'value': _formatDate(task.acceptedAt)},
       if (task.startedAt != null)
         {'label': 'تاريخ البدء', 'value': _formatDate(task.startedAt)},
-      if (task.dueDate != null) {'label': 'تاريخ الاستحقاق', 'value': _formatDate(task.dueDate)},
+      if (task.dueDate != null)
+        {'label': 'تاريخ الاستحقاق', 'value': _formatDate(task.dueDate)},
       if (task.completedAt != null)
         {'label': 'تاريخ الإنهاء', 'value': _formatDate(task.completedAt)},
       {'label': 'ملخص المهمة', 'value': summary},
@@ -846,7 +877,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           return pw.TableRow(
             children: [
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                padding: const pw.EdgeInsets.symmetric(
+                  vertical: 4,
+                  horizontal: 6,
+                ),
                 alignment: pw.Alignment.centerRight,
                 child: pw.Text(
                   row['value']?.isNotEmpty == true ? row['value']! : '-',
@@ -854,12 +888,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                padding: const pw.EdgeInsets.symmetric(
+                  vertical: 4,
+                  horizontal: 6,
+                ),
                 alignment: pw.Alignment.centerRight,
                 color: PdfColors.grey200,
                 child: pw.Text(
                   row['label'] ?? '',
-                  style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -899,7 +939,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             return;
           }
           final fileName =
-              _recordingFileName ?? 'task-audio-${DateTime.now().millisecondsSinceEpoch}.webm';
+              _recordingFileName ??
+              'task-audio-${DateTime.now().millisecondsSinceEpoch}.webm';
           await provider.uploadTaskMessageAttachmentsBytes(
             widget.taskId,
             [bytes],
@@ -907,14 +948,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             messageType: 'audio',
           );
         } else {
-          await provider.uploadTaskMessageAttachments(
-            widget.taskId,
-            [path],
-            messageType: 'audio',
-          );
+          await provider.uploadTaskMessageAttachments(widget.taskId, [
+            path,
+          ], messageType: 'audio');
         }
         await _loadMessages();
-
       }
       return;
     }
@@ -935,10 +973,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ? fileName
         : '${(await getTemporaryDirectory()).path}${Platform.pathSeparator}$fileName';
 
-    await _recorder.start(
-      recordSettings.config,
-      path: filePath,
-    );
+    await _recorder.start(recordSettings.config, path: filePath);
     if (mounted) setState(() => _isRecording = true);
   }
 
@@ -947,9 +982,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     var extension = 'm4a';
 
     if (kIsWeb) {
-      final aacSupported = await _recorder.isEncoderSupported(AudioEncoder.aacLc);
+      final aacSupported = await _recorder.isEncoderSupported(
+        AudioEncoder.aacLc,
+      );
       if (!aacSupported) {
-        final opusSupported = await _recorder.isEncoderSupported(AudioEncoder.opus);
+        final opusSupported = await _recorder.isEncoderSupported(
+          AudioEncoder.opus,
+        );
         if (opusSupported) {
           encoder = AudioEncoder.opus;
           extension = 'webm';
@@ -961,11 +1000,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
 
     return _RecordSettings(
-      RecordConfig(
-        encoder: encoder,
-        bitRate: 128000,
-        sampleRate: 44100,
-      ),
+      RecordConfig(encoder: encoder, bitRate: 128000, sampleRate: 44100),
       extension,
     );
   }
@@ -1004,11 +1039,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _task == null
-              ? const Center(child: Text('لا توجد مهمة'))
-              : _buildDetailsView(isOwner, isAssigned),
+          ? const Center(child: Text('لا توجد مهمة'))
+          : _buildDetailsView(isOwner, isAssigned),
     );
   }
-
 
   Widget _buildChatDrawer() {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -1027,7 +1061,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   const Expanded(
                     child: Text(
                       'محادثة المهمة',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -1051,10 +1088,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget _buildDetailsView(bool isOwner, bool isAssigned) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final contentWidth =
-            constraints.maxWidth > 1000 ? 1000.0 : constraints.maxWidth;
-        final horizontalPadding =
-            constraints.maxWidth > 900 ? 24.0 : 16.0;
+        final contentWidth = constraints.maxWidth > 1000
+            ? 1000.0
+            : constraints.maxWidth;
+        final horizontalPadding = constraints.maxWidth > 900 ? 24.0 : 16.0;
         return Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: contentWidth),
@@ -1089,7 +1126,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   //   icon: const Icon(Icons.picture_as_pdf),
                   //   label: const Text('عرض ملف PDF'),
                   // ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
                 ElevatedButton.icon(
                   onPressed: _exportTaskPdf,
                   icon: const Icon(Icons.picture_as_pdf),
@@ -1107,7 +1144,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       },
     );
   }
-
 
   Widget _buildChatMessages() {
     if (_loadingMessages) {
@@ -1143,14 +1179,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             Row(
               children: [
                 IconButton(
-                  onPressed: () =>
-                      _pickAndSendChatFiles(FileType.image, messageType: 'image'),
+                  onPressed: () => _pickAndSendChatFiles(
+                    FileType.image,
+                    messageType: 'image',
+                  ),
                   icon: const Icon(Icons.image),
                   tooltip: 'صورة',
                 ),
                 IconButton(
-                  onPressed: () =>
-                      _pickAndSendChatFiles(FileType.video, messageType: 'video'),
+                  onPressed: () => _pickAndSendChatFiles(
+                    FileType.video,
+                    messageType: 'video',
+                  ),
                   icon: const Icon(Icons.videocam),
                   tooltip: 'فيديو',
                 ),
@@ -1213,8 +1253,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-
-
   Widget _buildMessageBubble(TaskMessage message, bool isMe) {
     final bubbleColor = isMe ? Colors.blue.shade50 : Colors.grey.shade200;
     final alignment = isMe ? Alignment.centerRight : Alignment.centerLeft;
@@ -1241,15 +1279,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             borderRadius: borderRadius,
           ),
           child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               if (!isMe && (message.senderName?.isNotEmpty ?? false))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     message.senderName!,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               if (message.text?.trim().isNotEmpty ?? false)
@@ -1266,7 +1308,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     children: [
                       Text(
                         timeLabel,
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       if (isMe) ...[
                         const SizedBox(width: 6),
@@ -1344,7 +1389,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget _buildTaskAttachmentItem(TaskAttachment attachment) {
     final fileName = attachment.filename;
     final uploadedAt = attachment.uploadedAt != null
-        ? DateFormat('yyyy/MM/dd HH:mm').format(attachment.uploadedAt!.toLocal())
+        ? DateFormat(
+            'yyyy/MM/dd HH:mm',
+          ).format(attachment.uploadedAt!.toLocal())
         : null;
     final subtitleParts = <String>[];
     if ((attachment.uploadedByName ?? '').trim().isNotEmpty) {
@@ -1406,17 +1453,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   IconData _attachmentIcon(TaskAttachment attachment) {
     final type = attachment.fileType.toLowerCase();
     final name = attachment.filename.toLowerCase();
-    if (type.startsWith('image/') || name.endsWith('.png') || name.endsWith('.jpg')) {
+    if (type.startsWith('image/') ||
+        name.endsWith('.png') ||
+        name.endsWith('.jpg')) {
       return Icons.image;
     }
-    if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.mov')) {
+    if (type.startsWith('video/') ||
+        name.endsWith('.mp4') ||
+        name.endsWith('.mov')) {
       return Icons.videocam;
     }
-    if (type.startsWith('audio/') || name.endsWith('.m4a') || name.endsWith('.mp3')) {
+    if (type.startsWith('audio/') ||
+        name.endsWith('.m4a') ||
+        name.endsWith('.mp3')) {
       return Icons.audiotrack;
     }
     if (name.endsWith('.pdf')) return Icons.picture_as_pdf;
-    if (name.endsWith('.doc') || name.endsWith('.docx')) return Icons.description;
+    if (name.endsWith('.doc') || name.endsWith('.docx'))
+      return Icons.description;
     return Icons.insert_drive_file;
   }
 
@@ -1437,18 +1491,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               controller: _reportSummaryController,
               minLines: 2,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'ملخص التنفيذ',
-              ),
+              decoration: const InputDecoration(labelText: 'ملخص التنفيذ'),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _reportNotesController,
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات إضافية',
-              ),
+              decoration: const InputDecoration(labelText: 'ملاحظات إضافية'),
             ),
             const SizedBox(height: 12),
             Align(
@@ -1493,22 +1543,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (messageType == 'image' || attachment.fileType.startsWith('image/')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.network(
-          url,
-          width: 220,
-          height: 160,
-          fit: BoxFit.cover,
-        ),
+        child: Image.network(url, width: 220, height: 160, fit: BoxFit.cover),
       );
     }
 
     IconData icon = Icons.insert_drive_file;
     if (messageType == 'audio' || attachment.fileType.startsWith('audio/')) {
-      return _AudioMessagePlayer(
-        url: url,
-        fileName: attachment.filename,
-      );
-    } else if (messageType == 'video' || attachment.fileType.startsWith('video/')) {
+      return _AudioMessagePlayer(url: url, fileName: attachment.filename);
+    } else if (messageType == 'video' ||
+        attachment.fileType.startsWith('video/')) {
       icon = Icons.videocam;
     }
 
@@ -1525,10 +1568,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Icon(icon, size: 20),
           const SizedBox(width: 8),
           Flexible(
-            child: Text(
-              attachment.filename,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(attachment.filename, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -1544,16 +1584,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              task.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 6),
             Text('رقم المهمة: ${task.taskCode}'),
             Text('الحاله: ${_statusLabel(task.status)}'),
-            Text('القسم: ${task.department.isEmpty ? 'غير محدد' : task.department}'),
+            Text(
+              'القسم: ${task.department.isEmpty ? 'غير محدد' : task.department}',
+            ),
             Text('الموظف: ${task.assignedToName}'),
             if (task.description.isNotEmpty) Text('الوصف: ${task.description}'),
             if (task.dueDate != null)
-              Text('الاستحقاق: ${task.dueDate!.toLocal().toString().split(' ').first}'),
-            if (task.location?.latitude != null && task.location?.longitude != null)
+              Text(
+                'الاستحقاق: ${task.dueDate!.toLocal().toString().split(' ').first}',
+              ),
+            if (task.location?.latitude != null &&
+                task.location?.longitude != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Align(
@@ -1596,8 +1644,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (task.createdByName.isNotEmpty) {
       chips.add(roleChip(task.createdByName, 'المالك'));
     }
-    if (task.assignedToName.isNotEmpty &&
-        task.assignedTo != task.createdBy) {
+    if (task.assignedToName.isNotEmpty && task.assignedTo != task.createdBy) {
       chips.add(roleChip(task.assignedToName, 'المكلف'));
     }
 
@@ -1609,9 +1656,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       chips.add(
         InputChip(
           label: Text(
-            participant.name.isNotEmpty
-                ? participant.name
-                : participant.userId,
+            participant.name.isNotEmpty ? participant.name : participant.userId,
           ),
           onDeleted: isOwner && !_participantsSaving
               ? () => _removeParticipant(participant.userId)
@@ -1645,8 +1690,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 if (isOwner)
                   TextButton.icon(
-                    onPressed:
-                        _participantsSaving ? null : _openParticipantsDialog,
+                    onPressed: _participantsSaving
+                        ? null
+                        : _openParticipantsDialog,
                     icon: const Icon(Icons.person_add_alt),
                     label: const Text('إضافة'),
                   ),
@@ -1682,14 +1728,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     if (task.status == 'accepted' || task.status == 'rejected') {
       actions.add(
-        ElevatedButton(
-          onPressed: _startTask,
-          child: const Text('بدء التنفيذ'),
-        ),
+        ElevatedButton(onPressed: _startTask, child: const Text('بدء التنفيذ')),
       );
     }
 
-    if (task.status == 'accepted' || task.status == 'in_progress' || task.status == 'rejected') {
+    if (task.status == 'accepted' ||
+        task.status == 'in_progress' ||
+        task.status == 'rejected') {
       actions.add(
         ElevatedButton(
           onPressed: _completeTask,
@@ -1703,7 +1748,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('إجراءات الموظف', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'إجراءات الموظف',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         Wrap(spacing: 8, children: actions),
       ],
@@ -1716,7 +1764,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('إجراءات المالك', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'إجراءات المالك',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -1725,10 +1776,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               onPressed: _approveTask,
               child: const Text('اعتماد'),
             ),
-            OutlinedButton(
-              onPressed: _rejectTask,
-              child: const Text('رفض'),
-            ),
+            OutlinedButton(onPressed: _rejectTask, child: const Text('رفض')),
           ],
         ),
       ],
@@ -1745,7 +1793,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('التتبع الحي', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'التتبع الحي',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             if (isAssigned)
               SwitchListTile(
@@ -1811,6 +1862,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
   }
+
   String _statusLabel(String status) {
     switch (status) {
       case 'assigned':
@@ -1837,10 +1889,7 @@ class _AudioMessagePlayer extends StatefulWidget {
   final String url;
   final String fileName;
 
-  const _AudioMessagePlayer({
-    required this.url,
-    required this.fileName,
-  });
+  const _AudioMessagePlayer({required this.url, required this.fileName});
 
   @override
   State<_AudioMessagePlayer> createState() => _AudioMessagePlayerState();
@@ -1905,10 +1954,7 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
   @override
   Widget build(BuildContext context) {
     if (_error != null) {
-      return Text(
-        _error!,
-        style: const TextStyle(color: Colors.redAccent),
-      );
+      return Text(_error!, style: const TextStyle(color: Colors.redAccent));
     }
 
     return Container(
@@ -1929,7 +1975,8 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
                   final state = snapshot.data ?? _player.playerState;
                   final processing = state.processingState;
                   final playing = state.playing;
-                  final isLoading = !_ready ||
+                  final isLoading =
+                      !_ready ||
                       processing == ProcessingState.loading ||
                       processing == ProcessingState.buffering;
 
@@ -2005,8 +2052,6 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
       ),
     );
   }
-
-  
 }
 
 class _RecordSettings {

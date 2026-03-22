@@ -3,9 +3,20 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:order_tracker/models/chat_models.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
+
+MediaType? _tryParseMediaType(String? raw) {
+  final normalized = raw?.trim() ?? '';
+  if (normalized.isEmpty || !normalized.contains('/')) return null;
+  try {
+    return MediaType.parse(normalized);
+  } catch (_) {
+    return null;
+  }
+}
 
 class ChatProvider with ChangeNotifier {
   final List<ChatConversation> _conversations = [];
@@ -83,9 +94,7 @@ class ChatProvider with ChangeNotifier {
             );
         }
       } else {
-        throw Exception(
-          'ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† (${response.statusCode})',
-        );
+        throw Exception('فشل تحميل المستخدمين (${response.statusCode})');
       }
       _error = null;
     } catch (e) {
@@ -127,9 +136,7 @@ class ChatProvider with ChangeNotifier {
         _totalUnread = _computeTotalUnread(fallback: data['totalUnread']);
         _error = null;
       } else {
-        throw Exception(
-          'ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø§Øª (${response.statusCode})',
-        );
+        throw Exception('فشل تحميل المحادثات (${response.statusCode})');
       }
     } catch (e) {
       _error = e.toString();
@@ -186,9 +193,7 @@ class ChatProvider with ChangeNotifier {
           return conversation;
         }
       } else {
-        throw Exception(
-          'ÙØ´Ù„ Ø¨Ø¯Ø¡ Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø© (${response.statusCode})',
-        );
+        throw Exception('فشل بدء المحادثة (${response.statusCode})');
       }
     } catch (e) {
       _error = e.toString();
@@ -656,9 +661,7 @@ class ChatProvider with ChangeNotifier {
           return normalized;
         }
       } else {
-        throw Exception(
-          'ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø±Ø³Ø§Ø¦Ù„ (${response.statusCode})',
-        );
+        throw Exception('فشل تحميل الرسائل (${response.statusCode})');
       }
     } catch (e) {
       _error = e.toString();
@@ -850,9 +853,7 @@ class ChatProvider with ChangeNotifier {
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        'ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø±Ø³Ø§Ù„Ø© (${response.statusCode})',
-      );
+      throw Exception('فشل إرسال الرسالة (${response.statusCode})');
     }
 
     final data = json.decode(response.body);
@@ -886,6 +887,7 @@ class ChatProvider with ChangeNotifier {
 
     for (var i = 0; i < attachments.length; i++) {
       final item = attachments[i];
+      final mediaType = _tryParseMediaType(item.mimeType);
       if (item.durationSec != null) {
         request.fields['attachmentDurationSec_$i'] = item.durationSec
             .toString();
@@ -899,33 +901,66 @@ class ChatProvider with ChangeNotifier {
           webBytes = await _fetchBytesFromUrl(item.filePath!);
         }
         if (webBytes != null && webBytes.isNotEmpty) {
-          request.files.add(
-            http.MultipartFile.fromBytes(
-              'attachments',
-              webBytes,
-              filename: item.name,
-            ),
-          );
+          if (mediaType != null) {
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'attachments',
+                webBytes,
+                filename: item.name,
+                contentType: mediaType,
+              ),
+            );
+          } else {
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'attachments',
+                webBytes,
+                filename: item.name,
+              ),
+            );
+          }
         }
         continue;
       }
 
       if (item.filePath != null && item.filePath!.trim().isNotEmpty) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'attachments',
-            item.filePath!,
-            filename: item.name,
-          ),
-        );
+        if (mediaType != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'attachments',
+              item.filePath!,
+              filename: item.name,
+              contentType: mediaType,
+            ),
+          );
+        } else {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'attachments',
+              item.filePath!,
+              filename: item.name,
+            ),
+          );
+        }
       } else if (item.bytes != null && item.bytes!.isNotEmpty) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'attachments',
-            item.bytes!,
-            filename: item.name,
-          ),
-        );
+        if (mediaType != null) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'attachments',
+              item.bytes!,
+              filename: item.name,
+              contentType: mediaType,
+            ),
+          );
+        } else {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'attachments',
+              item.bytes!,
+              filename: item.name,
+            ),
+          );
+        }
       }
     }
 
@@ -933,9 +968,7 @@ class ChatProvider with ChangeNotifier {
     final response = await http.Response.fromStream(streamed);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        'ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ù…Ø±ÙÙ‚ (${response.statusCode})',
-      );
+      throw Exception('فشل إرسال المرفق (${response.statusCode})');
     }
 
     final data = json.decode(response.body);

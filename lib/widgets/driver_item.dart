@@ -7,6 +7,7 @@ class DriverItem extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final String? linkedUsername;
 
   const DriverItem({
     super.key,
@@ -14,6 +15,7 @@ class DriverItem extends StatelessWidget {
     required this.onTap,
     this.onEdit,
     this.onDelete,
+    this.linkedUsername,
   });
 
   Color _getStatusColor(String status) {
@@ -24,8 +26,23 @@ class DriverItem extends StatelessWidget {
         return Colors.red;
       case 'في إجازة':
         return Colors.orange;
+      case 'مرفود':
+        return Colors.red;
       case 'معلق':
         return Colors.grey;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getVehicleStatusColor(String status) {
+    switch (status) {
+      case 'في طلب':
+        return const Color(0xFFD4AF37);
+      case 'تحت الصيانة':
+        return Colors.orange;
+      case 'فاضي':
+        return Colors.green;
       default:
         return Colors.grey;
     }
@@ -130,6 +147,43 @@ class DriverItem extends StatelessWidget {
                                   ],
                                 ),
                               ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      linkedUsername?.trim().isNotEmpty == true
+                                          ? Icons.verified_user_outlined
+                                          : Icons.person_off_outlined,
+                                      size: 16,
+                                      color:
+                                          linkedUsername?.trim().isNotEmpty ==
+                                              true
+                                          ? Colors.teal
+                                          : Colors.orange,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        linkedUsername?.trim().isNotEmpty == true
+                                            ? 'حساب السائق: $linkedUsername'
+                                            : 'لا يوجد حساب driver_truck مرتبط',
+                                        style: TextStyle(
+                                          color:
+                                              linkedUsername
+                                                      ?.trim()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? Colors.teal
+                                              : Colors.orange,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -207,6 +261,29 @@ class DriverItem extends StatelessWidget {
                             ),
                           ),
                         ),
+                      if (driver.vehicleStatus.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getVehicleStatusColor(
+                              driver.vehicleStatus,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            driver.vehicleStatus,
+                            style: TextStyle(
+                              color: _getVehicleStatusColor(driver.vehicleStatus),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

@@ -104,7 +104,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
         final double horizontalPadding = isDesktop ? 24 : 16;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('العملاء', style: TextStyle(color: Colors.white),)),
+          appBar: AppBar(
+            title: const Text('العملاء', style: TextStyle(color: Colors.white)),
+          ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               Navigator.pushNamed(context, '/customer/form');

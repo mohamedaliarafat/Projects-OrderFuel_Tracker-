@@ -156,6 +156,7 @@ class DriverProvider with ChangeNotifier {
 
         _drivers.insert(0, newDriver);
         _driversCache[newDriver.id] = newDriver;
+        _selectedDriver = newDriver;
         _isLoading = false;
         notifyListeners();
         return true;
@@ -206,10 +207,7 @@ class DriverProvider with ChangeNotifier {
 
         // تحديث الكاش
         _driversCache[id] = updatedDriver;
-
-        if (_selectedDriver?.id == id) {
-          _selectedDriver = updatedDriver;
-        }
+        _selectedDriver = updatedDriver;
 
         _isLoading = false;
         notifyListeners();

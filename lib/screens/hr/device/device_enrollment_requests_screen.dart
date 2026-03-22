@@ -62,9 +62,7 @@ class _DeviceEnrollmentRequestsScreenState
           title: const Text('رفض الطلب'),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'سبب الرفض',
-            ),
+            decoration: const InputDecoration(labelText: 'سبب الرفض'),
             maxLines: 2,
           ),
           actions: [
@@ -203,8 +201,7 @@ class _DeviceEnrollmentRequestsScreenState
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.pop(context, controller.text.trim()),
+                onPressed: () => Navigator.pop(context, controller.text.trim()),
                 child: const Text('حفظ'),
               ),
             ],
@@ -217,14 +214,13 @@ class _DeviceEnrollmentRequestsScreenState
     }
 
     if (result == 'cancelled') {
-      await _updateStatus(request, 'rejected',
-          reason: 'تم الإلغاء من الإدارة');
+      await _updateStatus(request, 'rejected', reason: 'تم الإلغاء من الإدارة');
     }
   }
 
   Future<void> _deleteDevice(DeviceEnrollmentRequest request) async {
-    final targetId = (request.employeeRefId != null &&
-            request.employeeRefId!.isNotEmpty)
+    final targetId =
+        (request.employeeRefId != null && request.employeeRefId!.isNotEmpty)
         ? request.employeeRefId!
         : request.employeeId;
 
@@ -299,31 +295,27 @@ class _DeviceEnrollmentRequestsScreenState
             ],
             icon: const Icon(Icons.filter_list),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadRequests,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadRequests),
         ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : requests.isEmpty
-              ? const Center(child: Text('لا توجد طلبات'))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: requests.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final request = requests[index];
-                    return _buildRequestCard(request);
-                  },
-                ),
+          ? const Center(child: Text('لا توجد طلبات'))
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: requests.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final request = requests[index];
+                return _buildRequestCard(request);
+              },
+            ),
     );
   }
 
   Widget _buildRequestCard(DeviceEnrollmentRequest request) {
-    final created =
-        DateFormat('yyyy/MM/dd HH:mm').format(request.createdAt);
+    final created = DateFormat('yyyy/MM/dd HH:mm').format(request.createdAt);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -430,11 +422,7 @@ class _DeviceEnrollmentRequestsScreenState
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  details,
-                  const SizedBox(height: 8),
-                  actions,
-                ],
+                children: [details, const SizedBox(height: 8), actions],
               );
             }
 
@@ -462,7 +450,8 @@ class _DeviceEnrollmentRequestsScreenState
         break;
       case 'rejected':
         color = AppColors.errorRed;
-        label = (request.rejectionReason != null &&
+        label =
+            (request.rejectionReason != null &&
                 request.rejectionReason!.contains('إلغاء'))
             ? 'ملغي'
             : 'مرفوض';

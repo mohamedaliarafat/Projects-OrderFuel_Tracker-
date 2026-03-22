@@ -19,6 +19,11 @@ const List<PermissionDefinition> pagePermissions = [
     category: PermissionCategory.page,
   ),
   PermissionDefinition(
+    key: 'orders_view_assigned_only',
+    label: 'عرض الطلبات المعينة فقط',
+    category: PermissionCategory.page,
+  ),
+  PermissionDefinition(
     key: 'customers_view',
     label: 'عرض العملاء',
     category: PermissionCategory.page,
@@ -172,6 +177,7 @@ String permissionLabel(String key) => _permissionLookup[key]?.label ?? key;
 
 const List<String> permissionKeys = [
   'orders_view',
+  'orders_view_assigned_only',
   'customers_view',
   'drivers_view',
   'suppliers_view',

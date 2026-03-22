@@ -514,15 +514,16 @@ class HRProvider extends ChangeNotifier {
     String locationId,
   ) async {
     for (final employeeId in employeeIds) {
-      await ApiService.hrPut(
-        '/employees/$employeeId/locations',
-        {'locationIds': [locationId]},
-      );
+      await ApiService.hrPut('/employees/$employeeId/locations', {
+        'locationIds': [locationId],
+      });
     }
   }
 
   // ربط الأجهزة
-  Future<void> fetchDeviceEnrollmentRequests({String status = 'pending'}) async {
+  Future<void> fetchDeviceEnrollmentRequests({
+    String status = 'pending',
+  }) async {
     _isLoadingDeviceRequests = true;
     notifyListeners();
 
@@ -557,8 +558,9 @@ class HRProvider extends ChangeNotifier {
         {},
       );
       if (response['success']) {
-        _deviceEnrollmentRequests =
-            _deviceEnrollmentRequests.where((r) => r.id != requestId).toList();
+        _deviceEnrollmentRequests = _deviceEnrollmentRequests
+            .where((r) => r.id != requestId)
+            .toList();
       }
     } catch (error) {
       if (kDebugMode) {
@@ -584,8 +586,9 @@ class HRProvider extends ChangeNotifier {
         {'reason': reason},
       );
       if (response['success']) {
-        _deviceEnrollmentRequests =
-            _deviceEnrollmentRequests.where((r) => r.id != requestId).toList();
+        _deviceEnrollmentRequests = _deviceEnrollmentRequests
+            .where((r) => r.id != requestId)
+            .toList();
       }
     } catch (error) {
       if (kDebugMode) {
@@ -615,7 +618,9 @@ class HRProvider extends ChangeNotifier {
         },
       );
       if (response['success']) {
-        await fetchDeviceEnrollmentRequests(status: _deviceRequestsStatusFilter);
+        await fetchDeviceEnrollmentRequests(
+          status: _deviceRequestsStatusFilter,
+        );
       }
     } catch (error) {
       if (kDebugMode) {
@@ -785,14 +790,11 @@ class HRProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.hrPost(
-        '/employees/$id/device',
-        {
-          'deviceId': deviceId,
-          if (deviceLabel != null && deviceLabel.isNotEmpty)
-            'deviceLabel': deviceLabel,
-        },
-      );
+      final response = await ApiService.hrPost('/employees/$id/device', {
+        'deviceId': deviceId,
+        if (deviceLabel != null && deviceLabel.isNotEmpty)
+          'deviceLabel': deviceLabel,
+      });
 
       if (response['success']) {
         // تحديث القائمة إن كانت موجودة
@@ -934,10 +936,9 @@ class HRProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.hrPost(
-        '/employees/$id/face',
-        {'imageBase64': imageBase64},
-      );
+      final response = await ApiService.hrPost('/employees/$id/face', {
+        'imageBase64': imageBase64,
+      });
       if (!response['success']) {
         throw Exception(response['message'] ?? 'Face enrollment failed');
       }

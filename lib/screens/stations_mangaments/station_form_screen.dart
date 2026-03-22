@@ -111,7 +111,10 @@ class _StationFormScreenState extends State<StationFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'تعديل المحطة' : 'إضافة محطة جديدة', style: TextStyle(color: Colors.white),),
+        title: Text(
+          isEditing ? 'تعديل المحطة' : 'إضافة محطة جديدة',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           if (isEditing && isOwner)
             IconButton(

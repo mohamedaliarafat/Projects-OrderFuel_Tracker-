@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:order_tracker/localization/app_localizations.dart' as loc;
+import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/language_provider.dart';
@@ -114,6 +115,13 @@ class _SessionCountdownState extends State<SessionCountdown> {
   }
 }
 
+class _SessionMonthOption {
+  final String key;
+  final String label;
+
+  const _SessionMonthOption({required this.key, required this.label});
+}
+
 class SessionsListScreen extends StatefulWidget {
   const SessionsListScreen({super.key});
 
@@ -125,14 +133,17 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   String _filterStatus = 'الكل';
-  String? _filterStationId;
+  List<String> _filterStationIds = [];
   String? _filterFuelType;
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
+  String? _selectedMonthKey;
 
-  bool _initializedForStationBoy = false;
+  bool _initializedForStationScope = false;
   bool _showFilters = false;
   final Map<String, Map<String, double>> _stationPriceCache = {};
+
+  bool get _isOwnerStation => context.read<AuthProvider>().isOwnerStation;
 
   @override
   void initState() {
@@ -143,30 +154,41 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
     });
   }
 
-  void _initByRole() {
+  Future<void> _initByRole() async {
     final auth = context.read<AuthProvider>();
+    final stationProvider = context.read<StationProvider>();
     final user = auth.user;
 
-    if (user != null &&
-        user.role == 'station_boy' &&
-        user.stationId != null &&
-        !_initializedForStationBoy) {
+    final initialStationScope = _defaultStationScope(user);
+
+    if (initialStationScope.isNotEmpty && !_initializedForStationScope) {
       setState(() {
-        _filterStationId = user.stationId;
-        _initializedForStationBoy = true;
+        _filterStationIds = initialStationScope;
+        _initializedForStationScope = true;
       });
     }
 
-    _loadSessions();
+    if (user != null && user.role == 'station_boy' && user.stationId != null) {
+      await stationProvider.fetchStations(forceStationId: user.stationId);
+    } else {
+      await stationProvider.fetchStations();
+    }
+
+    if (!mounted) return;
+    await _loadSessions();
   }
 
   Future<void> _loadSessions() async {
     final filters = <String, dynamic>{};
+    // limit=0 => اجلب كل الجلسات بدون حد أقصى من الـ API
+    filters['limit'] = 0;
 
     if (_filterStatus != context.tr(loc.AppStrings.filterStatusAll)) {
       filters['status'] = _filterStatus;
     }
-    if (_filterStationId != null) filters['stationId'] = _filterStationId;
+    if (_filterStationIds.isNotEmpty) {
+      filters['stationIds'] = _filterStationIds;
+    }
     if (_filterFuelType != null) filters['fuelType'] = _filterFuelType;
     if (_filterStartDate != null) {
       filters['startDate'] = _filterStartDate!.toIso8601String();
@@ -187,24 +209,140 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
     }
   }
 
+  List<String> _defaultStationScope(User? user) {
+    if (user == null) return const <String>[];
+    if (user.role == 'station_boy' && user.stationId != null) {
+      return <String>[user.stationId!];
+    }
+    if (user.role == 'owner_station' && user.stationIds.isNotEmpty) {
+      return List<String>.from(user.stationIds);
+    }
+    return const <String>[];
+  }
+
+  bool _isStationScopedUser(User? user) {
+    return user?.role == 'station_boy' || user?.role == 'owner_station';
+  }
+
   bool _hasActiveFilters() {
+    final user = context.read<AuthProvider>().user;
+    final isStationScoped = _isStationScopedUser(user);
     return _filterStatus != context.tr(loc.AppStrings.filterStatusAll) ||
+        (!isStationScoped && _filterStationIds.isNotEmpty) ||
         _filterFuelType != null ||
         _filterStartDate != null ||
         _filterEndDate != null;
   }
 
   void _clearFilters() {
+    final user = context.read<AuthProvider>().user;
     setState(() {
       _filterStatus = context.tr(loc.AppStrings.filterStatusAll);
       _filterFuelType = null;
       _filterStartDate = null;
       _filterEndDate = null;
-      if (context.read<AuthProvider>().user?.role != 'station_boy') {
-        _filterStationId = null;
-      }
+      _filterStationIds = _defaultStationScope(user);
     });
     _loadSessions();
+  }
+
+  Future<void> _pickStations(List<Station> stations) async {
+    final tempSelection = _filterStationIds.toSet();
+    final picked = await showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('اختيار المحطات'),
+              content: SizedBox(
+                width: 420,
+                child: stations.isEmpty
+                    ? const Text('لا توجد محطات متاحة')
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: stations.map((station) {
+                            final isChecked = tempSelection.contains(
+                              station.id,
+                            );
+                            return CheckboxListTile(
+                              value: isChecked,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: Text(
+                                '${station.stationCode} - ${station.stationName}',
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  if (value == true) {
+                                    tempSelection.add(station.id);
+                                  } else {
+                                    tempSelection.remove(station.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('إلغاء'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, <String>[]),
+                  child: const Text('مسح'),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, tempSelection.toList()),
+                  child: const Text('تطبيق'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _filterStationIds = picked;
+    });
+    await _loadSessions();
+  }
+
+  String _stationFilterLabel(List<Station> stations) {
+    if (stations.isEmpty) {
+      return 'جاري تحميل المحطات';
+    }
+
+    if (_filterStationIds.isEmpty) {
+      return 'جميع المحطات';
+    }
+
+    final selectedStations = stations
+        .where((station) => _filterStationIds.contains(station.id))
+        .toList();
+
+    if (selectedStations.isEmpty) {
+      return 'جميع المحطات';
+    }
+
+    if (selectedStations.length == 1) {
+      final station = selectedStations.first;
+      return '${station.stationCode} - ${station.stationName}';
+    }
+
+    if (selectedStations.length == 2) {
+      return selectedStations.map((station) => station.stationName).join('، ');
+    }
+
+    return '${selectedStations.length} محطات محددة';
   }
 
   void _showLanguageSelector() {
@@ -270,6 +408,136 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
         });
       }
     }
+  }
+
+  String _monthKey(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    return '${date.year}-$month';
+  }
+
+  List<_SessionMonthOption> _buildMonthOptions(List<PumpSession> sessions) {
+    final uniqueMonths = <String, DateTime>{};
+
+    for (final session in sessions) {
+      final localDate = session.sessionDate.toLocal();
+      final monthStart = DateTime(localDate.year, localDate.month);
+      final key = _monthKey(monthStart);
+      uniqueMonths.putIfAbsent(key, () => monthStart);
+    }
+
+    final sortedMonths = uniqueMonths.values.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    return sortedMonths
+        .map(
+          (monthStart) => _SessionMonthOption(
+            key: _monthKey(monthStart),
+            label: DateFormat('yyyy/MM').format(monthStart),
+          ),
+        )
+        .toList();
+  }
+
+  String? _resolveSelectedMonthKey(List<_SessionMonthOption> monthOptions) {
+    if (monthOptions.isEmpty) return null;
+
+    final exists =
+        _selectedMonthKey != null &&
+        monthOptions.any((month) => month.key == _selectedMonthKey);
+    return exists ? _selectedMonthKey : monthOptions.first.key;
+  }
+
+  List<PumpSession> _filterSessionsByMonth(
+    List<PumpSession> sessions,
+    String? selectedMonthKey,
+  ) {
+    if (selectedMonthKey == null) return sessions;
+
+    return sessions.where((session) {
+      final localDate = session.sessionDate.toLocal();
+      return _monthKey(DateTime(localDate.year, localDate.month)) ==
+          selectedMonthKey;
+    }).toList();
+  }
+
+  Widget _buildMonthSelectorAction({
+    required bool isLargeScreen,
+    required List<_SessionMonthOption> monthOptions,
+    required String? selectedMonthKey,
+  }) {
+    if (monthOptions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    String selectedMonthLabel = monthOptions.first.label;
+    for (final option in monthOptions) {
+      if (option.key == selectedMonthKey) {
+        selectedMonthLabel = option.label;
+        break;
+      }
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'اختيار الشهر',
+      onSelected: (value) {
+        setState(() {
+          _selectedMonthKey = value;
+        });
+      },
+      itemBuilder: (context) => monthOptions
+          .map(
+            (option) => PopupMenuItem<String>(
+              value: option.key,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (option.key == selectedMonthKey)
+                    const Padding(
+                      padding: EdgeInsetsDirectional.only(end: 8),
+                      child: Icon(
+                        Icons.check,
+                        size: 18,
+                        color: AppColors.primaryBlue,
+                      ),
+                    ),
+                  Text(option.label),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: isLargeScreen ? 10 : 4,
+          vertical: 10,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: isLargeScreen ? 12 : 8,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white30),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_month, size: 18, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              selectedMonthLabel,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isLargeScreen ? 13 : 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.white),
+          ],
+        ),
+      ),
+    );
   }
 
   double _sessionLiters(PumpSession session) {
@@ -612,223 +880,232 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 1800),
               child: DataTable(
-            dataRowMinHeight: 90,
-            dataRowMaxHeight: 100,
-            columnSpacing: 24,
-            horizontalMargin: 16,
+                dataRowMinHeight: 90,
+                dataRowMaxHeight: 100,
+                columnSpacing: 24,
+                horizontalMargin: 16,
 
-            columns: [
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.sessionNumberColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.stationColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.statusColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.openingClosingReadingsColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.soldQuantityColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.differenceColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.fuelPricesColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.employeeColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.amountColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.shiftColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.dateColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  context.tr(loc.AppStrings.actionsColumn),
-                  style: _tableHeaderStyle(isLargeScreen),
-                ),
-              ),
-            ],
-
-            rows: sessions.map((session) {
-              final pumps = session.pumps ?? [];
-              final employeeName = _sessionEmployeeName(session);
-              final fuelPrices = _sessionFuelTypePrices(session);
-              final fuelPriceText = fuelPrices.entries
-                  .map((e) => '${e.key}: ${_formatPrice(e.value)}')
-                  .join('\n');
-
-              final pumpNumbersFromPumps = pumps
-                  .map((p) => p.pumpNumber)
-                  .toSet()
-                  .join(context.tr(loc.AppStrings.pumpSeparator));
-
-              final computedDifference =
-                  _sessionActualSales(session) -
-                  _sessionExpectedAmount(session);
-
-              return DataRow(
-                onSelectChanged: (_) {
-                  Navigator.pushNamed(
-                    context,
-                    '/session/details',
-                    arguments: session.id,
-                  );
-                },
-                cells: [
-                  DataCell(
-                    SizedBox(
-                      width: 170,
-                      child: Text(
-                        session.sessionNumber,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isLargeScreen ? 14 : 12,
-                        ),
-                      ),
+                columns: [
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.sessionNumberColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 140,
-                      child: Text(
-                        session.stationName,
-                        style: TextStyle(fontSize: isLargeScreen ? 20 : 12),
-                      ),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.stationColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 110,
-                      child: _buildStatusChip(session, isLargeScreen),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.statusColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 260,
-                      child: _buildFullNozzleReadings(session, isLargeScreen),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.openingClosingReadingsColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 220,
-                      child: _buildSoldQuantityByNozzle(session, isLargeScreen),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.soldQuantityColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 240,
-                      child: _buildDifferenceByNozzle(session, isLargeScreen),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.differenceColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 150,
-                      child: Text(
-                        fuelPriceText.isEmpty ? '---' : fuelPriceText,
-                      ),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.fuelPricesColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(SizedBox(width: 130, child: Text(employeeName))),
-                  DataCell(
-                    SizedBox(
-                      width: 120,
-                      child: Text(_formatPrice(computedDifference)),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.employeeColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(width: 100, child: Text(session.shiftType)),
-                  ),
-                  DataCell(
-                    SizedBox(
-                      width: 150,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            DateFormat(
-                              'yyyy/MM/dd',
-                            ).format(session.sessionDate),
-                            style: TextStyle(
-                              fontSize: isLargeScreen ? 13 : 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            DateFormat('HH:mm').format(session.sessionDate),
-                            style: TextStyle(
-                              fontSize: isLargeScreen ? 12 : 11,
-                              color: Colors.grey,
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          SessionCountdown(
-                            sessionDate: session.sessionDate,
-                            isOpen:
-                                session.status ==
-                                context.tr(loc.AppStrings.statusOpen),
-                          ),
-                        ],
-                      ),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.amountColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 110,
-                      child: _buildActions(session, isLargeScreen),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.shiftColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.dateColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      context.tr(loc.AppStrings.actionsColumn),
+                      style: _tableHeaderStyle(isLargeScreen),
                     ),
                   ),
                 ],
-              );
-            }).toList(),
+
+                rows: sessions.map((session) {
+                  final pumps = session.pumps ?? [];
+                  final employeeName = _sessionEmployeeName(session);
+                  final fuelPrices = _sessionFuelTypePrices(session);
+                  final fuelPriceText = fuelPrices.entries
+                      .map((e) => '${e.key}: ${_formatPrice(e.value)}')
+                      .join('\n');
+
+                  final pumpNumbersFromPumps = pumps
+                      .map((p) => p.pumpNumber)
+                      .toSet()
+                      .join(context.tr(loc.AppStrings.pumpSeparator));
+
+                  final computedDifference =
+                      _sessionActualSales(session) -
+                      _sessionExpectedAmount(session);
+
+                  return DataRow(
+                    onSelectChanged: (_) {
+                      Navigator.pushNamed(
+                        context,
+                        '/session/details',
+                        arguments: session.id,
+                      );
+                    },
+                    cells: [
+                      DataCell(
+                        SizedBox(
+                          width: 170,
+                          child: Text(
+                            session.sessionNumber,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isLargeScreen ? 14 : 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 140,
+                          child: Text(
+                            session.stationName,
+                            style: TextStyle(fontSize: isLargeScreen ? 20 : 12),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 110,
+                          child: _buildStatusChip(session, isLargeScreen),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 260,
+                          child: _buildFullNozzleReadings(
+                            session,
+                            isLargeScreen,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 220,
+                          child: _buildSoldQuantityByNozzle(
+                            session,
+                            isLargeScreen,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 240,
+                          child: _buildDifferenceByNozzle(
+                            session,
+                            isLargeScreen,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 150,
+                          child: Text(
+                            fuelPriceText.isEmpty ? '---' : fuelPriceText,
+                          ),
+                        ),
+                      ),
+                      DataCell(SizedBox(width: 130, child: Text(employeeName))),
+                      DataCell(
+                        SizedBox(
+                          width: 120,
+                          child: Text(_formatPrice(computedDifference)),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(width: 100, child: Text(session.shiftType)),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 150,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                DateFormat(
+                                  'yyyy/MM/dd',
+                                ).format(session.sessionDate),
+                                style: TextStyle(
+                                  fontSize: isLargeScreen ? 13 : 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+
+                              const SizedBox(height: 4),
+
+                              Text(
+                                DateFormat('HH:mm').format(session.sessionDate),
+                                style: TextStyle(
+                                  fontSize: isLargeScreen ? 12 : 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              SessionCountdown(
+                                sessionDate: session.sessionDate,
+                                isOpen:
+                                    session.status ==
+                                    context.tr(loc.AppStrings.statusOpen),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 110,
+                          child: _buildActions(session, isLargeScreen),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ),
             ),
           ),
@@ -872,7 +1149,8 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (session.status == context.tr(loc.AppStrings.statusOpen))
+        if (session.status == context.tr(loc.AppStrings.statusOpen) &&
+            !_isOwnerStation)
           IconButton(
             icon: Icon(
               Icons.stop_circle,
@@ -1160,31 +1438,45 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
                 children: [
                   if (!isStationBoy)
                     Container(
-                      width: isLargeScreen ? 250 : 200,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      width: isLargeScreen ? 280 : 220,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         border: Border.all(color: AppColors.lightGray),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: DropdownButton<String>(
-                        value: _filterStationId,
-                        isExpanded: true,
-                        underline: const SizedBox(),
-                        hint: Text(context.tr(loc.AppStrings.allStations)),
-                        items: stationProvider.stations.map((station) {
-                          return DropdownMenuItem<String>(
-                            value: station.id,
-                            child: Text(
-                              '${station.stationCode} - ${station.stationName}',
+                      child: InkWell(
+                        onTap: stationProvider.isStationsLoading
+                            ? null
+                            : () => _pickStations(stationProvider.stations),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _stationFilterLabel(stationProvider.stations),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: stationProvider.isStationsLoading
+                                      ? AppColors.mediumGray
+                                      : Colors.black87,
+                                ),
+                              ),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _filterStationId = value;
-                          });
-                          _loadSessions();
-                        },
+                            const SizedBox(width: 8),
+                            if (stationProvider.isStationsLoading)
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            else
+                              const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
                       ),
                     ),
                   Container(
@@ -1251,9 +1543,11 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
                             onTap: () async {
                               final date = await showDatePicker(
                                 context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime(2023),
-                                lastDate: DateTime.now(),
+                                initialDate: _filterStartDate ?? DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 3650),
+                                ),
                               );
                               if (date != null) {
                                 setState(() {
@@ -1290,9 +1584,14 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
                             onTap: () async {
                               final date = await showDatePicker(
                                 context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: _filterStartDate ?? DateTime(2023),
-                                lastDate: DateTime.now(),
+                                initialDate:
+                                    _filterEndDate ??
+                                    _filterStartDate ??
+                                    DateTime.now(),
+                                firstDate: _filterStartDate ?? DateTime(2000),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 3650),
+                                ),
                               );
                               if (date != null) {
                                 setState(() {
@@ -1343,11 +1642,11 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
   @override
   Widget build(BuildContext context) {
     final stationProvider = context.watch<StationProvider>();
-    final auth = context.watch<AuthProvider>();
-    final user = auth.user;
 
-    final sessions = stationProvider.sessions;
-    final isStationBoy = user?.role == 'station_boy';
+    final allSessions = stationProvider.sessions;
+    final monthOptions = _buildMonthOptions(allSessions);
+    final selectedMonthKey = _resolveSelectedMonthKey(monthOptions);
+    final sessions = _filterSessionsByMonth(allSessions, selectedMonthKey);
     final isLargeScreen = MediaQuery.of(context).size.width > 768;
 
     return Scaffold(
@@ -1358,6 +1657,11 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
         ),
         centerTitle: isLargeScreen,
         actions: [
+          _buildMonthSelectorAction(
+            isLargeScreen: isLargeScreen,
+            monthOptions: monthOptions,
+            selectedMonthKey: selectedMonthKey,
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: context.tr(loc.AppStrings.filterListTooltip),
@@ -1497,7 +1801,7 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
           ),
         ],
       ),
-      floatingActionButton: !isLargeScreen
+      floatingActionButton: !isLargeScreen && !_isOwnerStation
           ? FloatingActionButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/sessions/open');
@@ -1953,7 +2257,8 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
                   ),
                 ],
               ),
-              if (session.status == context.tr(loc.AppStrings.statusOpen)) ...[
+              if (session.status == context.tr(loc.AppStrings.statusOpen) &&
+                  !_isOwnerStation) ...[
                 const SizedBox(height: 12),
                 const Divider(height: 1),
                 const SizedBox(height: 12),

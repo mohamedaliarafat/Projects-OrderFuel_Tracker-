@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -10,6 +12,8 @@ import 'package:order_tracker/models/station_maintenance_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_maintenance_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/utils/file_saver.dart';
+import 'package:order_tracker/utils/station_maintenance_report_pdf.dart';
 
 class StationMaintenanceDetailScreen extends StatefulWidget {
   const StationMaintenanceDetailScreen({super.key});
@@ -26,6 +30,7 @@ class _StationMaintenanceDetailScreenState
 
   StationMaintenanceRequest? _request;
   bool _loading = true;
+  bool _printing = false;
   Timer? _timer;
   DateTime _now = DateTime.now();
   bool _mapPrompted = false;
@@ -63,8 +68,7 @@ class _StationMaintenanceDetailScreenState
   bool _isTechnicianRole(String? role) {
     return role == 'maintenance_technician' ||
         role == 'Maintenance_Technician' ||
-        role == 'maintenance_station' ||
-        role == 'maintenance';
+        role == 'maintenance_station';
   }
 
   bool _isManagerRole(String? role) {
@@ -92,8 +96,13 @@ class _StationMaintenanceDetailScreenState
     if (request != null) {
       _request = request;
       _notesController.text = request.technicianNotes ?? '';
-      if (_invoiceDrafts.isEmpty) {
-        _invoiceDrafts.add(_InvoiceDraft());
+      if (request.review != null) {
+        _decision = request.review!.decision;
+        _reviewNotesController.text = request.review!.notes ?? '';
+      }
+      if (request.rating != null) {
+        _ratingScore = request.rating!.score.clamp(1, 5).toDouble();
+        _ratingNoteController.text = request.rating!.note ?? '';
       }
 
       final authProvider = context.read<AuthProvider>();
@@ -223,11 +232,13 @@ class _StationMaintenanceDetailScreenState
     for (final invoice in _invoiceDrafts) {
       final items = invoice.items
           .where((item) => item.description.text.trim().isNotEmpty)
-          .map((item) => {
-                'description': item.description.text.trim(),
-                'quantity': _toDouble(item.quantity.text),
-                'unitPrice': _toDouble(item.unitPrice.text),
-              })
+          .map(
+            (item) => {
+              'description': item.description.text.trim(),
+              'quantity': _toDouble(item.quantity.text),
+              'unitPrice': _toDouble(item.unitPrice.text),
+            },
+          )
           .toList();
 
       if (items.isEmpty) {
@@ -271,12 +282,18 @@ class _StationMaintenanceDetailScreenState
 
   Future<void> _submitReview() async {
     if (_request == null) return;
+    final reviewNotes = _reviewNotesController.text.trim();
+    if (_decision == 'needs_revision' && reviewNotes.isEmpty) {
+      _showSnack('يرجى كتابة ملاحظة قبل إرسال الرد', isError: true);
+      return;
+    }
+
     final provider = context.read<StationMaintenanceProvider>();
 
     final updated = await provider.reviewRequest(
       id: _request!.id,
       decision: _decision,
-      notes: _reviewNotesController.text.trim(),
+      notes: reviewNotes,
       ratingScore: _ratingScore,
       ratingNote: _ratingNoteController.text.trim(),
     );
@@ -291,11 +308,33 @@ class _StationMaintenanceDetailScreenState
     }
   }
 
+  Future<void> _printReport() async {
+    final request = _request;
+    if (request == null) return;
+
+    setState(() => _printing = true);
+    try {
+      final bytes = await buildStationMaintenanceReportPdf(request);
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+        name: 'station_maintenance_${request.requestNumber ?? request.id}.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('تعذر تجهيز الطباعة: $e', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _printing = false);
+      }
+    }
+  }
+
   void _addInvoice() {
     setState(() => _invoiceDrafts.add(_InvoiceDraft()));
   }
 
   void _removeInvoice(int index) {
+    if (index < 0 || index >= _invoiceDrafts.length) return;
     setState(() {
       final draft = _invoiceDrafts.removeAt(index);
       draft.dispose();
@@ -337,27 +376,31 @@ class _StationMaintenanceDetailScreenState
         isTechnician && isAssignedToMe && _request?.status == 'assigned';
 
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_request == null) {
-      return const Scaffold(
-        body: Center(child: Text('الطلب غير موجود')),
-      );
+      return const Scaffold(body: Center(child: Text('الطلب غير موجود')));
     }
 
     final request = _request!;
 
     return Scaffold(
       appBar: AppBar(
+        actions: [
+          IconButton(
+            onPressed: _printing ? null : _printReport,
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'طباعة التقرير',
+          ),
+        ],
         title: Text(request.title.isNotEmpty ? request.title : 'تفاصيل الطلب'),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final maxWidth =
-              constraints.maxWidth < 1200 ? constraints.maxWidth : 1200.0;
+          final maxWidth = constraints.maxWidth < 1200
+              ? constraints.maxWidth
+              : 1200.0;
           final horizontalPadding = constraints.maxWidth < 700 ? 16.0 : 24.0;
           return Align(
             alignment: Alignment.topCenter,
@@ -378,10 +421,16 @@ class _StationMaintenanceDetailScreenState
                       isTechnician &&
                       isAssignedToMe)
                     _buildTechnicianForm(request),
-                  if (request.status == 'under_review' && isManager)
+                  if (request.status == 'needs_revision' && !isManager)
+                    _buildInfoBanner(
+                      'تم الرد على السجل بملاحظة من الإدارة. راجع نتيجة المراجعة أدناه.',
+                    ),
+                  if ((request.status == 'under_review' ||
+                          request.status == 'needs_revision') &&
+                      isManager)
                     _buildReviewSection(),
                   if (request.review != null || request.rating != null)
-                    _buildReviewSummary(request),
+                    _buildReviewSummaryCard(request),
                   if (request.beforePhotos.isNotEmpty ||
                       request.afterPhotos.isNotEmpty ||
                       request.videos.isNotEmpty ||
@@ -400,8 +449,9 @@ class _StationMaintenanceDetailScreenState
     final elapsed = _formatElapsed(_calculateElapsed(request));
     final summary = request.summary;
     final role = context.read<AuthProvider>().user?.role;
-    final startLabel =
-        role == 'maintenance_station' ? 'قبول الطلب' : 'بدء العمل';
+    final startLabel = role == 'maintenance_station'
+        ? 'قبول الطلب'
+        : 'بدء العمل';
 
     return Card(
       elevation: 2,
@@ -415,17 +465,44 @@ class _StationMaintenanceDetailScreenState
                 Expanded(
                   child: Text(
                     _typeLabel(request.type),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 _buildStatusChip(request.status),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildInfoChip(
+                  request.entryType == 'technician_report'
+                      ? 'تقرير فني'
+                      : 'طلب إدارة',
+                  request.entryType == 'technician_report'
+                      ? AppColors.secondaryTeal
+                      : AppColors.primaryBlue,
+                ),
+                if (request.entryType == 'technician_report')
+                  _buildInfoChip(
+                    request.needsMaintenance ? 'تحتاج صيانة' : 'لا تحتاج صيانة',
+                    request.needsMaintenance
+                        ? AppColors.warningOrange
+                        : AppColors.successGreen,
+                  ),
               ],
             ),
             const SizedBox(height: 12),
             if (request.requestNumber != null &&
                 request.requestNumber!.trim().isNotEmpty)
               Text('رقم الطلب: ${request.requestNumber}'),
-            Text('المحطة: ${request.stationName.isNotEmpty ? request.stationName : 'غير محدد'}'),
+            Text(
+              'المحطة: ${request.stationName.isNotEmpty ? request.stationName : 'غير محدد'}',
+            ),
             Text('الفني: ${request.assignedToName ?? 'غير محدد'}'),
             Text('المنشئ: ${request.createdByName ?? 'غير محدد'}'),
             if (request.stationLocation?.address?.isNotEmpty == true)
@@ -442,11 +519,17 @@ class _StationMaintenanceDetailScreenState
               const SizedBox(height: 8),
               Text(request.description),
             ],
+            if (request.technicianNotes?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text('ملاحظات الفني: ${request.technicianNotes!.trim()}'),
+            ],
             const Divider(height: 24),
             Text('الوقت المستغرق: $elapsed'),
             const SizedBox(height: 8),
             if (summary.total > 0) ...[
-              Text('الإجمالي قبل الضريبة: ${summary.subtotal.toStringAsFixed(2)}'),
+              Text(
+                'الإجمالي قبل الضريبة: ${summary.subtotal.toStringAsFixed(2)}',
+              ),
               Text('ضريبة 15%: ${summary.taxAmount.toStringAsFixed(2)}'),
               Text('الإجمالي: ${summary.total.toStringAsFixed(2)}'),
             ],
@@ -454,8 +537,7 @@ class _StationMaintenanceDetailScreenState
               const SizedBox(height: 12),
               ElevatedButton.icon(
                 onPressed: () async {
-                  final provider =
-                      context.read<StationMaintenanceProvider>();
+                  final provider = context.read<StationMaintenanceProvider>();
                   final started = await provider.startRequest(request.id);
                   if (!mounted) return;
                   if (started != null) {
@@ -496,6 +578,25 @@ class _StationMaintenanceDetailScreenState
     );
   }
 
+  Widget _buildInfoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _buildTechnicianForm(StationMaintenanceRequest request) {
     final provider = context.watch<StationMaintenanceProvider>();
     final tax = _overallSubtotal() * 0.15;
@@ -512,9 +613,9 @@ class _StationMaintenanceDetailScreenState
             children: [
               Text(
                 'تقرير الفني',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -548,14 +649,20 @@ class _StationMaintenanceDetailScreenState
               const SizedBox(height: 16),
               _buildInvoicesSection(),
               const SizedBox(height: 12),
-              Text('الإجمالي قبل الضريبة: ${_overallSubtotal().toStringAsFixed(2)}'),
+              Text(
+                'الإجمالي قبل الضريبة: ${_overallSubtotal().toStringAsFixed(2)}',
+              ),
               Text('الضريبة 15%: ${tax.toStringAsFixed(2)}'),
               Text('الإجمالي النهائي: ${total.toStringAsFixed(2)}'),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: provider.isLoading ? null : () => _submitTechnician(),
+                onPressed: provider.isLoading
+                    ? null
+                    : () => _submitTechnician(),
                 icon: const Icon(Icons.send),
-                label: Text(provider.isLoading ? 'جارٍ الإرسال...' : 'إرسال للمراجعة'),
+                label: Text(
+                  provider.isLoading ? 'جارٍ الإرسال...' : 'إرسال للمراجعة',
+                ),
               ),
             ],
           ),
@@ -573,10 +680,7 @@ class _StationMaintenanceDetailScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -611,10 +715,7 @@ class _StationMaintenanceDetailScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -660,8 +761,8 @@ class _StationMaintenanceDetailScreenState
         ),
         const SizedBox(height: 8),
         ..._invoiceDrafts.asMap().entries.map(
-              (entry) => _buildInvoiceCard(entry.key, entry.value),
-            ),
+          (entry) => _buildInvoiceCard(entry.key, entry.value),
+        ),
       ],
     );
   }
@@ -685,11 +786,10 @@ class _StationMaintenanceDetailScreenState
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
-                if (_invoiceDrafts.length > 1)
-                  IconButton(
-                    onPressed: () => _removeInvoice(index),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
+                IconButton(
+                  onPressed: () => _removeInvoice(index),
+                  icon: const Icon(Icons.delete_outline),
+                ),
               ],
             ),
             TextFormField(
@@ -720,12 +820,13 @@ class _StationMaintenanceDetailScreenState
             ),
             const SizedBox(height: 8),
             ...invoice.items.asMap().entries.map(
-                  (entry) => _buildInvoiceItem(invoice, entry.key, entry.value),
-                ),
+              (entry) => _buildInvoiceItem(invoice, entry.key, entry.value),
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => setState(() => invoice.items.add(_InvoiceItemDraft())),
+                onPressed: () =>
+                    setState(() => invoice.items.add(_InvoiceItemDraft())),
                 icon: const Icon(Icons.add),
                 label: const Text('إضافة بند'),
               ),
@@ -818,15 +919,19 @@ class _StationMaintenanceDetailScreenState
           children: [
             Text(
               'مراجعة الإدارة',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _decision,
               decoration: const InputDecoration(labelText: 'القرار'),
               items: const [
+                DropdownMenuItem(
+                  value: 'needs_revision',
+                  child: Text('رد بملاحظة'),
+                ),
                 DropdownMenuItem(value: 'approved', child: Text('قبول')),
                 DropdownMenuItem(value: 'rejected', child: Text('رفض')),
               ],
@@ -868,6 +973,7 @@ class _StationMaintenanceDetailScreenState
     );
   }
 
+  // ignore: unused_element
   Widget _buildReviewSummary(StationMaintenanceRequest request) {
     final review = request.review;
     final rating = request.rating;
@@ -881,13 +987,52 @@ class _StationMaintenanceDetailScreenState
           children: [
             Text(
               'نتيجة المراجعة',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             if (review != null) ...[
-              Text('القرار: ${review.decision == 'approved' ? 'مقبول' : 'مرفوض'}'),
+              Text(
+                'القرار: ${review.decision == 'approved' ? 'مقبول' : 'مرفوض'}',
+              ),
+              if (review.notes != null && review.notes!.isNotEmpty)
+                Text('ملاحظات: ${review.notes}'),
+              if (review.reviewedByName != null)
+                Text('تم بواسطة: ${review.reviewedByName}'),
+            ],
+            if (rating != null) ...[
+              const SizedBox(height: 8),
+              Text('التقييم: ${rating.score.toStringAsFixed(1)} / 5'),
+              if (rating.note != null && rating.note!.isNotEmpty)
+                Text('ملاحظة: ${rating.note}'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReviewSummaryCard(StationMaintenanceRequest request) {
+    final review = request.review;
+    final rating = request.rating;
+
+    return Card(
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'نتيجة المراجعة',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (review != null) ...[
+              Text('القرار: ${_reviewDecisionLabel(review.decision)}'),
               if (review.notes != null && review.notes!.isNotEmpty)
                 Text('ملاحظات: ${review.notes}'),
               if (review.reviewedByName != null)
@@ -920,9 +1065,9 @@ class _StationMaintenanceDetailScreenState
           children: [
             Text(
               'المرفقات',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             if (before.isEmpty &&
@@ -934,29 +1079,37 @@ class _StationMaintenanceDetailScreenState
                 style: TextStyle(color: AppColors.mediumGray),
               ),
             if (before.isNotEmpty) ...[
-              const Text('صور قبل العمل',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'صور قبل العمل',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               _imageGrid(before),
               const SizedBox(height: 12),
             ],
             if (after.isNotEmpty) ...[
-              const Text('صور بعد العمل',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'صور بعد العمل',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               _imageGrid(after),
               const SizedBox(height: 12),
             ],
             if (videos.isNotEmpty) ...[
-              const Text('الفيديوهات',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'الفيديوهات',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               _videoList(videos),
               const SizedBox(height: 12),
             ],
             if (invoices.isNotEmpty) ...[
-              const Text('ملفات الفواتير',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'ملفات الفواتير',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               _attachmentList(invoices, icon: Icons.receipt_long),
             ],
@@ -1004,8 +1157,7 @@ class _StationMaintenanceDetailScreenState
                     if (loadingProgress == null) return child;
                     return Container(
                       color: AppColors.backgroundGray,
-                      child:
-                          const Center(child: CircularProgressIndicator()),
+                      child: const Center(child: CircularProgressIndicator()),
                     );
                   },
                   errorBuilder: (context, error, stackTrace) {
@@ -1074,14 +1226,26 @@ class _StationMaintenanceDetailScreenState
             : 'فيديو';
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: _InlineVideoPlayer(url: url, title: name),
+          child: _InlineVideoPlayer(
+            url: url,
+            title: name,
+            onDownload: () => _downloadAttachment(
+              url,
+              filename: _downloadFilename(name, url, fallbackStem: 'video'),
+            ),
+          ),
         );
       }).toList(),
     );
   }
 
   Widget _buildStatusChip(String status) {
-    final color = _statusColor(status);
+    final color = status == 'needs_revision'
+        ? AppColors.infoBlue
+        : _statusColor(status);
+    final label = status == 'needs_revision'
+        ? 'رد بملاحظة'
+        : _statusLabel(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -1090,8 +1254,12 @@ class _StationMaintenanceDetailScreenState
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
-        _statusLabel(status),
-        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -1166,6 +1334,19 @@ class _StationMaintenanceDetailScreenState
     return 'صيانة محطة';
   }
 
+  String _reviewDecisionLabel(String decision) {
+    switch (decision) {
+      case 'approved':
+        return 'مقبول';
+      case 'rejected':
+        return 'مرفوض';
+      case 'needs_revision':
+        return 'رد بملاحظة';
+      default:
+        return decision;
+    }
+  }
+
   double _toDouble(String value) {
     final sanitized = value.replaceAll(',', '.');
     return double.tryParse(sanitized) ?? 0;
@@ -1214,15 +1395,84 @@ class _StationMaintenanceDetailScreenState
       _showSnack('تعذر فتح المرفق', isError: true);
     }
   }
+
+  Future<void> _downloadAttachment(
+    String url, {
+    required String filename,
+  }) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode < 200 ||
+          response.statusCode >= 300 ||
+          response.bodyBytes.isEmpty) {
+        throw Exception('Download failed with status ${response.statusCode}');
+      }
+      await saveAndLaunchFile(response.bodyBytes, filename);
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('تعذر تحميل المرفق', isError: true);
+    }
+  }
+
+  String _downloadFilename(
+    String preferredName,
+    String url, {
+    required String fallbackStem,
+  }) {
+    final fallbackName = _fallbackFilenameFromUrl(
+      url,
+      fallbackStem: fallbackStem,
+    );
+    final sanitizedPreferred = _sanitizeFilename(preferredName.trim());
+    if (sanitizedPreferred.isEmpty) {
+      return fallbackName;
+    }
+    if (sanitizedPreferred.contains('.')) {
+      return sanitizedPreferred;
+    }
+
+    final extension = _fileExtension(fallbackName);
+    return extension.isEmpty
+        ? sanitizedPreferred
+        : '$sanitizedPreferred$extension';
+  }
+
+  String _fallbackFilenameFromUrl(String url, {required String fallbackStem}) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        final lastSegment = _sanitizeFilename(uri.pathSegments.last);
+        if (lastSegment.isNotEmpty) {
+          return lastSegment;
+        }
+      }
+    } catch (_) {}
+
+    return '$fallbackStem-${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  String _sanitizeFilename(String value) {
+    return value.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  }
+
+  String _fileExtension(String value) {
+    final dotIndex = value.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex == value.length - 1) {
+      return '';
+    }
+    return value.substring(dotIndex);
+  }
 }
 
 class _InlineVideoPlayer extends StatefulWidget {
   final String url;
   final String title;
+  final VoidCallback? onDownload;
 
   const _InlineVideoPlayer({
     required this.url,
     required this.title,
+    this.onDownload,
   });
 
   @override
@@ -1318,6 +1568,17 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
               ),
             ),
           ),
+          if (widget.onDownload != null) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton.icon(
+                onPressed: widget.onDownload,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('تحميل الفيديو'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1333,10 +1594,8 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => _FullScreenVideoPlayer(
-          url: widget.url,
-          title: widget.title,
-        ),
+        builder: (_) =>
+            _FullScreenVideoPlayer(url: widget.url, title: widget.title),
       ),
     );
   }
@@ -1346,10 +1605,7 @@ class _FullScreenVideoPlayer extends StatefulWidget {
   final String url;
   final String title;
 
-  const _FullScreenVideoPlayer({
-    required this.url,
-    required this.title,
-  });
+  const _FullScreenVideoPlayer({required this.url, required this.title});
 
   @override
   State<_FullScreenVideoPlayer> createState() => _FullScreenVideoPlayerState();
@@ -1382,10 +1638,7 @@ class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.black,
-      ),
+      appBar: AppBar(title: Text(widget.title), backgroundColor: Colors.black),
       body: Center(
         child: AspectRatio(
           aspectRatio: aspectRatio,

@@ -46,11 +46,8 @@ class AttendanceSummaryCard extends StatelessWidget {
                   onPressed: () {
                     onRefresh();
                   },
-                  icon: Icon(
-                    Icons.refresh,
-                    color: AppColors.appBarWaterBright,
-                  ),
-                )
+                  icon: Icon(Icons.refresh, color: AppColors.appBarWaterBright),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -64,7 +61,9 @@ class AttendanceSummaryCard extends StatelessWidget {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.appBarWaterBright.withOpacity(0.2),
+                    backgroundColor: AppColors.appBarWaterBright.withOpacity(
+                      0.2,
+                    ),
                     child: Text(_initial(attendance.employeeName)),
                   ),
                   title: Text(attendance.employeeName),

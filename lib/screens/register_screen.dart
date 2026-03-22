@@ -16,6 +16,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -28,6 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -56,6 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _passwordController.text.trim(),
       _companyController.text.trim(),
       _phoneController.text.trim(),
+      username: _usernameController.text.trim().isEmpty
+          ? null
+          : _usernameController.text.trim(),
     );
 
     if (success && mounted) {
@@ -180,6 +185,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         value == null || value.isEmpty
                                         ? 'يرجى إدخال الاسم الكامل'
                                         : null,
+                                    fieldColor: AppColors.glassBlue.withOpacity(
+                                      0.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  CustomTextField(
+                                    controller: _usernameController,
+                                    labelText: 'اسم المستخدم',
+                                    prefixIcon: Icons.alternate_email,
+                                    validator: (value) {
+                                      final input = value?.trim() ?? '';
+                                      if (input.isEmpty) return null;
+                                      if (input.length < 3) {
+                                        return 'اسم المستخدم قصير';
+                                      }
+                                      if (input.contains(' ')) {
+                                        return 'اسم المستخدم لا يجب أن يحتوي على مسافات';
+                                      }
+                                      return null;
+                                    },
                                     fieldColor: AppColors.glassBlue.withOpacity(
                                       0.1,
                                     ),

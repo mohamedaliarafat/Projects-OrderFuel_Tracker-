@@ -79,10 +79,7 @@ class OrderDataSource extends DataGridSource {
             columnName: 'timer',
             value: _buildTimerCell(order),
           ),
-          DataGridCell<String>(
-            columnName: 'statusDriver',
-            value: order.status,
-          ),
+          DataGridCell<String>(columnName: 'statusDriver', value: order.status),
         ],
       );
       _rowToOrder[row] = order;
@@ -341,10 +338,12 @@ class OrderDataGrid extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final double tableWidth = math.max(
-            constraints.maxWidth,
-            isDesktop ? constraints.maxWidth : 1000,
-          ).toDouble();
+          final double tableWidth = math
+              .max(
+                constraints.maxWidth,
+                isDesktop ? constraints.maxWidth : 1000,
+              )
+              .toDouble();
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SizedBox(

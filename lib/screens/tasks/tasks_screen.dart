@@ -131,7 +131,9 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(context, false),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(context, false),
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
@@ -239,8 +241,7 @@ class _TasksScreenState extends State<TasksScreen> {
           ),
         ],
       ),
-      
-      
+
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -384,10 +385,13 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildDashboardCards(List<TaskModel> tasks, bool isOwner, double maxWidth) {
+  Widget _buildDashboardCards(
+    List<TaskModel> tasks,
+    bool isOwner,
+    double maxWidth,
+  ) {
     final total = tasks.length;
-    final completedCount =
-        tasks.where((t) => t.status == 'completed').length;
+    final completedCount = tasks.where((t) => t.status == 'completed').length;
 
     final cards = <Widget>[
       _buildDashboardCard(
@@ -412,7 +416,8 @@ class _TasksScreenState extends State<TasksScreen> {
           },
         ),
       _buildDashboardCard(
-        title: '\u0627\u0644\u0645\u0647\u0627\u0645 \u0627\u0644\u0645\u0646\u062a\u0647\u064a\u0629',
+        title:
+            '\u0627\u0644\u0645\u0647\u0627\u0645 \u0627\u0644\u0645\u0646\u062a\u0647\u064a\u0629',
         subtitle: '$completedCount \u0645\u0647\u0645\u0629',
         icon: Icons.done_all,
         color: AppColors.warningOrange,
@@ -423,8 +428,8 @@ class _TasksScreenState extends State<TasksScreen> {
     final baseColumns = maxWidth >= 1000
         ? 3
         : maxWidth >= 680
-            ? 2
-            : 1;
+        ? 2
+        : 1;
     final columns = baseColumns > cards.length ? cards.length : baseColumns;
     final cardWidth =
         (maxWidth - ((columns - 1) * 12)) / (columns == 0 ? 1 : columns);
@@ -474,10 +479,7 @@ class _TasksScreenState extends State<TasksScreen> {
           gradient: LinearGradient(
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
-            colors: [
-              color.withOpacity(0.12),
-              color.withOpacity(0.04),
-            ],
+            colors: [color.withOpacity(0.12), color.withOpacity(0.04)],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.22)),
@@ -517,10 +519,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.mediumGray,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppColors.mediumGray),
                   ),
                 ],
               ),
@@ -543,7 +542,8 @@ class _TasksScreenState extends State<TasksScreen> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: '\u0628\u062d\u062b (\u0639\u0646\u0648\u0627\u0646 \u0623\u0648 \u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629)',
+                labelText:
+                    '\u0628\u062d\u062b (\u0639\u0646\u0648\u0627\u0646 \u0623\u0648 \u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629)',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.refresh),
@@ -555,16 +555,48 @@ class _TasksScreenState extends State<TasksScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _statusFilter,
-              decoration: const InputDecoration(labelText: '\u0627\u0644\u062d\u0627\u0644\u0629'),
+              decoration: const InputDecoration(
+                labelText: '\u0627\u0644\u062d\u0627\u0644\u0629',
+              ),
               items: const [
-                DropdownMenuItem(value: 'all', child: Text('\u0627\u0644\u0643\u0644')),
-                DropdownMenuItem(value: 'assigned', child: Text('\u062a\u0645 \u0627\u0644\u0625\u0633\u0646\u0627\u062f')),
-                DropdownMenuItem(value: 'accepted', child: Text('\u062a\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645')),
-                DropdownMenuItem(value: 'in_progress', child: Text('\u0642\u064a\u062f \u0627\u0644\u062a\u0646\u0641\u064a\u0630')),
-                DropdownMenuItem(value: 'completed', child: Text('\u0645\u0643\u062a\u0645\u0644\u0629')),
-                DropdownMenuItem(value: 'approved', child: Text('\u0645\u0639\u062a\u0645\u062f\u0629')),
-                DropdownMenuItem(value: 'rejected', child: Text('\u0645\u0631\u0641\u0648\u0636\u0629')),
-                DropdownMenuItem(value: 'overdue', child: Text('\u0645\u062a\u0623\u062e\u0631\u0629')),
+                DropdownMenuItem(
+                  value: 'all',
+                  child: Text('\u0627\u0644\u0643\u0644'),
+                ),
+                DropdownMenuItem(
+                  value: 'assigned',
+                  child: Text(
+                    '\u062a\u0645 \u0627\u0644\u0625\u0633\u0646\u0627\u062f',
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'accepted',
+                  child: Text(
+                    '\u062a\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645',
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'in_progress',
+                  child: Text(
+                    '\u0642\u064a\u062f \u0627\u0644\u062a\u0646\u0641\u064a\u0630',
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'completed',
+                  child: Text('\u0645\u0643\u062a\u0645\u0644\u0629'),
+                ),
+                DropdownMenuItem(
+                  value: 'approved',
+                  child: Text('\u0645\u0639\u062a\u0645\u062f\u0629'),
+                ),
+                DropdownMenuItem(
+                  value: 'rejected',
+                  child: Text('\u0645\u0631\u0641\u0648\u0636\u0629'),
+                ),
+                DropdownMenuItem(
+                  value: 'overdue',
+                  child: Text('\u0645\u062a\u0623\u062e\u0631\u0629'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -597,7 +629,8 @@ class _TasksScreenState extends State<TasksScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: const InputDecoration(
-                labelText: '\u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629 (6 \u0623\u0631\u0642\u0627\u0645)',
+                labelText:
+                    '\u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629 (6 \u0623\u0631\u0642\u0627\u0645)',
                 prefixIcon: Icon(Icons.lock_outline),
               ),
             ),
@@ -605,7 +638,9 @@ class _TasksScreenState extends State<TasksScreen> {
             ElevatedButton.icon(
               onPressed: _acceptByCode,
               icon: const Icon(Icons.check_circle_outline),
-              label: const Text('\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0645\u0647\u0645\u0629'),
+              label: const Text(
+                '\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0645\u0647\u0645\u0629',
+              ),
             ),
           ],
         ),
@@ -626,13 +661,17 @@ class _TasksScreenState extends State<TasksScreen> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
-          child: Text('\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0647\u0627\u0645'),
+          child: Text(
+            '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0647\u0627\u0645',
+          ),
         ),
       );
     }
 
     return Column(
-      key: ValueKey('${_statusFilter}_${tasks.length}_${_searchController.text}'),
+      key: ValueKey(
+        '${_statusFilter}_${tasks.length}_${_searchController.text}',
+      ),
       children: tasks.asMap().entries.map((entry) {
         return _buildAnimatedTaskCard(entry.value, entry.key, isOwner);
       }).toList(),
@@ -663,10 +702,7 @@ class _TasksScreenState extends State<TasksScreen> {
       children: [
         Icon(icon, size: 14, color: AppColors.mediumGray),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(color: AppColors.mediumGray),
-        ),
+        Text(label, style: TextStyle(color: AppColors.mediumGray)),
       ],
     );
   }
@@ -726,7 +762,9 @@ class _TasksScreenState extends State<TasksScreen> {
           }
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: task.id)),
+            MaterialPageRoute(
+              builder: (_) => TaskDetailScreen(taskId: task.id),
+            ),
           ).then((_) => _loadTasks());
         },
         child: Padding(
@@ -746,7 +784,10 @@ class _TasksScreenState extends State<TasksScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(999),
@@ -768,7 +809,10 @@ class _TasksScreenState extends State<TasksScreen> {
                 spacing: 12,
                 runSpacing: 6,
                 children: [
-                  _buildMetaItem(Icons.tag, '\u0631\u0642\u0645: ${task.taskCode}'),
+                  _buildMetaItem(
+                    Icons.tag,
+                    '\u0631\u0642\u0645: ${task.taskCode}',
+                  ),
                   if (task.assignedToName.isNotEmpty)
                     _buildMetaItem(Icons.person, task.assignedToName),
                 ],

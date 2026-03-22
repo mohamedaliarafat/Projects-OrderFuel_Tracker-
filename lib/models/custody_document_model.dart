@@ -361,7 +361,8 @@ class CustodyDocument {
           ? DateTime.tryParse(json['financeReviewedAt']!.toString())
           : null,
       financeRejectReason: json['financeRejectReason']?.toString(),
-      returnAmount: double.tryParse(json['returnAmount']?.toString() ?? '') ?? 0,
+      returnAmount:
+          double.tryParse(json['returnAmount']?.toString() ?? '') ?? 0,
       returnStatus: CustodyReturnStatusExtension.fromValue(
         json['returnStatus']?.toString() ?? 'none',
       ),

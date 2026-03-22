@@ -112,11 +112,7 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                AppImages.logo,
-                height: 72,
-                fit: BoxFit.contain,
-              ),
+              Image.asset(AppImages.logo, height: 72, fit: BoxFit.contain),
               const SizedBox(height: 16),
               const CircularProgressIndicator(),
               const SizedBox(height: 12),
@@ -131,9 +127,9 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
       await printCustodyDocument(document);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر تنفيذ الطباعة: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('تعذر تنفيذ الطباعة: $e')));
       }
     } finally {
       if (mounted) {
@@ -143,14 +139,15 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
   }
 
   Future<void> _onFinanceDisburse(CustodyDocument document) async {
-    await context
-        .read<CustodyDocumentProvider>()
-        .updateFinanceStatus(document.id, CustodyFinanceStatus.disbursed);
+    await context.read<CustodyDocumentProvider>().updateFinanceStatus(
+      document.id,
+      CustodyFinanceStatus.disbursed,
+    );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم صرف العهدة')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم صرف العهدة')));
   }
 
   Future<void> _onFinanceReject(CustodyDocument document) async {
@@ -162,9 +159,7 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
         content: TextField(
           controller: reasonController,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'سبب الرفض',
-          ),
+          decoration: const InputDecoration(labelText: 'سبب الرفض'),
         ),
         actions: [
           TextButton(
@@ -181,22 +176,22 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
 
     if (reason == null || reason.trim().isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال سبب الرفض')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('يرجى إدخال سبب الرفض')));
       return;
     }
 
     await context.read<CustodyDocumentProvider>().updateFinanceStatus(
-          document.id,
-          CustodyFinanceStatus.rejected,
-          reason: reason.trim(),
-        );
+      document.id,
+      CustodyFinanceStatus.rejected,
+      reason: reason.trim(),
+    );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم رفض الصرف')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم رفض الصرف')));
   }
 
   Future<void> _requestReturn(CustodyDocument document) async {
@@ -211,9 +206,7 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
         content: TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'مبلغ المردود',
-          ),
+          decoration: const InputDecoration(labelText: 'مبلغ المردود'),
         ),
         actions: [
           TextButton(
@@ -241,36 +234,38 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
     }
 
     await context.read<CustodyDocumentProvider>().requestReturn(
-          document.id,
-          value,
-        );
+      document.id,
+      value,
+    );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم إرسال طلب المردود')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المردود')));
   }
 
   Future<void> _onApproveReturn(CustodyDocument document) async {
-    await context
-        .read<CustodyDocumentProvider>()
-        .updateReturnStatus(document.id, CustodyReturnStatus.approved);
+    await context.read<CustodyDocumentProvider>().updateReturnStatus(
+      document.id,
+      CustodyReturnStatus.approved,
+    );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم اعتماد مردود العهدة')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم اعتماد مردود العهدة')));
   }
 
   Future<void> _onRejectReturn(CustodyDocument document) async {
-    await context
-        .read<CustodyDocumentProvider>()
-        .updateReturnStatus(document.id, CustodyReturnStatus.rejected);
+    await context.read<CustodyDocumentProvider>().updateReturnStatus(
+      document.id,
+      CustodyReturnStatus.rejected,
+    );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم رفض مردود العهدة')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم رفض مردود العهدة')));
   }
 
   Future<void> _onDelete(CustodyDocument document) async {
@@ -299,9 +294,9 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
     await context.read<CustodyDocumentProvider>().deleteDocument(document.id);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم حذف السند')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم حذف السند')));
   }
 
   void _showDocumentPreview(CustodyDocument document) {
@@ -406,17 +401,20 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
                                           ? 'تم صرف العهدة'
                                           : document.status.displayTitle,
                                       style: TextStyle(
-                                        color: document.financeStatus ==
+                                        color:
+                                            document.financeStatus ==
                                                 CustodyFinanceStatus.disbursed
                                             ? Colors.green
                                             : document.status.badgeColor,
                                       ),
                                     ),
-                                    backgroundColor: (document.financeStatus ==
-                                                CustodyFinanceStatus.disbursed
-                                            ? Colors.green
-                                            : document.status.badgeColor)
-                                        .withOpacity(0.2),
+                                    backgroundColor:
+                                        (document.financeStatus ==
+                                                    CustodyFinanceStatus
+                                                        .disbursed
+                                                ? Colors.green
+                                                : document.status.badgeColor)
+                                            .withOpacity(0.2),
                                   ),
                                   if (document.returnStatus !=
                                       CustodyReturnStatus.none) ...[
@@ -425,9 +423,8 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
                                       label: Text(
                                         document.returnStatus.displayTitle,
                                         style: TextStyle(
-                                          color: document
-                                              .returnStatus
-                                              .badgeColor,
+                                          color:
+                                              document.returnStatus.badgeColor,
                                         ),
                                       ),
                                       backgroundColor: document
@@ -554,8 +551,7 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
                                       document.returnStatus ==
                                           CustodyReturnStatus.none)
                                     OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _requestReturn(document),
+                                      onPressed: () => _requestReturn(document),
                                       icon: const Icon(Icons.undo),
                                       label: const Text('طلب مردود'),
                                     ),
@@ -628,7 +624,9 @@ class _CustodyDocumentListScreenState extends State<CustodyDocumentListScreen> {
                                         child: ElevatedButton(
                                           onPressed: () =>
                                               _onApproveReturn(document),
-                                          child: const Text('اعتماد مردود العهدة'),
+                                          child: const Text(
+                                            'اعتماد مردود العهدة',
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),

@@ -122,9 +122,7 @@ class _WorkshopFuelRefuelFormScreenState
     final dateLabel = DateFormat('yyyy/MM/dd', 'ar').format(_refuelDate);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('تعبئة وقود جديدة'),
-      ),
+      appBar: AppBar(title: const Text('تعبئة وقود جديدة')),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -171,8 +169,9 @@ class _WorkshopFuelRefuelFormScreenState
               const SizedBox(height: 12),
               TextFormField(
                 controller: _litersController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'عدد اللترات'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -184,8 +183,9 @@ class _WorkshopFuelRefuelFormScreenState
               const SizedBox(height: 12),
               TextFormField(
                 controller: _priceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'سعر اللتر'),
               ),
               const SizedBox(height: 12),

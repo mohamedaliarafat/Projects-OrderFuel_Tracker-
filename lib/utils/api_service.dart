@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,13 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static String? _token;
 
-  static const String _baseUrl = 'https://system-albuhairaalarabia.cloud/api';
-  // static const String _baseUrl = 'http://192.168.8.165:6030/api';
+  // static const String _baseUrl = 'https://system-albuhairaalarabia.cloud/api';
+  static const String _baseUrl = 'http://192.168.8.196:6030/api';
   static const String _tokenKey = 'auth_token';
 
-  // ===============================
-  // 🔐 Headers
-  // ===============================
   static Map<String, String> get headers {
     final headers = <String, String>{'Content-Type': 'application/json'};
 
@@ -23,17 +19,16 @@ class ApiService {
     return headers;
   }
 
-  // ===============================
-  // 💾 Token Persistence
-  // ===============================
-
-  /// تحميل التوكن عند تشغيل التطبيق
   static Future<void> loadToken() async {
+    if (_token != null && _token!.isNotEmpty) return;
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_tokenKey);
   }
 
-  /// حفظ التوكن لفترة طويلة
+  static void primeToken(String? token) {
+    _token = token;
+  }
+
   static Future<void> setToken(String? token) async {
     _token = token;
     final prefs = await SharedPreferences.getInstance();
@@ -45,16 +40,11 @@ class ApiService {
     }
   }
 
-  /// مسح التوكن (Logout)
   static Future<void> clearToken() async {
     _token = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
   }
-
-  // ===============================
-  // 🌐 HTTP Methods
-  // ===============================
 
   static Future<http.Response> get(String endpoint) async {
     _ensureTokenLoaded();
@@ -114,9 +104,6 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // ===============================
-  // ⬇️ Download
-  // ===============================
   static Future<http.Response> download(String endpoint) async {
     _ensureTokenLoaded();
 
@@ -137,10 +124,6 @@ class ApiService {
       'Download failed: ${response.statusCode} - ${response.body}',
     );
   }
-
-  // ===============================
-  // 👥 HR APIs
-  // ===============================
 
   static Future<Map<String, dynamic>> hrGet(String endpoint) async {
     final response = await get(endpoint);
@@ -168,9 +151,6 @@ class ApiService {
     return json.decode(utf8.decode(response.bodyBytes));
   }
 
-  // ===============================
-  // 🧬 Fingerprint
-  // ===============================
   static Future<Map<String, dynamic>> fingerprintPost(
     String endpoint,
     dynamic data,
@@ -203,11 +183,7 @@ class ApiService {
     throw Exception('API Error: ${response.statusCode} - ${response.body}');
   }
 
-  // ===============================
-  // 🧠 Helpers
-  // ===============================
   static void _ensureTokenLoaded() {
-    // حماية من طلبات بدري
     if (_token == null) {
       throw Exception('Auth token not initialized');
     }
@@ -222,11 +198,36 @@ class ApiService {
       throw UnauthenticatedException();
     }
 
-    throw Exception('API Error: ${response.statusCode}');
+    final errorMessage = _extractErrorMessage(response);
+    if (errorMessage == null || errorMessage.isEmpty) {
+      throw Exception('API Error: ${response.statusCode}');
+    }
+
+    throw Exception('API Error: ${response.statusCode} - $errorMessage');
+  }
+
+  static String? _extractErrorMessage(http.Response response) {
+    final body = utf8.decode(response.bodyBytes).trim();
+    if (body.isEmpty) return null;
+
+    try {
+      final decoded = json.decode(body);
+      if (decoded is Map) {
+        final message = decoded['message'] ?? decoded['error'];
+        if (message != null && message.toString().trim().isNotEmpty) {
+          return message.toString().trim();
+        }
+      }
+    } catch (_) {
+      // Fall back to the raw body when the backend does not return JSON.
+    }
+
+    if (body.length <= 300) {
+      return body;
+    }
+
+    return '${body.substring(0, 300)}...';
   }
 }
 
-// ===============================
-// 🚫 Unauthorized Exception
-// ===============================
 class UnauthenticatedException implements Exception {}

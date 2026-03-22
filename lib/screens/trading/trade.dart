@@ -21,8 +21,6 @@ import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 
-
-
 // نموذج بيانات الشمعة اليابانية
 class CandleData {
   final DateTime date;
@@ -1263,7 +1261,7 @@ class _TraderScreenState extends State<TraderScreen>
     );
   }
 
-Widget _buildCandleChartSection() {
+  Widget _buildCandleChartSection() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.03),
@@ -1970,7 +1968,7 @@ Widget _buildCandleChartSection() {
           axisLine: const AxisLine(width: 0),
           labelStyle: const TextStyle(color: Colors.white54, fontSize: 10),
         ),
-     series: <CartesianSeries<CandleData, DateTime>>[
+        series: <CartesianSeries<CandleData, DateTime>>[
           // الخطوط الرأسية (الفُتَل)
           RangeColumnSeries<CandleData, DateTime>(
             dataSource: _candleData,
@@ -2525,7 +2523,8 @@ Widget _buildCandleChartSection() {
                   _buildSidebarItem(
                     icon: Icons.bar_chart,
                     title: 'الصفحة الرئيسية',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.dashboard),
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.dashboard),
                   ),
                   const SizedBox(height: 8),
                   _buildSidebarItem(
@@ -3295,7 +3294,7 @@ Widget _buildCandleChartSection() {
     );
   }
 
-Widget _buildDesktopChartsSection() {
+  Widget _buildDesktopChartsSection() {
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
@@ -3600,10 +3599,6 @@ Widget _buildDesktopChartsSection() {
         return _buildCustomCandlestickChart();
     }
   }
-
-  
-
-  
 
   double _calculateVolume() {
     if (_candleData.isEmpty) return 0;
@@ -4411,6 +4406,3 @@ class OrderTimer {
     return parts.join(' ');
   }
 }
-
-
-

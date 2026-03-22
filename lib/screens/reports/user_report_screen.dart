@@ -6,6 +6,8 @@ import 'package:order_tracker/widgets/reports/export_options.dart';
 import 'package:order_tracker/widgets/reports/report_filters.dart';
 import 'package:order_tracker/widgets/reports/report_summary.dart';
 import 'package:order_tracker/widgets/reports/user_activity_chart.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 
 class UserReportScreen extends StatefulWidget {
   static const routeName = '/reports/users';
@@ -132,6 +134,18 @@ class _UserReportScreenState extends State<UserReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تقارير المستخدمين'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           if (isLargeScreen) ...[
             _buildDesktopViewToggle(),
@@ -154,49 +168,106 @@ class _UserReportScreenState extends State<UserReportScreen> {
           ],
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filters Summary
-          if (_filters.isNotEmpty) _buildFiltersSummary(isLargeScreen),
-
-          // Report Summary
-          ReportSummary(
-            title: 'ملخص تقرير المستخدمين',
-            statistics: _summary,
-            period: _filters,
-          ),
-
-          // Header Section
-          _buildHeaderSection(isLargeScreen, isMediumScreen, isSmallScreen),
-
-          // Users Content
-          Expanded(
-            child: _isLoading && _users.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _users.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.people,
-                          size: 64,
-                          color: AppColors.mediumGray,
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1500),
+                child: Column(
+                  children: [
+                    if (_filters.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isLargeScreen ? 24 : 16,
+                          14,
+                          isLargeScreen ? 24 : 16,
+                          0,
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'لا توجد بيانات للمستخدمين',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
-                      ],
+                        child: _buildFiltersSummary(isLargeScreen),
+                      ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isLargeScreen ? 24 : 16,
+                        14,
+                        isLargeScreen ? 24 : 16,
+                        0,
+                      ),
+                      child: ReportSummary(
+                        title: 'ملخص تقرير المستخدمين',
+                        statistics: _summary,
+                        period: _filters,
+                      ),
                     ),
-                  )
-                : _viewMode == 'chart'
-                ? UserActivityChart(users: _users, isLargeScreen: isLargeScreen)
-                : _buildUsersView(isLargeScreen, isMediumScreen),
+                    _buildHeaderSection(
+                      isLargeScreen,
+                      isMediumScreen,
+                      isSmallScreen,
+                    ),
+                    Expanded(
+                      child: _isLoading && _users.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : _users.isEmpty
+                          ? Center(
+                              child: AppSurfaceCard(
+                                padding: const EdgeInsets.all(22),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppColors.warningOrange
+                                            .withValues(alpha: 0.10),
+                                        border: Border.all(
+                                          color: AppColors.warningOrange
+                                              .withValues(alpha: 0.18),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.people_alt_rounded,
+                                        size: 34,
+                                        color: AppColors.warningOrange,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'لا توجد بيانات للمستخدمين',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'جرّب تغيير الفلاتر أو الفترة الزمنية.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : _viewMode == 'chart'
+                          ? UserActivityChart(
+                              users: _users,
+                              isLargeScreen: isLargeScreen,
+                            )
+                          : _buildUsersView(isLargeScreen, isMediumScreen),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -371,26 +442,28 @@ class _UserReportScreenState extends State<UserReportScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.backgroundGray,
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
               ),
               child: Row(
                 children: [
                   Icon(
                     _viewMode == 'grid'
-                        ? Icons.grid_view
+                        ? Icons.grid_view_rounded
                         : _viewMode == 'list'
-                        ? Icons.view_list
-                        : Icons.bar_chart,
+                        ? Icons.view_list_rounded
+                        : Icons.bar_chart_rounded,
                     size: 14,
-                    color: AppColors.mediumGray,
+                    color: const Color(0xFF64748B),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     _getViewModeLabel(),
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.mediumGray,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -422,49 +495,56 @@ class _UserReportScreenState extends State<UserReportScreen> {
 
     if (filtersList.isEmpty) return const SizedBox();
 
-    return Container(
+    return AppSurfaceCard(
       padding: EdgeInsets.symmetric(
-        horizontal: isLargeScreen ? 24 : 16,
-        vertical: isLargeScreen ? 12 : 8,
+        horizontal: isLargeScreen ? 18 : 14,
+        vertical: isLargeScreen ? 14 : 12,
       ),
-      color: AppColors.backgroundGray,
       child: Row(
         children: [
-          const Icon(Icons.filter_list, size: 16, color: AppColors.mediumGray),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.filter_list_rounded,
+            size: 18,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.60),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: filtersList
-                    .map(
-                      (filter) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.lightGray),
-                        ),
-                        child: Text(
-                          filter,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
+                children: filtersList.map((filter) {
+                  return Container(
+                    margin: const EdgeInsetsDirectional.only(end: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.06),
                       ),
-                    )
-                    .toList(),
+                    ),
+                    child: Text(
+                      filter,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.clear, size: 16),
+            tooltip: 'مسح الفلاتر',
+            icon: const Icon(Icons.clear_rounded, size: 18),
             onPressed: () => _applyFilters({}),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.55),
           ),
         ],
       ),
@@ -605,191 +685,190 @@ class _UserReportScreenState extends State<UserReportScreen> {
     final totalOrders = user['totalOrders'] ?? 0;
     final successRate = user['successRate'] ?? 0;
 
-    return Card(
-      elevation: 2,
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => _showUserDetails(user),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: EdgeInsets.all(isDesktop ? 16 : 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return AppSurfaceCard(
+      onTap: () => _showUserDetails(user),
+      padding: EdgeInsets.all(isDesktop ? 16 : 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar & Name
+          Row(
             children: [
-              // Avatar & Name
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: isDesktop
-                        ? 24
-                        : isTablet
-                        ? 22
-                        : 20,
-                    backgroundColor: _getRoleColor(user['userRole']),
-                    child: Text(
-                      user['userName']?.substring(0, 1) ?? '?',
+              CircleAvatar(
+                radius: isDesktop
+                    ? 24
+                    : isTablet
+                    ? 22
+                    : 20,
+                backgroundColor: _getRoleColor(user['userRole']),
+                child: Text(
+                  user['userName']?.substring(0, 1) ?? '?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isDesktop ? 16 : 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user['userName'] ?? 'غير معروف',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isDesktop ? 16 : 14,
                         fontWeight: FontWeight.bold,
+                        fontSize: isDesktop ? 16 : 14,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user['userName'] ?? 'غير معروف',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: isDesktop ? 16 : 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getRoleColor(
-                              user['userRole'],
-                            ).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            _getRoleLabel(user['userRole']),
-                            style: TextStyle(
-                              fontSize: isDesktop ? 12 : 10,
-                              color: _getRoleColor(user['userRole']),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: isDesktop ? 16 : 12),
-
-              // Contact Info
-              if (user['userEmail'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.email,
-                        size: isDesktop ? 16 : 14,
-                        color: AppColors.mediumGray,
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          user['userEmail']!,
-                          style: TextStyle(fontSize: isDesktop ? 14 : 12),
-                          overflow: TextOverflow.ellipsis,
+                      decoration: BoxDecoration(
+                        color: _getRoleColor(
+                          user['userRole'],
+                        ).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: _getRoleColor(
+                            user['userRole'],
+                          ).withValues(alpha: 0.16),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-              if (user['userPhone'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.phone,
-                        size: isDesktop ? 16 : 14,
-                        color: AppColors.mediumGray,
+                      child: Text(
+                        _getRoleLabel(user['userRole']),
+                        style: TextStyle(
+                          fontSize: isDesktop ? 12 : 10,
+                          color: _getRoleColor(user['userRole']),
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        user['userPhone']!,
-                        style: TextStyle(fontSize: isDesktop ? 14 : 12),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Stats
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundGray,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildUserStat(
-                      'طلبات',
-                      totalOrders.toString(),
-                      isDesktop: isDesktop,
-                    ),
-                    _buildUserStat(
-                      'نسبة',
-                      '${_formatNumber(successRate)}%',
-                      isDesktop: isDesktop,
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              // Activity Types
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildActivityType(
-                    'عميل',
-                    user['totalCustomerOrders'] ?? 0,
-                    AppColors.primaryBlue,
-                    isDesktop: isDesktop,
-                  ),
-                  _buildActivityType(
-                    'مورد',
-                    user['totalSupplierOrders'] ?? 0,
-                    AppColors.secondaryTeal,
-                    isDesktop: isDesktop,
-                  ),
-                  _buildActivityType(
-                    'مدمج',
-                    user['totalMixedOrders'] ?? 0,
-                    AppColors.successGreen,
-                    isDesktop: isDesktop,
-                  ),
-                ],
-              ),
-
-              if (isDesktop) const SizedBox(height: 12),
-
-              // Actions for Desktop
-              if (isDesktop)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.more_vert,
-                        color: AppColors.mediumGray,
-                        size: 20,
-                      ),
-                      onPressed: () => _showUserOptions(user),
-                    ),
-                  ],
-                ),
             ],
           ),
-        ),
+
+          SizedBox(height: isDesktop ? 16 : 12),
+
+          // Contact Info
+          if (user['userEmail'] != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.email,
+                    size: isDesktop ? 16 : 14,
+                    color: AppColors.mediumGray,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      user['userEmail']!,
+                      style: TextStyle(fontSize: isDesktop ? 14 : 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          if (user['userPhone'] != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.phone,
+                    size: isDesktop ? 16 : 14,
+                    color: AppColors.mediumGray,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    user['userPhone']!,
+                    style: TextStyle(fontSize: isDesktop ? 14 : 12),
+                  ),
+                ],
+              ),
+            ),
+
+          // Stats
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundGray,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildUserStat(
+                  'طلبات',
+                  totalOrders.toString(),
+                  isDesktop: isDesktop,
+                ),
+                _buildUserStat(
+                  'نسبة',
+                  '${_formatNumber(successRate)}%',
+                  isDesktop: isDesktop,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Activity Types
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildActivityType(
+                'عميل',
+                user['totalCustomerOrders'] ?? 0,
+                AppColors.primaryBlue,
+                isDesktop: isDesktop,
+              ),
+              _buildActivityType(
+                'مورد',
+                user['totalSupplierOrders'] ?? 0,
+                AppColors.secondaryTeal,
+                isDesktop: isDesktop,
+              ),
+              _buildActivityType(
+                'مدمج',
+                user['totalMixedOrders'] ?? 0,
+                AppColors.successGreen,
+                isDesktop: isDesktop,
+              ),
+            ],
+          ),
+
+          if (isDesktop) const SizedBox(height: 12),
+
+          // Actions for Desktop
+          if (isDesktop)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: AppColors.mediumGray,
+                    size: 20,
+                  ),
+                  onPressed: () => _showUserOptions(user),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -799,164 +878,164 @@ class _UserReportScreenState extends State<UserReportScreen> {
     final isLargeScreen = screenWidth >= 1200;
     final isMediumScreen = screenWidth >= 600;
 
-    return Card(
-      margin: EdgeInsets.only(
+    return Padding(
+      padding: EdgeInsets.only(
         bottom: 12,
         left: isMediumScreen ? 24 : 16,
         right: isMediumScreen ? 24 : 16,
       ),
-      child: InkWell(
+      child: AppSurfaceCard(
         onTap: () => _showUserDetails(user),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: EdgeInsets.all(isLargeScreen ? 20 : 16),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                radius: isLargeScreen ? 28 : 24,
-                backgroundColor: _getRoleColor(user['userRole']),
-                child: Text(
-                  user['userName']?.substring(0, 1) ?? '?',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isLargeScreen ? 20 : 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+        padding: EdgeInsets.all(isLargeScreen ? 20 : 16),
+        child: Row(
+          children: [
+            // Avatar
+            CircleAvatar(
+              radius: isLargeScreen ? 28 : 24,
+              backgroundColor: _getRoleColor(user['userRole']),
+              child: Text(
+                user['userName']?.substring(0, 1) ?? '?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isLargeScreen ? 20 : 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+            ),
 
-              SizedBox(width: isLargeScreen ? 20 : 16),
+            SizedBox(width: isLargeScreen ? 20 : 16),
 
-              // User Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user['userName'] ?? 'غير معروف',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isLargeScreen ? 18 : 16,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+            // User Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          user['userName'] ?? 'غير معروف',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isLargeScreen ? 18 : 16,
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getRoleColor(
-                              user['userRole'],
-                            ).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _getRoleLabel(user['userRole']),
-                            style: TextStyle(
-                              fontSize: isLargeScreen ? 14 : 12,
-                              color: _getRoleColor(user['userRole']),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    if (user['userEmail'] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.email,
-                              size: isLargeScreen ? 18 : 16,
-                              color: AppColors.mediumGray,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                user['userEmail']!,
-                                style: TextStyle(
-                                  fontSize: isLargeScreen ? 15 : 14,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getRoleColor(
+                            user['userRole'],
+                          ).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: _getRoleColor(
+                              user['userRole'],
+                            ).withValues(alpha: 0.16),
+                          ),
+                        ),
+                        child: Text(
+                          _getRoleLabel(user['userRole']),
+                          style: TextStyle(
+                            fontSize: isLargeScreen ? 14 : 12,
+                            color: _getRoleColor(user['userRole']),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
 
-                    if (user['userCompany'] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.business,
-                              size: isLargeScreen ? 18 : 16,
-                              color: AppColors.mediumGray,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              user['userCompany']!,
+                  if (user['userEmail'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.email,
+                            size: isLargeScreen ? 18 : 16,
+                            color: AppColors.mediumGray,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              user['userEmail']!,
                               style: TextStyle(
                                 fontSize: isLargeScreen ? 15 : 14,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-
-                    const SizedBox(height: 12),
-
-                    // Performance
-                    if (isLargeScreen) _buildDesktopPerformance(user),
-                    if (!isLargeScreen) _buildMobilePerformance(user),
-                  ],
-                ),
-              ),
-
-              SizedBox(width: isLargeScreen ? 20 : 16),
-
-              // Stats Column
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${user['totalOrders'] ?? 0} طلب',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isLargeScreen ? 16 : 14,
-                      color: AppColors.primaryBlue,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_formatNumber(user['totalAmount'] ?? 0)} ريال',
-                    style: TextStyle(
-                      fontSize: isLargeScreen ? 14 : 12,
-                      color: AppColors.successGreen,
+
+                  if (user['userCompany'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.business,
+                            size: isLargeScreen ? 18 : 16,
+                            color: AppColors.mediumGray,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            user['userCompany']!,
+                            style: TextStyle(fontSize: isLargeScreen ? 15 : 14),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _formatDate(user['userCreatedAt']),
-                    style: TextStyle(
-                      fontSize: isLargeScreen ? 12 : 10,
-                      color: AppColors.mediumGray,
-                    ),
-                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Performance
+                  if (isLargeScreen) _buildDesktopPerformance(user),
+                  if (!isLargeScreen) _buildMobilePerformance(user),
                 ],
               ),
-            ],
-          ),
+            ),
+
+            SizedBox(width: isLargeScreen ? 20 : 16),
+
+            // Stats Column
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${user['totalOrders'] ?? 0} طلب',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isLargeScreen ? 16 : 14,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_formatNumber(user['totalAmount'] ?? 0)} ريال',
+                  style: TextStyle(
+                    fontSize: isLargeScreen ? 14 : 12,
+                    color: AppColors.successGreen,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatDate(user['userCreatedAt']),
+                  style: TextStyle(
+                    fontSize: isLargeScreen ? 12 : 10,
+                    color: AppColors.mediumGray,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

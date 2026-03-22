@@ -171,8 +171,6 @@ class FuelStationProvider with ChangeNotifier {
     }
   }
 
-  
-
   Future<void> fetchStationById(String id) async {
     _isLoading = true;
     _error = null;
@@ -231,8 +229,6 @@ class FuelStationProvider with ChangeNotifier {
         request.headers['Authorization'] = authHeader;
         debugPrint('🟢 [createStation] Authorization header added');
       }
-
-      
 
       // =============================
       // الحقول الأساسية

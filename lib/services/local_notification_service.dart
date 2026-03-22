@@ -182,7 +182,8 @@ class LocalNotificationService {
     final payload = _decodePayload(response.payload);
     if (payload == null) return;
 
-    final isChat = payload['kind'] == 'chat' &&
+    final isChat =
+        payload['kind'] == 'chat' &&
         (payload['conversationId']?.toString().isNotEmpty ?? false);
     if (!isChat) return;
 

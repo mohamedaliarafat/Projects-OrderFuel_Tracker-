@@ -42,7 +42,8 @@ class _CustodyDocumentFormScreenState extends State<CustodyDocumentFormScreen> {
   final TextEditingController _reasonController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
-  final TextEditingController _vehicleNumberController = TextEditingController();
+  final TextEditingController _vehicleNumberController =
+      TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final List<_DetailRow> _detailRows = [];
   DateTime _selectedDate = DateTime.now();

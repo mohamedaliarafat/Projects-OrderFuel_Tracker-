@@ -7,10 +7,7 @@ import 'package:order_tracker/utils/constants.dart';
 class EmployeeDetailsScreen extends StatefulWidget {
   final String employeeId;
 
-  const EmployeeDetailsScreen({
-    super.key,
-    required this.employeeId,
-  });
+  const EmployeeDetailsScreen({super.key, required this.employeeId});
 
   @override
   State<EmployeeDetailsScreen> createState() => _EmployeeDetailsScreenState();
@@ -34,7 +31,9 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       _errorMessage = null;
     });
     try {
-      final response = await ApiService.hrGet('/employees/${widget.employeeId}');
+      final response = await ApiService.hrGet(
+        '/employees/${widget.employeeId}',
+      );
       if (response['success'] == true) {
         final data = response['data'] as Map<String, dynamic>;
         final employee = Employee.fromJson(data);
@@ -68,24 +67,21 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       appBar: AppBar(
         title: const Text('تفاصيل الموظف'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDetails,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadDetails),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: AppColors.errorRed),
-                  ),
-                )
-              : _employee == null
-                  ? const Center(child: Text('لا توجد بيانات للموظف'))
-                  : _buildDetails(context),
+          ? Center(
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: AppColors.errorRed),
+              ),
+            )
+          : _employee == null
+          ? const Center(child: Text('لا توجد بيانات للموظف'))
+          : _buildDetails(context),
     );
   }
 
@@ -181,17 +177,17 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
             children: _recentAttendance.isEmpty
                 ? [const Text('لا توجد سجلات حضور حديثة')]
                 : _recentAttendance
-                    .map(
-                      (record) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(record.formattedDate),
-                        subtitle: Text(
-                          'حضور: ${record.formattedCheckIn} • انصراف: ${record.formattedCheckOut}',
+                      .map(
+                        (record) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(record.formattedDate),
+                          subtitle: Text(
+                            'حضور: ${record.formattedCheckIn} • انصراف: ${record.formattedCheckOut}',
+                          ),
+                          trailing: Text(record.status),
                         ),
-                        trailing: Text(record.status),
-                      ),
-                    )
-                    .toList(),
+                      )
+                      .toList(),
           ),
         ];
 
@@ -211,16 +207,16 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                       runSpacing: 12,
                       children: sections
                           .map(
-                            (section) => SizedBox(
-                              width: sectionWidth,
-                              child: section,
-                            ),
+                            (section) =>
+                                SizedBox(width: sectionWidth, child: section),
                           )
                           .toList(),
                     )
                   else
                     ...sections
-                        .expand((section) => [section, const SizedBox(height: 12)])
+                        .expand(
+                          (section) => [section, const SizedBox(height: 12)],
+                        )
                         .toList()
                       ..removeLast(),
                 ],
@@ -312,12 +308,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-            ),
-          ),
+          Expanded(child: Text(value, textAlign: TextAlign.end)),
         ],
       ),
     );

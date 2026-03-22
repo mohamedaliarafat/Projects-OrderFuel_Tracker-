@@ -26,17 +26,20 @@ Future<Uint8List> buildMarketingHandoverPdf(MarketingStation station) async {
     theme: pw.ThemeData.withFont(base: cairoRegular, bold: cairoBold),
   );
 
-  final stationName =
-      report.stationName.trim().isNotEmpty ? report.stationName : station.name;
+  final stationName = report.stationName.trim().isNotEmpty
+      ? report.stationName
+      : station.name;
   final city = report.city.trim().isNotEmpty ? report.city : station.city;
-  final street =
-      report.street.trim().isNotEmpty ? report.street : station.address;
+  final street = report.street.trim().isNotEmpty
+      ? report.street
+      : station.address;
 
   final contractText = report.contractReference.trim().isEmpty
       ? ''
       : ' حسب العقد المبرم ${_valueOrDash(report.contractReference)}';
 
-  final paragraph = 'انه في يوم ${_valueOrDash(report.dayName)} بتاريخ '
+  final paragraph =
+      'انه في يوم ${_valueOrDash(report.dayName)} بتاريخ '
       '${_valueOrDash(report.hijriDate)} هـ الموافق '
       '${_valueOrDash(report.gregorianDate)} تم الوقوف على محطة المحروقات '
       'المسماة بمحطة ${_valueOrDash(stationName)} مدينة ${_valueOrDash(city)} '
@@ -69,10 +72,7 @@ Future<Uint8List> buildMarketingHandoverPdf(MarketingStation station) async {
             report.reportNumber.trim().isEmpty
                 ? 'محضر استلام محطة محروقات'
                 : 'محضر استلام محطة محروقات (${report.reportNumber})',
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
           ),
         ),
         pw.SizedBox(height: 10),

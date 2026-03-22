@@ -142,7 +142,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الموردين', style: TextStyle(color: Colors.white),),
+        title: const Text('الموردين', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             onPressed: _showSupplierFilters,

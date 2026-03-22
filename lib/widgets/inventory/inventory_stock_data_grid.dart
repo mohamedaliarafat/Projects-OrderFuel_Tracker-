@@ -21,18 +21,12 @@ class InventoryStockDataSource extends DataGridSource {
     dataGridRows = _items.map<DataGridRow>((item) {
       return DataGridRow(
         cells: [
-          DataGridCell<String>(
-            columnName: 'date',
-            value: _fmtDate(item.date),
-          ),
+          DataGridCell<String>(columnName: 'date', value: _fmtDate(item.date)),
           DataGridCell<String>(
             columnName: 'invoice',
             value: item.invoiceNumber,
           ),
-          DataGridCell<String>(
-            columnName: 'branch',
-            value: item.branchName,
-          ),
+          DataGridCell<String>(columnName: 'branch', value: item.branchName),
           DataGridCell<String>(
             columnName: 'warehouse',
             value: item.warehouseName,

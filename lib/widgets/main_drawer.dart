@@ -21,6 +21,8 @@ class MainDrawer extends StatelessWidget {
           'orders_create_supplier',
         ]) ??
         false;
+    final driverHomeRoute =
+        user?.role == 'driver' ? AppRoutes.driverHome : AppRoutes.orders;
     final canAccessStationMaintenance = [
       'owner',
       'admin',
@@ -94,20 +96,25 @@ class MainDrawer extends StatelessWidget {
                   leading: const Icon(Icons.dashboard_outlined),
                   title: const Text('لوحة التحكم'),
                   onTap: () {
-                    Navigator.popAndPushNamed(context, '/dashboard');
+                    Navigator.popAndPushNamed(
+                      context,
+                      user?.role == 'driver'
+                          ? AppRoutes.driverHome
+                          : AppRoutes.dashboard,
+                    );
                   },
                 ),
                 if (hasPermission('orders_view'))
                   ListTile(
                     leading: const Icon(Icons.inventory_2_outlined),
-                    title: const Text('الطلبات'),
+                    title: Text(user?.role == 'driver' ? 'صفحة السائق' : 'الطلبات'),
                     trailing: Badge.count(
                       count: 0,
                       textColor: Colors.white,
                       backgroundColor: AppColors.primaryBlue,
                     ),
                     onTap: () {
-                      Navigator.popAndPushNamed(context, '/orders');
+                      Navigator.popAndPushNamed(context, driverHomeRoute);
                     },
                   ),
                 if (hasPermission('customers_view'))

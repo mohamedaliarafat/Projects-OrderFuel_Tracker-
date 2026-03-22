@@ -147,10 +147,7 @@ class _QualificationStationFormScreenState
     try {
       final provider = context.read<QualificationProvider>();
       final uploaded = await provider.uploadAttachments(_newAttachments);
-      final attachments = [
-        ..._existingAttachments,
-        ...uploaded,
-      ];
+      final attachments = [..._existingAttachments, ...uploaded];
       final location = QualificationLocation(
         lat: _selectedLatLng!.latitude,
         lng: _selectedLatLng!.longitude,
@@ -193,9 +190,9 @@ class _QualificationStationFormScreenState
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickAttachments() async {
@@ -275,9 +272,7 @@ class _QualificationStationFormScreenState
             controller: _ownerPhoneController,
             keyboardType: TextInputType.phone,
             inputFormatters: [
-              FilteringTextInputFormatter.allow(
-                RegExp(r'[0-9+ ]'),
-              ),
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
             ],
             decoration: const InputDecoration(
               labelText: 'رقم الجوال',
@@ -338,10 +333,12 @@ class _QualificationStationFormScreenState
               rowChildren.add(const SizedBox(width: 12));
             }
           }
-          rows.add(Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: rowChildren,
-          ));
+          rows.add(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: rowChildren,
+            ),
+          );
           rows.add(const SizedBox(height: 12));
         }
         if (rows.isNotEmpty) {
@@ -357,9 +354,11 @@ class _QualificationStationFormScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.inspectionToEdit == null
-            ? 'إضافة محطة تأهيل'
-            : 'تعديل محطة التأهيل'),
+        title: Text(
+          widget.inspectionToEdit == null
+              ? 'إضافة محطة تأهيل'
+              : 'تعديل محطة التأهيل',
+        ),
         centerTitle: true,
       ),
       body: Form(
@@ -370,9 +369,9 @@ class _QualificationStationFormScreenState
             Text(
               'بيانات المحطة',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryBlue,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryBlue,
+              ),
             ),
             const SizedBox(height: 12),
             _buildStationFieldsGrid(),
@@ -389,9 +388,9 @@ class _QualificationStationFormScreenState
             const SizedBox(height: 16),
             Text(
               'حالة التأهيل',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Container(
@@ -413,9 +412,9 @@ class _QualificationStationFormScreenState
             const SizedBox(height: 20),
             Text(
               'تحديد الموقع',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -457,9 +456,9 @@ class _QualificationStationFormScreenState
             const SizedBox(height: 20),
             Text(
               'المرفقات (اختياري)',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -512,8 +511,7 @@ class _QualificationStationFormScreenState
                         ),
                       )
                     : const Icon(Icons.save),
-                label:
-                    Text(_saving ? 'جاري الحفظ...' : 'حفظ بيانات المحطة'),
+                label: Text(_saving ? 'جاري الحفظ...' : 'حفظ بيانات المحطة'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBlue,
                   foregroundColor: Colors.white,

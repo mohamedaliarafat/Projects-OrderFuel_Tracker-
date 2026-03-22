@@ -37,23 +37,14 @@ class _AttendanceFilterDialogState extends State<AttendanceFilterDialog> {
   late String _sort;
   late bool _manual;
 
-  final List<String> _statusOptions = [
-    'جميع الحالات',
-    'حاضر',
-    'متأخر',
-    'غائب',
-  ];
+  final List<String> _statusOptions = ['جميع الحالات', 'حاضر', 'متأخر', 'غائب'];
   final List<String> _departmentOptions = [
     'جميع الأقسام',
     'المبيعات',
     'المحاسبة',
     'العمليات',
   ];
-  final List<String> _sortOptions = [
-    'الأحدث',
-    'الأقدم',
-    'الاسم',
-  ];
+  final List<String> _sortOptions = ['الأحدث', 'الأقدم', 'الاسم'];
 
   @override
   void initState() {
@@ -103,9 +94,7 @@ class _AttendanceFilterDialogState extends State<AttendanceFilterDialog> {
         TextButton(onPressed: widget.onClear, child: const Text('مسح')),
         ElevatedButton(
           onPressed: widget.onApply,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.hrCyan,
-          ),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.hrCyan),
           child: const Text('تطبيق'),
         ),
       ],

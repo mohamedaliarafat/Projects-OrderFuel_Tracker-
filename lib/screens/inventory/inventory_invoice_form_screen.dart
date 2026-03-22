@@ -145,7 +145,10 @@ class _InventoryInvoiceFormScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('فاتورة مخزون', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'فاتورة مخزون',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.save_outlined),
@@ -314,8 +317,9 @@ class _InventoryInvoiceFormScreenState
                   child: TextField(
                     controller: line.quantity,
                     onChanged: (_) => line.onChanged(),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       hintText: '0',
                       border: OutlineInputBorder(),
@@ -330,8 +334,9 @@ class _InventoryInvoiceFormScreenState
                   child: TextField(
                     controller: line.unitPrice,
                     onChanged: (_) => line.onChanged(),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       hintText: '0.00',
                       border: OutlineInputBorder(),

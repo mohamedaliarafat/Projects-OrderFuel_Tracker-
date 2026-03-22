@@ -37,7 +37,11 @@ void playWebNotificationSound() {
     if (_audioContext == null) return;
     _resumeAudioContext();
 
-    final oscillator = js_util.callMethod(_audioContext, 'createOscillator', []);
+    final oscillator = js_util.callMethod(
+      _audioContext,
+      'createOscillator',
+      [],
+    );
     final gain = js_util.callMethod(_audioContext, 'createGain', []);
     final gainParam = js_util.getProperty(gain, 'gain');
     js_util.setProperty(gainParam, 'value', 0.04);
@@ -45,13 +49,12 @@ void playWebNotificationSound() {
     final frequency = js_util.getProperty(oscillator, 'frequency');
     js_util.setProperty(frequency, 'value', 880);
     js_util.callMethod(oscillator, 'connect', [gain]);
-    js_util.callMethod(
-      gain,
-      'connect',
-      [js_util.getProperty(_audioContext, 'destination')],
-    );
+    js_util.callMethod(gain, 'connect', [
+      js_util.getProperty(_audioContext, 'destination'),
+    ]);
     js_util.callMethod(oscillator, 'start', [0]);
-    final currentTime = js_util.getProperty(_audioContext, 'currentTime') as num;
+    final currentTime =
+        js_util.getProperty(_audioContext, 'currentTime') as num;
     js_util.callMethod(oscillator, 'stop', [currentTime + 0.2]);
   } catch (_) {
     // ignore autoplay errors
@@ -62,7 +65,7 @@ void _ensureAudioContext() {
   if (_audioContext != null) return;
   final audioContextCtor =
       js_util.getProperty(html.window, 'AudioContext') ??
-          js_util.getProperty(html.window, 'webkitAudioContext');
+      js_util.getProperty(html.window, 'webkitAudioContext');
   if (audioContextCtor == null) return;
   _audioContext = js_util.callConstructor(audioContextCtor, []);
 }

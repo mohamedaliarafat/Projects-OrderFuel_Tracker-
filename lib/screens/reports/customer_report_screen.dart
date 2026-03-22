@@ -6,6 +6,8 @@ import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/widgets/reports/export_options.dart';
 import 'package:order_tracker/widgets/reports/report_filters.dart';
 import 'package:order_tracker/widgets/reports/report_summary.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:printing/printing.dart';
 
 class CustomerReportScreen extends StatefulWidget {
@@ -150,6 +152,18 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تقارير العملاء'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt),
@@ -166,47 +180,102 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filters Summary
-          if (_filters.isNotEmpty) _buildFiltersSummary(),
-
-          // Report Summary
-          ReportSummary(
-            title: 'ملخص تقرير العملاء',
-            statistics: _summary,
-            period: _filters,
-          ),
-
-          // Statistics Cards for Desktop
-          if (isLargeScreen) _buildDesktopStatisticsCards(),
-
-          // Customers List/Grid
-          Expanded(
-            child: _isLoading && _customers.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _customers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.group_off,
-                          size: 64,
-                          color: AppColors.mediumGray,
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1500),
+                child: Column(
+                  children: [
+                    if (_filters.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isLargeScreen ? 24 : 16,
+                          14,
+                          isLargeScreen ? 24 : 16,
+                          0,
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'لا توجد بيانات للعرض',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
-                      ],
+                        child: _buildFiltersSummary(),
+                      ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isLargeScreen ? 24 : 16,
+                        14,
+                        isLargeScreen ? 24 : 16,
+                        0,
+                      ),
+                      child: ReportSummary(
+                        title: 'ملخص تقرير العملاء',
+                        statistics: _summary,
+                        period: _filters,
+                      ),
                     ),
-                  )
-                : _buildCustomersView(isLargeScreen, isMediumScreen),
+                    if (isLargeScreen)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                        child: _buildDesktopStatisticsCards(),
+                      ),
+                    Expanded(
+                      child: _isLoading && _customers.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : _customers.isEmpty
+                          ? Center(
+                              child: AppSurfaceCard(
+                                padding: const EdgeInsets.all(22),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppColors.primaryBlue.withValues(
+                                          alpha: 0.10,
+                                        ),
+                                        border: Border.all(
+                                          color: AppColors.primaryBlue
+                                              .withValues(alpha: 0.18),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.group_off_rounded,
+                                        size: 34,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'لا توجد بيانات للعرض',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'جرّب تغيير الفلاتر أو الفترة الزمنية.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : _buildCustomersView(isLargeScreen, isMediumScreen),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -267,49 +336,56 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
 
     if (filtersList.isEmpty) return const SizedBox();
 
-    return Container(
+    return AppSurfaceCard(
       padding: EdgeInsets.symmetric(
-        horizontal: isLargeScreen ? 24 : 16,
-        vertical: isLargeScreen ? 12 : 8,
+        horizontal: isLargeScreen ? 18 : 14,
+        vertical: isLargeScreen ? 14 : 12,
       ),
-      color: AppColors.backgroundGray,
       child: Row(
         children: [
-          const Icon(Icons.filter_list, size: 16, color: AppColors.mediumGray),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.filter_list_rounded,
+            size: 18,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.60),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: filtersList
-                    .map(
-                      (filter) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.lightGray),
-                        ),
-                        child: Text(
-                          filter,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
+                children: filtersList.map((filter) {
+                  return Container(
+                    margin: const EdgeInsetsDirectional.only(end: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.06),
                       ),
-                    )
-                    .toList(),
+                    ),
+                    child: Text(
+                      filter,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.clear, size: 16),
+            tooltip: 'مسح الفلاتر',
+            icon: const Icon(Icons.clear_rounded, size: 18),
             onPressed: () => _applyFilters({}),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.55),
           ),
         ],
       ),
@@ -320,24 +396,20 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isExtraLargeScreen = screenWidth >= 1400;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isExtraLargeScreen ? 6 : 4,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          // ⬇️ أهم تعديل (يقلل الارتفاع)
-          childAspectRatio: 3.4,
-        ),
-        itemCount: _buildDesktopStats().length,
-        itemBuilder: (context, index) {
-          final stat = _buildDesktopStats()[index];
-          return _buildDesktopStatCard(stat);
-        },
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isExtraLargeScreen ? 6 : 4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 3.4,
       ),
+      itemCount: _buildDesktopStats().length,
+      itemBuilder: (context, index) {
+        final stat = _buildDesktopStats()[index];
+        return _buildDesktopStatCard(stat);
+      },
     );
   }
 
@@ -377,51 +449,57 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
   }
 
   Widget _buildDesktopStatCard(Map<String, dynamic> stat) {
+    final Color accent = stat['color'] as Color;
+
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: stat['color'].withOpacity(0.25)),
-      ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // أيقونة أصغر
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: stat['color'].withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(stat['icon'], color: stat['color'], size: 18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
-
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withValues(alpha: 0.22)),
+            ),
+            child: Icon(stat['icon'] as IconData, color: accent, size: 18),
+          ),
           const SizedBox(width: 10),
-
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // العنوان أصغر
                 Text(
                   stat['title'].toString(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: AppColors.mediumGray,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
-                // القيمة أوضح لكن أقل ارتفاع
                 Text(
                   stat['value'].toString(),
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
               ],
@@ -540,151 +618,171 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
     Map<String, dynamic> customer, {
     bool isDesktop = false,
   }) {
-    return Card(
-      elevation: 2,
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => _showCustomerDetailsDialog(customer),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: EdgeInsets.all(isDesktop ? 20 : 16),
-          child: Column(
+    return AppSurfaceCard(
+      onTap: () => _showCustomerDetailsDialog(customer),
+      padding: EdgeInsets.all(isDesktop ? 20 : 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: isDesktop ? 44 : 40,
+                height: isDesktop ? 44 : 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryBlue.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: AppColors.primaryBlue,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  customer['customerName'] ?? 'غير معروف',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: isDesktop ? 18 : 16,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  '${customer['totalOrders'] ?? 0} طلب',
+                  style: TextStyle(
+                    fontSize: isDesktop ? 13 : 12,
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.code_rounded,
+                size: isDesktop ? 18 : 16,
+                color: const Color(0xFF64748B),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  customer['customerCode'] ?? '--',
+                  style: TextStyle(
+                    fontSize: isDesktop ? 15 : 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              if (customer['customerPhone'] != null) ...[
+                Icon(
+                  Icons.phone_rounded,
+                  size: isDesktop ? 18 : 16,
+                  color: const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  customer['customerPhone']!,
+                  style: TextStyle(
+                    fontSize: isDesktop ? 15 : 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (customer['customerCity'] != null ||
+              customer['customerArea'] != null)
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_rounded,
+                  size: isDesktop ? 18 : 16,
+                  color: const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${customer['customerCity'] ?? ''}${customer['customerArea'] != null ? ' - ${customer['customerArea']}' : ''}',
+                    style: TextStyle(
+                      fontSize: isDesktop ? 15 : 14,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 16),
+          if (isDesktop) _buildDesktopCustomerStats(customer),
+          if (!isDesktop) _buildMobileCustomerStats(customer),
+          const SizedBox(height: 16),
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      customer['customerName'] ?? 'غير معروف',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isDesktop ? 18 : 16,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${customer['totalOrders'] ?? 0} طلب',
-                      style: TextStyle(
-                        fontSize: isDesktop ? 14 : 12,
-                        color: AppColors.primaryBlue,
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.calendar_today_rounded,
+                size: isDesktop ? 16 : 14,
+                color: const Color(0xFF64748B),
               ),
-
-              const SizedBox(height: 12),
-
-              // Customer Info
-              Row(
-                children: [
-                  Icon(
-                    Icons.code,
-                    size: isDesktop ? 18 : 16,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      customer['customerCode'] ?? '--',
-                      style: TextStyle(fontSize: isDesktop ? 15 : 14),
-                    ),
-                  ),
-                  if (customer['customerPhone'] != null)
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.phone,
-                          size: isDesktop ? 18 : 16,
-                          color: AppColors.mediumGray,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          customer['customerPhone']!,
-                          style: TextStyle(fontSize: isDesktop ? 15 : 14),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Location
-              if (customer['customerCity'] != null ||
-                  customer['customerArea'] != null)
-                Row(
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.location_on,
-                      size: isDesktop ? 18 : 16,
-                      color: AppColors.mediumGray,
+                    Text(
+                      'أول طلب: ${_formatDate(customer['firstOrderDate'])}',
+                      style: TextStyle(
+                        fontSize: isDesktop ? 13 : 12,
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${customer['customerCity'] ?? ''} ${customer['customerArea'] != null ? '- ${customer['customerArea']}' : ''}',
-                        style: TextStyle(fontSize: isDesktop ? 15 : 14),
+                    const SizedBox(height: 4),
+                    Text(
+                      'آخر طلب: ${_formatDate(customer['lastOrderDate'])}',
+                      style: TextStyle(
+                        fontSize: isDesktop ? 13 : 12,
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-
-              const SizedBox(height: 16),
-
-              // Stats Grid/Row
-              if (isDesktop) _buildDesktopCustomerStats(customer),
-              if (!isDesktop) _buildMobileCustomerStats(customer),
-
-              const SizedBox(height: 16),
-
-              // Timeline
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: isDesktop ? 16 : 14,
-                    color: AppColors.mediumGray,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'أول طلب: ${_formatDate(customer['firstOrderDate'])}',
-                          style: TextStyle(fontSize: isDesktop ? 14 : 12),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'آخر طلب: ${_formatDate(customer['lastOrderDate'])}',
-                          style: TextStyle(fontSize: isDesktop ? 14 : 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isDesktop)
-                    IconButton(
-                      icon: Icon(Icons.more_vert, color: AppColors.mediumGray),
-                      onPressed: () => _showCustomerOptions(customer),
-                    ),
-                ],
               ),
+              if (isDesktop)
+                IconButton(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  color: const Color(0xFF64748B),
+                  onPressed: () => _showCustomerOptions(customer),
+                ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -701,16 +799,22 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
         _buildStatItem(
           'الإجمالي',
           '${_formatNumber(customer['totalAmount'] ?? 0)} ريال',
+          icon: Icons.payments_rounded,
+          color: AppColors.successGreen,
           isDesktop: false,
         ),
         _buildStatItem(
           'الكمية',
           '${_formatNumber(customer['totalQuantity'] ?? 0)}',
+          icon: Icons.inventory_2_rounded,
+          color: AppColors.warningOrange,
           isDesktop: false,
         ),
         _buildStatItem(
           'النسبة',
           '${_formatNumber(customer['successRate'] ?? 0)}%',
+          icon: Icons.verified_rounded,
+          color: AppColors.infoBlue,
           isDesktop: false,
         ),
       ],
@@ -724,6 +828,8 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
           child: _buildStatItem(
             'إجمالي المبلغ',
             '${_formatNumber(customer['totalAmount'] ?? 0)} ريال',
+            icon: Icons.payments_rounded,
+            color: AppColors.successGreen,
             isDesktop: true,
           ),
         ),
@@ -732,6 +838,8 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
           child: _buildStatItem(
             'الكمية الكلية',
             '${_formatNumber(customer['totalQuantity'] ?? 0)}',
+            icon: Icons.inventory_2_rounded,
+            color: AppColors.warningOrange,
             isDesktop: true,
           ),
         ),
@@ -740,6 +848,8 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
           child: _buildStatItem(
             'نسبة النجاح',
             '${_formatNumber(customer['successRate'] ?? 0)}%',
+            icon: Icons.verified_rounded,
+            color: AppColors.infoBlue,
             isDesktop: true,
           ),
         ),
@@ -748,6 +858,8 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
           child: _buildStatItem(
             'متوسط الطلب',
             '${_formatNumber(customer['avgOrderValue'] ?? 0)} ريال',
+            icon: Icons.trending_up_rounded,
+            color: AppColors.primaryBlue,
             isDesktop: true,
           ),
         ),
@@ -755,29 +867,60 @@ class _CustomerReportScreenState extends State<CustomerReportScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, {bool isDesktop = false}) {
+  Widget _buildStatItem(
+    String label,
+    String value, {
+    required IconData icon,
+    required Color color,
+    bool isDesktop = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.backgroundGray,
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
-      padding: EdgeInsets.all(isDesktop ? 12 : 8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: EdgeInsets.all(isDesktop ? 12 : 10),
+      child: Row(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: isDesktop ? 16 : 12,
+          Container(
+            width: isDesktop ? 34 : 30,
+            height: isDesktop ? 34 : 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.16),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
             ),
+            child: Icon(icon, color: color, size: isDesktop ? 18 : 16),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isDesktop ? 12 : 10,
-              color: AppColors.mediumGray,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: isDesktop ? 15 : 12,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isDesktop ? 11 : 10,
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

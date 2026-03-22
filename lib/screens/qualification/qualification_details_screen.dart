@@ -90,9 +90,9 @@ class _QualificationStationDetailsScreenState
     final uri = Uri.parse(attachment.url);
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فتح المرفق')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر فتح المرفق')));
     }
   }
 
@@ -346,12 +346,12 @@ class _QualificationStationDetailsScreenState
   }) async {
     if (station.status == status) return;
     await context.read<QualificationProvider>().updateStatus(
-          station.id,
-          status,
-          reason: reason,
-          assignedTo: assignedTo,
-          attachments: attachments,
-        );
+      station.id,
+      status,
+      reason: reason,
+      assignedTo: assignedTo,
+      attachments: attachments,
+    );
   }
 
   Future<void> _showStatusUpdateSheet(
@@ -469,19 +469,16 @@ class _QualificationStationDetailsScreenState
                                   }
 
                                   setModalState(() => saving = true);
-                                  final provider =
-                                      context.read<QualificationProvider>();
-                                  final uploaded =
-                                      await provider.uploadAttachments(
-                                    attachments,
-                                  );
+                                  final provider = context
+                                      .read<QualificationProvider>();
+                                  final uploaded = await provider
+                                      .uploadAttachments(attachments);
                                   final assignedTo =
                                       assignedController.text.trim().isEmpty
-                                          ? null
-                                          : QualificationAssignee(
-                                              name: assignedController.text
-                                                  .trim(),
-                                            );
+                                      ? null
+                                      : QualificationAssignee(
+                                          name: assignedController.text.trim(),
+                                        );
 
                                   await _updateStatus(
                                     station,
@@ -590,9 +587,8 @@ class _QualificationStationDetailsScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QualificationStationFormScreen(
-          inspectionToEdit: station,
-        ),
+        builder: (_) =>
+            QualificationStationFormScreen(inspectionToEdit: station),
       ),
     );
     if (mounted) {
@@ -608,9 +604,9 @@ class _QualificationStationDetailsScreenState
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فتح خرائط جوجل')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر فتح خرائط جوجل')));
     }
   }
 

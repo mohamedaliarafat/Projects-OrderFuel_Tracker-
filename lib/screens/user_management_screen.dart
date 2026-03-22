@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:order_tracker/models/driver_model.dart';
 import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
+import 'package:order_tracker/providers/driver_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/providers/user_management_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
@@ -10,6 +12,7 @@ import 'package:provider/provider.dart';
 
 const List<String> _roleOptions = [
   'owner',
+  'owner_station',
   'admin',
   'manager',
   'supervisor',
@@ -22,10 +25,12 @@ const List<String> _roleOptions = [
   'sales_manager_statiun',
   'maintenance_car_management',
   'finance_manager',
+  'driver',
 ];
 
 const Map<String, String> _roleLabels = {
   'owner': 'المالك',
+  'owner_station': 'مالك محطة',
   'admin': 'المديرالعام',
   'manager': 'المدير',
   'supervisor': 'المشرف',
@@ -33,11 +38,12 @@ const Map<String, String> _roleLabels = {
   'Maintenance_Technician': 'عامل صيانة محطة',
   'maintenance_station': 'فني صيانة محطة',
   'employee': 'موظف',
-  'viewer': 'للقرائة فقط',
+  'viewer': 'للقراءة فقط',
   'station_boy': 'عامل محطة',
   'sales_manager_statiun': 'مدير مبيعات المحطات',
   'maintenance_car_management': 'مدير صيانة المركبات',
   'finance_manager': 'المدير المالي',
+  'driver': 'السائق',
 };
 
 String _roleDisplay(String role) => _roleLabels[role] ?? role;
@@ -46,6 +52,8 @@ Color _roleColor(String role) {
   switch (role) {
     case 'owner':
       return AppColors.primaryBlue;
+    case 'owner_station':
+      return const Color(0xFF1565C0);
     case 'admin':
       return AppColors.errorRed;
     case 'manager':
@@ -66,6 +74,8 @@ Color _roleColor(String role) {
       return AppColors.accentBlue;
     case 'finance_manager':
       return const Color(0xFF2E7D32);
+    case 'driver':
+      return AppColors.statusGold;
     default:
       return AppColors.mediumGray;
   }
@@ -158,15 +168,36 @@ class _UserManagementViewState extends State<_UserManagementView> {
   Future<void> _showUserForm({User? user}) async {
     final provider = context.read<UserManagementProvider>();
     final stationProvider = context.read<StationProvider>();
+    final driverProvider = context.read<DriverProvider>();
 
-    if (user?.role == 'station_boy' && stationProvider.stations.isEmpty) {
+    if ((user?.role == 'station_boy' || user?.role == 'owner_station') &&
+        stationProvider.stations.isEmpty) {
       await stationProvider.fetchStations();
     }
 
+    List<Driver> availableDrivers = const [];
+    if (user?.role == 'driver' || user?.driverId != null) {
+      availableDrivers = await driverProvider.fetchActiveDrivers();
+      if (user?.driverId != null) {
+        final currentDriver = await driverProvider.loadDriver(user!.driverId!);
+        if (currentDriver != null &&
+            availableDrivers.every((driver) => driver.id != currentDriver.id)) {
+          availableDrivers = [...availableDrivers, currentDriver];
+        }
+      }
+    }
+
     String? selectedStationId = user?.stationId;
+    final selectedStationIds = <String>{
+      ...user?.stationIds ?? const <String>[],
+    };
+    String? selectedDriverId = user?.driverId;
 
     final isEditing = user != null;
     final nameController = TextEditingController(text: user?.name ?? '');
+    final usernameController = TextEditingController(
+      text: user?.username ?? '',
+    );
     final emailController = TextEditingController(text: user?.email ?? '');
     final companyController = TextEditingController(text: user?.company ?? '');
     final phoneController = TextEditingController(text: user?.phone ?? '');
@@ -239,6 +270,25 @@ class _UserManagementViewState extends State<_UserManagementView> {
 
                           // ================= البريد =================
                           TextFormField(
+                            controller: usernameController,
+                            decoration: const InputDecoration(
+                              labelText: 'اسم المستخدم',
+                            ),
+                            validator: (v) {
+                              final input = v?.trim() ?? '';
+                              if (input.isEmpty) return null;
+                              if (input.length < 3) {
+                                return 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل';
+                              }
+                              if (input.contains(' ')) {
+                                return 'اسم المستخدم لا يجب أن يحتوي على مسافات';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          TextFormField(
                             controller: emailController,
                             decoration: const InputDecoration(
                               labelText: 'البريد الإلكتروني',
@@ -300,17 +350,82 @@ class _UserManagementViewState extends State<_UserManagementView> {
                               setModalState(() {
                                 roleValue = value;
                                 selectedStationId = null;
+                                selectedStationIds.clear();
+                                if (value != 'driver') {
+                                  selectedDriverId = null;
+                                }
                               });
 
-                              // ✅ أهم سطر: جلب المحطات عند اختيار عامل محطة
-                              if (value == 'station_boy' &&
+                              if ((value == 'station_boy' ||
+                                      value == 'owner_station') &&
                                   stationProvider.stations.isEmpty) {
                                 await stationProvider.fetchStations();
+                              }
+
+                              if (value == 'driver') {
+                                final drivers = await driverProvider
+                                    .fetchActiveDrivers();
+                                Driver? currentDriver;
+                                if (selectedDriverId != null) {
+                                  currentDriver = await driverProvider
+                                      .loadDriver(selectedDriverId!);
+                                }
+                                setModalState(() {
+                                  selectedPermissions
+                                    ..clear()
+                                    ..addAll(const [
+                                      'orders_view',
+                                      'orders_view_assigned_only',
+                                    ]);
+                                  availableDrivers =
+                                      currentDriver != null &&
+                                          drivers.every(
+                                            (driver) =>
+                                                driver.id != currentDriver!.id,
+                                          )
+                                      ? [...drivers, currentDriver]
+                                      : drivers;
+                                });
                               }
                             },
                           ),
 
                           // ================= المحطة (لعامل المحطة فقط) =================
+                          if (roleValue == 'driver') ...[
+                            const SizedBox(height: 16),
+                            DropdownButtonFormField<String>(
+                              value:
+                                  availableDrivers.any(
+                                    (driver) => driver.id == selectedDriverId,
+                                  )
+                                  ? selectedDriverId
+                                  : null,
+                              decoration: const InputDecoration(
+                                labelText: 'السائق المرتبط',
+                              ),
+                              items: availableDrivers
+                                  .map(
+                                    (driver) => DropdownMenuItem<String>(
+                                      value: driver.id,
+                                      child: Text(driver.displayInfo),
+                                    ),
+                                  )
+                                  .toList(),
+                              validator: (value) {
+                                if (roleValue != 'driver') return null;
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'يرجى اختيار السائق المرتبط';
+                                }
+                                return null;
+                              },
+                              onChanged: (value) {
+                                setModalState(() {
+                                  selectedDriverId = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           if (roleValue == 'station_boy') ...[
                             const SizedBox(height: 16),
 
@@ -351,6 +466,72 @@ class _UserManagementViewState extends State<_UserManagementView> {
                                   });
                                 },
                               ),
+                            const SizedBox(height: 16),
+                          ],
+                          if (roleValue == 'owner_station') ...[
+                            const SizedBox(height: 16),
+                            if (isStationsLoading)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                            if (!isStationsLoading && stations.isEmpty)
+                              const Text(
+                                'لا توجد محطات متاحة',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            if (!isStationsLoading && stations.isNotEmpty) ...[
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final picked = await _pickStationsForOwner(
+                                    stations: stations,
+                                    initialSelection: selectedStationIds,
+                                  );
+                                  if (picked == null) return;
+                                  setModalState(() {
+                                    selectedStationIds
+                                      ..clear()
+                                      ..addAll(picked);
+                                  });
+                                },
+                                icon: const Icon(Icons.alt_route_rounded),
+                                label: Text(
+                                  selectedStationIds.isEmpty
+                                      ? 'اختيار المحطات'
+                                      : 'المحطات المختارة (${selectedStationIds.length})',
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              if (selectedStationIds.isEmpty)
+                                const Text(
+                                  'يرجى اختيار محطة واحدة على الأقل',
+                                  style: TextStyle(color: Colors.red),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: stations
+                                      .where(
+                                        (station) => selectedStationIds
+                                            .contains(station.id),
+                                      )
+                                      .map(
+                                        (station) => Chip(
+                                          label: Text(station.stationName),
+                                          backgroundColor: AppColors.primaryBlue
+                                              .withOpacity(0.08),
+                                          side: BorderSide(
+                                            color: AppColors.primaryBlue
+                                                .withOpacity(0.18),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                            ],
                             const SizedBox(height: 16),
                           ],
 
@@ -404,16 +585,35 @@ class _UserManagementViewState extends State<_UserManagementView> {
                               onPressed: provider.isSaving
                                   ? null
                                   : () async {
+                                      if (roleValue == 'owner_station' &&
+                                          selectedStationIds.isEmpty) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'يرجى اختيار محطة واحدة على الأقل',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
                                       if (!formKey.currentState!.validate())
                                         return;
 
                                       final Map<String, dynamic> payload = {
                                         'name': nameController.text.trim(),
+                                        'username': usernameController.text
+                                            .trim(),
                                         'email': emailController.text.trim(),
                                         'company': companyController.text
                                             .trim(),
                                         'phone': phoneController.text.trim(),
                                         'role': roleValue,
+                                        'driverId': roleValue == 'driver'
+                                            ? selectedDriverId
+                                            : null,
                                         'permissions': selectedPermissions
                                             .toList(),
                                       };
@@ -423,6 +623,10 @@ class _UserManagementViewState extends State<_UserManagementView> {
                                           selectedStationId != null) {
                                         payload['stationId'] =
                                             selectedStationId;
+                                      }
+                                      if (roleValue == 'owner_station') {
+                                        payload['stationIds'] =
+                                            selectedStationIds.toList();
                                       }
 
                                       // ✅ كلمة المرور
@@ -487,6 +691,63 @@ class _UserManagementViewState extends State<_UserManagementView> {
                   ),
                 ),
               ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<Set<String>?> _pickStationsForOwner({
+    required List<dynamic> stations,
+    required Set<String> initialSelection,
+  }) async {
+    final tempSelection = Set<String>.from(initialSelection);
+
+    return showDialog<Set<String>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('اختيار محطات المالك'),
+              content: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: stations.map<Widget>((station) {
+                      final isChecked = tempSelection.contains(station.id);
+                      return CheckboxListTile(
+                        value: isChecked,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text(station.stationName),
+                        subtitle: Text(station.stationCode),
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              tempSelection.add(station.id);
+                            } else {
+                              tempSelection.remove(station.id);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, tempSelection),
+                  child: const Text('تطبيق'),
+                ),
+              ],
             );
           },
         );
@@ -996,6 +1257,26 @@ class _UserManagementViewState extends State<_UserManagementView> {
                         user.email,
                         style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
+                      if (user.username.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.alternate_email,
+                              size: 14,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              user.username,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         user.company,
@@ -1170,6 +1451,14 @@ class _UserManagementViewState extends State<_UserManagementView> {
                         user.email,
                         style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
+                      if (user.username.isNotEmpty)
+                        Text(
+                          '@${user.username}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
+                        ),
                       const SizedBox(height: 2),
                       Text(
                         user.company,

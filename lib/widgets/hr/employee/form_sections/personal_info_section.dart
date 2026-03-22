@@ -57,7 +57,11 @@ class PersonalInfoSection extends StatelessWidget {
         children: [
           _buildTextField('الاسم', name, onNameChanged),
           const SizedBox(height: 12),
-          _buildTextField('الاسم بالإنجليزية', nameEnglish, onNameEnglishChanged),
+          _buildTextField(
+            'الاسم بالإنجليزية',
+            nameEnglish,
+            onNameEnglishChanged,
+          ),
           const SizedBox(height: 12),
           _buildTextField('رقم الهوية', nationalId, onNationalIdChanged),
           const SizedBox(height: 12),

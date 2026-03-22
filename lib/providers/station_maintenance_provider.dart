@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/station_maintenance_models.dart';
+import 'package:order_tracker/services/firebase_storage_service.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
 
@@ -25,17 +26,43 @@ class StationMaintenanceProvider with ChangeNotifier {
   }
 
   Future<List<User>> fetchTechnicians({String? search}) async {
-    final query = StringBuffer('/users?limit=200&role=maintenance_station');
-    if (search != null && search.trim().isNotEmpty) {
-      query.write('&search=${Uri.encodeQueryComponent(search.trim())}');
+    try {
+      final query = StringBuffer('/users?limit=200&role=maintenance_station');
+      if (search != null && search.trim().isNotEmpty) {
+        query.write('&search=${Uri.encodeQueryComponent(search.trim())}');
+      }
+
+      final response = await ApiService.get(query.toString());
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      if (decoded is! Map) {
+        throw const FormatException('Unexpected users response');
+      }
+
+      final data = Map<String, dynamic>.from(decoded);
+      final rawUsers = _extractUsersList(data);
+      final technicians = <User>[];
+
+      for (final rawUser in rawUsers) {
+        if (rawUser is! Map) continue;
+        try {
+          final user = User.fromJson(Map<String, dynamic>.from(rawUser));
+          if (user.id.trim().isNotEmpty && _isTechnicianRole(user.role)) {
+            technicians.add(user);
+          }
+        } catch (e, s) {
+          debugPrint(
+            'Skipping invalid technician record in station maintenance: $e',
+          );
+          debugPrintStack(stackTrace: s);
+        }
+      }
+
+      return technicians;
+    } catch (e, s) {
+      debugPrint('StationMaintenanceProvider.fetchTechnicians failed: $e');
+      debugPrintStack(stackTrace: s);
+      throw Exception(_readableTechnicianError(e));
     }
-    final response = await ApiService.get(query.toString());
-    final data = json.decode(utf8.decode(response.bodyBytes));
-    final rawUsers = (data['users'] as List<dynamic>? ?? []);
-    return rawUsers
-        .map((user) => User.fromJson(Map<String, dynamic>.from(user as Map)))
-        .where((user) => _isTechnicianRole(user.role))
-        .toList();
   }
 
   Future<void> fetchRequests({
@@ -43,6 +70,7 @@ class StationMaintenanceProvider with ChangeNotifier {
     String? status,
     String? type,
     String? technicianId,
+    String? entryType,
   }) async {
     _isLoading = true;
     _error = null;
@@ -62,13 +90,18 @@ class StationMaintenanceProvider with ChangeNotifier {
       if (technicianId != null && technicianId.trim().isNotEmpty) {
         params['technicianId'] = technicianId.trim();
       }
+      if (entryType != null && entryType.trim().isNotEmpty) {
+        params['entryType'] = entryType.trim();
+      }
 
       final query = params.isNotEmpty
           ? '?${Uri(queryParameters: params).query}'
           : '';
 
       final response = await http.get(
-        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.stationMaintenance}$query'),
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.stationMaintenance}$query',
+        ),
         headers: ApiService.headers,
       );
 
@@ -166,6 +199,7 @@ class StationMaintenanceProvider with ChangeNotifier {
     String? googleMapsUrl,
     String? technicianName,
     String? stationId,
+    bool? needsMaintenance,
   }) async {
     _isLoading = true;
     _error = null;
@@ -178,7 +212,11 @@ class StationMaintenanceProvider with ChangeNotifier {
         'title': title.trim(),
         'description': description.trim(),
         'technicianId': technicianId,
+        'entryType': 'manager_request',
       };
+      if (needsMaintenance != null) {
+        payload['needsMaintenance'] = needsMaintenance;
+      }
       if (stationAddress != null && stationAddress.trim().isNotEmpty) {
         payload['stationAddress'] = stationAddress.trim();
       }
@@ -193,6 +231,84 @@ class StationMaintenanceProvider with ChangeNotifier {
       }
       if (technicianName != null && technicianName.trim().isNotEmpty) {
         payload['technicianName'] = technicianName.trim();
+      }
+      if (stationId != null && stationId.trim().isNotEmpty) {
+        payload['stationId'] = stationId.trim();
+      }
+
+      final response = await ApiService.post(
+        ApiEndpoints.stationMaintenance,
+        payload,
+      );
+      final body = json.decode(utf8.decode(response.bodyBytes));
+      final request = StationMaintenanceRequest.fromJson(
+        Map<String, dynamic>.from(body['data'] as Map),
+      );
+      _upsertRequest(request);
+      return request;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<StationMaintenanceRequest?> createTechnicianReport({
+    required String stationName,
+    required String title,
+    required String description,
+    required bool needsMaintenance,
+    List<XFile> photoFiles = const [],
+    List<XFile> videoFiles = const [],
+    String? technicianNotes,
+    String? stationAddress,
+    double? stationLat,
+    double? stationLng,
+    String? googleMapsUrl,
+    String? stationId,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final uploadKey =
+          'technician-report-${DateTime.now().millisecondsSinceEpoch}';
+      final photoAttachments = await _uploadStationMaintenanceMedia(
+        requestId: uploadKey,
+        section: 'report-photos',
+        files: photoFiles,
+      );
+      final videoAttachments = await _uploadStationMaintenanceMedia(
+        requestId: uploadKey,
+        section: 'report-videos',
+        files: videoFiles,
+      );
+
+      final payload = <String, dynamic>{
+        'entryType': 'technician_report',
+        'type': needsMaintenance ? 'maintenance' : 'other',
+        'needsMaintenance': needsMaintenance,
+        'stationName': stationName.trim(),
+        'title': title.trim(),
+        'description': description.trim(),
+        'technicianNotes': technicianNotes?.trim() ?? '',
+        'photoAttachments': photoAttachments,
+        'videoAttachments': videoAttachments,
+      };
+      if (stationAddress != null && stationAddress.trim().isNotEmpty) {
+        payload['stationAddress'] = stationAddress.trim();
+      }
+      if (stationLat != null) {
+        payload['stationLat'] = stationLat;
+      }
+      if (stationLng != null) {
+        payload['stationLng'] = stationLng;
+      }
+      if (googleMapsUrl != null && googleMapsUrl.trim().isNotEmpty) {
+        payload['googleMapsUrl'] = googleMapsUrl.trim();
       }
       if (stationId != null && stationId.trim().isNotEmpty) {
         payload['stationId'] = stationId.trim();
@@ -250,6 +366,22 @@ class StationMaintenanceProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final beforePhotoAttachments = await _uploadStationMaintenanceMedia(
+        requestId: id,
+        section: 'before-photos',
+        files: beforeImages,
+      );
+      final afterPhotoAttachments = await _uploadStationMaintenanceMedia(
+        requestId: id,
+        section: 'after-photos',
+        files: afterImages,
+      );
+      final videoAttachments = await _uploadStationMaintenanceMedia(
+        requestId: id,
+        section: 'videos',
+        files: videos,
+      );
+
       final request = http.MultipartRequest(
         'PATCH',
         Uri.parse(
@@ -264,16 +396,13 @@ class StationMaintenanceProvider with ChangeNotifier {
 
       request.fields['technicianNotes'] = technicianNotes.trim();
       request.fields['invoices'] = json.encode(invoices);
-
-      for (final file in beforeImages) {
-        await _addXFile(request, file, 'beforeImages');
-      }
-      for (final file in afterImages) {
-        await _addXFile(request, file, 'afterImages');
-      }
-      for (final file in videos) {
-        await _addXFile(request, file, 'videos');
-      }
+      request.fields['beforePhotoAttachments'] = json.encode(
+        beforePhotoAttachments,
+      );
+      request.fields['afterPhotoAttachments'] = json.encode(
+        afterPhotoAttachments,
+      );
+      request.fields['videoAttachments'] = json.encode(videoAttachments);
       for (final file in invoiceFiles) {
         await _addPlatformFile(request, file, 'invoiceFiles');
       }
@@ -351,29 +480,22 @@ class StationMaintenanceProvider with ChangeNotifier {
     }
   }
 
-  Future<void> _addXFile(
-    http.MultipartRequest request,
-    XFile file,
-    String fieldName,
-  ) async {
-    if (kIsWeb) {
-      final bytes = await file.readAsBytes();
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          fieldName,
-          bytes,
-          filename: file.name,
-        ),
-      );
-    } else {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          fieldName,
-          file.path,
-          filename: file.name,
+  Future<List<Map<String, dynamic>>> _uploadStationMaintenanceMedia({
+    required String requestId,
+    required String section,
+    required List<XFile> files,
+  }) async {
+    final attachments = <Map<String, dynamic>>[];
+    for (final file in files) {
+      attachments.add(
+        await FirebaseStorageService.uploadStationMaintenanceMedia(
+          requestId: requestId,
+          section: section,
+          file: file,
         ),
       );
     }
+    return attachments;
   }
 
   Future<void> _addPlatformFile(
@@ -394,12 +516,55 @@ class StationMaintenanceProvider with ChangeNotifier {
       final path = file.path;
       if (path == null || path.isEmpty) return;
       request.files.add(
-        await http.MultipartFile.fromPath(
-          fieldName,
-          path,
-          filename: file.name,
-        ),
+        await http.MultipartFile.fromPath(fieldName, path, filename: file.name),
       );
     }
+  }
+
+  List<dynamic> _extractUsersList(Map<String, dynamic> data) {
+    final directUsers = data['users'];
+    if (directUsers is List<dynamic>) {
+      return directUsers;
+    }
+
+    final nestedData = data['data'];
+    if (nestedData is List<dynamic>) {
+      return nestedData;
+    }
+
+    if (nestedData is Map) {
+      final nestedUsers = nestedData['users'];
+      if (nestedUsers is List<dynamic>) {
+        return nestedUsers;
+      }
+    }
+
+    return const <dynamic>[];
+  }
+
+  String _readableTechnicianError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+
+    if (message.contains('Auth token not initialized')) {
+      return 'جلسة الدخول غير مهيأة. أعد تسجيل الدخول ثم حاول مرة أخرى.';
+    }
+
+    if (message.startsWith('API Error:')) {
+      return 'فشل تحميل الفنيين من الخادم ($message).';
+    }
+
+    if (message.startsWith('FormatException')) {
+      return 'استجابة الخادم غير صالحة أثناء تحميل الفنيين.';
+    }
+
+    if (message.startsWith("Instance of 'minified:")) {
+      return 'حدث خطأ غير واضح أثناء قراءة بيانات الفنيين في المتصفح.';
+    }
+
+    if (message.isEmpty) {
+      return 'حدث خطأ غير متوقع أثناء تحميل الفنيين.';
+    }
+
+    return message;
   }
 }

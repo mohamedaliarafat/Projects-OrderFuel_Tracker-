@@ -110,10 +110,7 @@ class CustomerItem extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: statusColor.withOpacity(0.3),
-          width: 1,
-        ),
+        side: BorderSide(color: statusColor.withOpacity(0.3), width: 1),
       ),
       child: InkWell(
         onTap: onTap,
@@ -225,9 +222,7 @@ class CustomerItem extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: statusColor,
-                          ),
+                          border: Border.all(color: statusColor),
                         ),
                         child: Text(
                           statusLabel,
@@ -406,10 +401,10 @@ class CustomerItem extends StatelessWidget {
 }
 
 // Customer Item Compact (للـ ListView)
-  class CustomerItemCompact extends StatelessWidget {
-    final Customer customer;
-    final VoidCallback onTap;
-    final bool showActions;
+class CustomerItemCompact extends StatelessWidget {
+  final Customer customer;
+  final VoidCallback onTap;
+  final bool showActions;
 
   const CustomerItemCompact({
     super.key,

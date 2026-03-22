@@ -5,7 +5,11 @@ import 'package:order_tracker/utils/constants.dart';
 class SupplierRatingChart extends StatelessWidget {
   final List<dynamic> suppliers;
 
-  const SupplierRatingChart({super.key, required this.suppliers, required bool isLargeScreen});
+  const SupplierRatingChart({
+    super.key,
+    required this.suppliers,
+    required bool isLargeScreen,
+  });
 
   @override
   Widget build(BuildContext context) {

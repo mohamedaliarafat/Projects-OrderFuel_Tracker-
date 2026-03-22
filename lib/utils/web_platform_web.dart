@@ -30,12 +30,35 @@ bool isGoogleMapsReady() {
   return google != null && js_util.hasProperty(google, 'maps');
 }
 
+String? googleMapsLoadState() {
+  try {
+    final value = js_util.getProperty(
+      js_util.globalThis,
+      '__googleMapsLoadState',
+    );
+    return value?.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
+String? googleMapsLoadError() {
+  try {
+    final value = js_util.getProperty(
+      js_util.globalThis,
+      '__googleMapsLoadError',
+    );
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  } catch (_) {
+    return null;
+  }
+}
+
 Future<void> downloadUrl(String url, {String? filename}) async {
   final anchor = html.AnchorElement(href: url)
-    ..setAttribute(
-      'download',
-      filename ?? '',
-    )
+    ..setAttribute('download', filename ?? '')
     ..setAttribute('target', '_blank')
     ..click();
 }

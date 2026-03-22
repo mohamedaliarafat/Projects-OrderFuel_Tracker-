@@ -19,9 +19,9 @@ class Customer {
   final String status;
   final String createdById;
   final String? createdByName;
-    final DateTime createdAt;
-    final DateTime updatedAt;
-    final List<CustomerDocument> documents;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final List<CustomerDocument> documents;
 
   // ⭐ إحصائيات العميل
   final int? totalOrders;
@@ -48,14 +48,14 @@ class Customer {
     required this.status,
     required this.createdById,
     this.createdByName,
-      required this.createdAt,
-      required this.updatedAt,
-      this.totalOrders,
-      this.totalSpent,
-      this.lastOrderDate,
-      this.customerType,
-      this.documents = const [],
-    });
+    required this.createdAt,
+    required this.updatedAt,
+    this.totalOrders,
+    this.totalSpent,
+    this.lastOrderDate,
+    this.customerType,
+    this.documents = const [],
+  });
 
   factory Customer.empty() {
     return Customer(
@@ -310,7 +310,8 @@ class CustomerDocument {
       label: json['label']?.toString(),
       uploadedById: uploadedById,
       uploadedByName: json['uploadedByName']?.toString(),
-      uploadedAt: DateTime.tryParse(json['uploadedAt']?.toString() ?? '') ??
+      uploadedAt:
+          DateTime.tryParse(json['uploadedAt']?.toString() ?? '') ??
           DateTime.now(),
     );
   }

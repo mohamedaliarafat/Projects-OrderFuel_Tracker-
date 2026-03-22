@@ -38,16 +38,8 @@ class _LocationFilterDialogState extends State<LocationFilterDialog> {
     'مستودع',
     'فرع',
   ];
-  final List<String> _statusOptions = [
-    'جميع الحالات',
-    'نشط',
-    'غير نشط',
-  ];
-  final List<String> _sortOptions = [
-    'الأحدث',
-    'الأقدم',
-    'الاسم',
-  ];
+  final List<String> _statusOptions = ['جميع الحالات', 'نشط', 'غير نشط'];
+  final List<String> _sortOptions = ['الأحدث', 'الأقدم', 'الاسم'];
 
   @override
   void initState() {

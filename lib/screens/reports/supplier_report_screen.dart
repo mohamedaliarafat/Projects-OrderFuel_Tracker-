@@ -6,6 +6,8 @@ import 'package:order_tracker/widgets/reports/export_options.dart';
 import 'package:order_tracker/widgets/reports/report_filters.dart';
 import 'package:order_tracker/widgets/reports/report_summary.dart';
 import 'package:order_tracker/widgets/reports/supplier_rating_chart.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:printing/printing.dart';
 
 class SupplierReportScreen extends StatefulWidget {
@@ -136,7 +138,6 @@ class _SupplierReportScreenState extends State<SupplierReportScreen> {
     }
   }
 
-
   Future<void> _exportToExcel() async {
     try {
       await _reportProvider.exportExcel(
@@ -163,6 +164,18 @@ class _SupplierReportScreenState extends State<SupplierReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تقارير الموردين'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           if (isLargeScreen) ...[
             _buildDesktopSortButton(),
@@ -189,52 +202,106 @@ class _SupplierReportScreenState extends State<SupplierReportScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filters Summary
-          if (_filters.isNotEmpty) _buildFiltersSummary(isLargeScreen),
-
-          // Report Summary
-          ReportSummary(
-            title: 'ملخص تقرير الموردين',
-            statistics: _summary,
-            period: _filters,
-          ),
-
-          // Sorting Info and View Toggle
-          _buildHeaderSection(isLargeScreen, isMediumScreen, isSmallScreen),
-
-          // Content
-          Expanded(
-            child: _isLoading && _suppliers.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _suppliers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.business,
-                          size: 64,
-                          color: AppColors.mediumGray,
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1500),
+                child: Column(
+                  children: [
+                    if (_filters.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isLargeScreen ? 24 : 16,
+                          14,
+                          isLargeScreen ? 24 : 16,
+                          0,
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'لا توجد بيانات للموردين',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
-                      ],
+                        child: _buildFiltersSummary(isLargeScreen),
+                      ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isLargeScreen ? 24 : 16,
+                        14,
+                        isLargeScreen ? 24 : 16,
+                        0,
+                      ),
+                      child: ReportSummary(
+                        title: 'ملخص تقرير الموردين',
+                        statistics: _summary,
+                        period: _filters,
+                      ),
                     ),
-                  )
-                : _showChart
-                ? SupplierRatingChart(
-                    suppliers: _suppliers,
-                    isLargeScreen: isLargeScreen,
-                  )
-                : _buildSuppliersView(isLargeScreen, isMediumScreen),
+                    _buildHeaderSection(
+                      isLargeScreen,
+                      isMediumScreen,
+                      isSmallScreen,
+                    ),
+                    Expanded(
+                      child: _isLoading && _suppliers.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : _suppliers.isEmpty
+                          ? Center(
+                              child: AppSurfaceCard(
+                                padding: const EdgeInsets.all(22),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppColors.successGreen
+                                            .withValues(alpha: 0.10),
+                                        border: Border.all(
+                                          color: AppColors.successGreen
+                                              .withValues(alpha: 0.18),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.business_rounded,
+                                        size: 34,
+                                        color: AppColors.successGreen,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'لا توجد بيانات للموردين',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'جرّب تغيير الفلاتر أو الفترة الزمنية.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : _showChart
+                          ? SupplierRatingChart(
+                              suppliers: _suppliers,
+                              isLargeScreen: isLargeScreen,
+                            )
+                          : _buildSuppliersView(isLargeScreen, isMediumScreen),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -453,22 +520,24 @@ class _SupplierReportScreenState extends State<SupplierReportScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.backgroundGray,
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
               ),
               child: Row(
                 children: [
                   Icon(
-                    _showChart ? Icons.list : Icons.bar_chart,
+                    _showChart ? Icons.list_rounded : Icons.bar_chart_rounded,
                     size: 14,
-                    color: AppColors.mediumGray,
+                    color: const Color(0xFF64748B),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     _showChart ? 'عرض القائمة' : 'عرض الرسوم',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.mediumGray,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -487,49 +556,56 @@ class _SupplierReportScreenState extends State<SupplierReportScreen> {
 
     if (filtersList.isEmpty) return const SizedBox();
 
-    return Container(
+    return AppSurfaceCard(
       padding: EdgeInsets.symmetric(
-        horizontal: isLargeScreen ? 24 : 16,
-        vertical: isLargeScreen ? 12 : 8,
+        horizontal: isLargeScreen ? 18 : 14,
+        vertical: isLargeScreen ? 14 : 12,
       ),
-      color: AppColors.backgroundGray,
       child: Row(
         children: [
-          const Icon(Icons.filter_list, size: 16, color: AppColors.mediumGray),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.filter_list_rounded,
+            size: 18,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.60),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: filtersList
-                    .map(
-                      (filter) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.lightGray),
-                        ),
-                        child: Text(
-                          filter,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mediumGray,
-                          ),
-                        ),
+                children: filtersList.map((filter) {
+                  return Container(
+                    margin: const EdgeInsetsDirectional.only(end: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.06),
                       ),
-                    )
-                    .toList(),
+                    ),
+                    child: Text(
+                      filter,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.clear, size: 16),
+            tooltip: 'مسح الفلاتر',
+            icon: const Icon(Icons.clear_rounded, size: 18),
             onPressed: () => _applyFilters({}),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.55),
           ),
         ],
       ),
@@ -647,197 +723,177 @@ class _SupplierReportScreenState extends State<SupplierReportScreen> {
   }) {
     final rating = (supplier['rating'] ?? 0).toDouble();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => _showSupplierDetails(supplier),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: EdgeInsets.all(isDesktop ? 16 : 12),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
+    return AppSurfaceCard(
+      onTap: () => _showSupplierDetails(supplier),
+      padding: EdgeInsets.all(isDesktop ? 16 : 12),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// ================= Header =================
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// ================= Header =================
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            supplier['supplierName'] ?? 'غير معروف',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isDesktop ? 17 : 15,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            supplier['supplierCompany'] ?? '--',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: isDesktop ? 13 : 12,
-                              color: AppColors.mediumGray,
-                            ),
-                          ),
-                        ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        supplier['supplierName'] ?? 'غير معروف',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isDesktop ? 17 : 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        supplier['supplierCompany'] ?? '--',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isDesktop ? 13 : 12,
+                          color: AppColors.mediumGray,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildRatingStars(rating, isDesktop: isDesktop),
+              ],
+            ),
+
+            SizedBox(height: isDesktop ? 10 : 8),
+
+            /// ================= Contact =================
+            Row(
+              children: [
+                Icon(Icons.person, size: 16, color: AppColors.mediumGray),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    supplier['supplierContactPerson'] ?? '--',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: isDesktop ? 14 : 13),
+                  ),
+                ),
+                if (supplier['supplierPhone'] != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.phone, size: 16, color: AppColors.mediumGray),
+                  const SizedBox(width: 4),
+                  Text(
+                    supplier['supplierPhone'],
+                    style: TextStyle(fontSize: isDesktop ? 14 : 13),
+                  ),
+                ],
+              ],
+            ),
+
+            SizedBox(height: isDesktop ? 8 : 6),
+
+            /// ================= Type & Contract =================
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getTypeColor(
+                      supplier['supplierType'],
+                    ).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    supplier['supplierType'] ?? 'أخرى',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _getTypeColor(supplier['supplierType']),
+                    ),
+                  ),
+                ),
+                if (supplier['isUnderContract'] == true) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.successGreen.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'تعاقد',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.successGreen,
                       ),
                     ),
-                    _buildRatingStars(rating, isDesktop: isDesktop),
-                  ],
-                ),
+                  ),
+                ],
+              ],
+            ),
 
-                SizedBox(height: isDesktop ? 10 : 8),
+            SizedBox(height: isDesktop ? 12 : 10),
 
-                /// ================= Contact =================
+            /// ================= Stats =================
+            if (isDesktop) _buildDesktopSupplierStats(supplier),
+            if (isTablet) _buildTabletSupplierStats(supplier),
+            if (!isDesktop && !isTablet) _buildMobileSupplierStats(supplier),
+
+            SizedBox(height: isDesktop ? 12 : 10),
+
+            /// ================= Financial Summary =================
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundGray,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: _buildFinancialSummary(supplier, isDesktop),
+            ),
+
+            if (isDesktop || isTablet) ...[
+              SizedBox(height: isDesktop ? 10 : 8),
+
+              /// ================= Contract Dates =================
+              if (supplier['contractStartDate'] != null ||
+                  supplier['contractEndDate'] != null)
                 Row(
                   children: [
-                    Icon(Icons.person, size: 16, color: AppColors.mediumGray),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: AppColors.mediumGray,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        supplier['supplierContactPerson'] ?? '--',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: isDesktop ? 14 : 13),
-                      ),
-                    ),
-                    if (supplier['supplierPhone'] != null) ...[
-                      const SizedBox(width: 8),
-                      Icon(Icons.phone, size: 16, color: AppColors.mediumGray),
-                      const SizedBox(width: 4),
-                      Text(
-                        supplier['supplierPhone'],
-                        style: TextStyle(fontSize: isDesktop ? 14 : 13),
-                      ),
-                    ],
-                  ],
-                ),
-
-                SizedBox(height: isDesktop ? 8 : 6),
-
-                /// ================= Type & Contract =================
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getTypeColor(
-                          supplier['supplierType'],
-                        ).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        supplier['supplierType'] ?? 'أخرى',
+                        'العقد: ${_formatDate(supplier['contractStartDate'])} - ${_formatDate(supplier['contractEndDate'])}',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: _getTypeColor(supplier['supplierType']),
-                        ),
-                      ),
-                    ),
-                    if (supplier['isUnderContract'] == true) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.successGreen.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'تعاقد',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.successGreen,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-
-                SizedBox(height: isDesktop ? 12 : 10),
-
-                /// ================= Stats =================
-                if (isDesktop) _buildDesktopSupplierStats(supplier),
-                if (isTablet) _buildTabletSupplierStats(supplier),
-                if (!isDesktop && !isTablet)
-                  _buildMobileSupplierStats(supplier),
-
-                SizedBox(height: isDesktop ? 12 : 10),
-
-                /// ================= Financial Summary =================
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundGray,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: _buildFinancialSummary(supplier, isDesktop),
-                ),
-
-                if (isDesktop || isTablet) ...[
-                  SizedBox(height: isDesktop ? 10 : 8),
-
-                  /// ================= Contract Dates =================
-                  if (supplier['contractStartDate'] != null ||
-                      supplier['contractEndDate'] != null)
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
+                          fontSize: isDesktop ? 12 : 11,
                           color: AppColors.mediumGray,
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'العقد: ${_formatDate(supplier['contractStartDate'])} - ${_formatDate(supplier['contractEndDate'])}',
-                            style: TextStyle(
-                              fontSize: isDesktop ? 12 : 11,
-                              color: AppColors.mediumGray,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                ],
+                  ],
+                ),
+            ],
 
-                if (isDesktop)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.more_vert, size: 20),
-                      onPressed: () => _showSupplierOptions(supplier),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+            if (isDesktop)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onPressed: () => _showSupplierOptions(supplier),
+                ),
+              ),
+          ],
         ),
       ),
     );

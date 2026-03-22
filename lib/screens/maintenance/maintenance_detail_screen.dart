@@ -396,7 +396,10 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
       appBar: AppBar(
         title: Text(
           'صيانة ${record['plateNumber']}',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
           selectionColor: Colors.white,
         ),
         actions: [
@@ -439,7 +442,7 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
                 Navigator.pushNamed(
                   context,
                   AppRoutes.maintenanceEdit,
-                  arguments: record, 
+                  arguments: record,
                 );
               } else if (value == 'supervisor' && isSupervisor) {
                 _showSupervisorActions();
@@ -1558,14 +1561,15 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
                                                     : 'view', // 👈 هنا القرار
                                                 'plateNumber':
                                                     record['plateNumber'],
-                                                'driverName': record['driverName'],
+                                                'driverName':
+                                                    record['driverName'],
                                               },
                                             ),
                                           ),
                                         );
                                       },
                                     ),
-                                // =========================
+                                    // =========================
                                     // 🛢️ Oil Change Approval (Manager Only)
                                     // =========================
                                     if (isSupervisor &&
@@ -1638,8 +1642,6 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
                                         ),
                                       ),
 
-                                
-                                
                                     if (isSupervisor &&
                                         check['status'] == 'under_review')
                                       Padding(

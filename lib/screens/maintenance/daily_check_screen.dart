@@ -88,8 +88,6 @@ class _DailyCheckScreenState extends State<DailyCheckScreen> {
     });
   }
 
-  
-
   void _loadExistingData() {
     final String mode = widget.args['mode'] ?? 'edit';
 
@@ -279,13 +277,14 @@ class _DailyCheckScreenState extends State<DailyCheckScreen> {
 
   String _resolveMaintenanceStatusText() {
     final dailyCheck = widget.args['dailyCheck'] as Map<String, dynamic>?;
-    final raw = (dailyCheck?['status'] ??
-            widget.args['status'] ??
-            widget.args['maintenanceStatus'] ??
-            widget.args['approvalStatus'] ??
-            '')
-        .toString()
-        .trim();
+    final raw =
+        (dailyCheck?['status'] ??
+                widget.args['status'] ??
+                widget.args['maintenanceStatus'] ??
+                widget.args['approvalStatus'] ??
+                '')
+            .toString()
+            .trim();
 
     if (raw.isEmpty) return '';
     if (raw.contains('قيد')) return 'قيد المراجعة';
@@ -317,104 +316,101 @@ class _DailyCheckScreenState extends State<DailyCheckScreen> {
     _startExportDialog();
 
     try {
-    // ===============================
-    // 🔹 تحميل الخط العربي (مرة واحدة)
-    // ===============================
-    final arabicFont = pw.Font.ttf(
-      await rootBundle.load('assets/fonts/Cairo-Regular.ttf'),
-    );
+      // ===============================
+      // 🔹 تحميل الخط العربي (مرة واحدة)
+      // ===============================
+      final arabicFont = pw.Font.ttf(
+        await rootBundle.load('assets/fonts/Cairo-Regular.ttf'),
+      );
 
-    // ===============================
-    // 🔹 تحميل الشعار
-    // ===============================
-    final logoData = await rootBundle.load('assets/images/logo.png');
-    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+      // ===============================
+      // 🔹 تحميل الشعار
+      // ===============================
+      final logoData = await rootBundle.load('assets/images/logo.png');
+      final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
-    final dailyCheck = widget.args['dailyCheck'] as Map<String, dynamic>?;
-    final checkDate = widget.args['date'] as DateTime? ?? DateTime.now();
-    final headerInfo = <String, dynamic>{};
-    if (dailyCheck != null) {
-      headerInfo.addAll(dailyCheck);
-    }
-    headerInfo['plateNumber'] ??= widget.args['plateNumber'];
-    headerInfo['driverName'] ??= widget.args['driverName'];
+      final dailyCheck = widget.args['dailyCheck'] as Map<String, dynamic>?;
+      final checkDate = widget.args['date'] as DateTime? ?? DateTime.now();
+      final headerInfo = <String, dynamic>{};
+      if (dailyCheck != null) {
+        headerInfo.addAll(dailyCheck);
+      }
+      headerInfo['plateNumber'] ??= widget.args['plateNumber'];
+      headerInfo['driverName'] ??= widget.args['driverName'];
 
-    final statusText = _resolveMaintenanceStatusText();
-    final watermarkColor = _statusWatermarkColor(statusText);
+      final statusText = _resolveMaintenanceStatusText();
+      final watermarkColor = _statusWatermarkColor(statusText);
 
-    final pdf = pw.Document();
+      final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageTheme: pw.PageTheme(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(20),
-          theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFont),
-          textDirection: pw.TextDirection.rtl,
-          buildBackground: (context) {
-            if (statusText.isEmpty) return pw.SizedBox();
-            return pw.Stack(
-              children: [
-                pw.Positioned.fill(
-                  child: pw.Center(
-                    child: pw.Opacity(
-                      opacity: 0.18,
-                      child: pw.Transform.rotate(
-                        angle: -0.35,
-                        child: pw.Text(
-                          statusText,
-                          style: pw.TextStyle(
-                            fontSize: 64,
-                            fontWeight: pw.FontWeight.bold,
-                            color: watermarkColor,
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: pw.PageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(20),
+            theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFont),
+            textDirection: pw.TextDirection.rtl,
+            buildBackground: (context) {
+              if (statusText.isEmpty) return pw.SizedBox();
+              return pw.Stack(
+                children: [
+                  pw.Positioned.fill(
+                    child: pw.Center(
+                      child: pw.Opacity(
+                        opacity: 0.18,
+                        child: pw.Transform.rotate(
+                          angle: -0.35,
+                          child: pw.Text(
+                            statusText,
+                            style: pw.TextStyle(
+                              fontSize: 64,
+                              fontWeight: pw.FontWeight.bold,
+                              color: watermarkColor,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
+                ],
+              );
+            },
+          ),
+          header: (context) {
+            return _buildPdfHeader(logoImage, headerInfo, checkDate);
+          },
+          footer: (context) {
+            return pw.Column(
+              children: [
+                _buildPdfFooter(
+                  maintenanceOfficerName:
+                      widget.args['maintenanceOfficerName'] ?? 'مسؤول الصيانة',
                 ),
+                pw.SizedBox(height: 5),
+                _buildPdfBottomDividerWithAddress(),
               ],
             );
           },
+          build: (context) => [pw.SizedBox(height: 10), _buildPdfTable()],
         ),
-        header: (context) {
-          return _buildPdfHeader(logoImage, headerInfo, checkDate);
-        },
-        footer: (context) {
-          return pw.Column(
-            children: [
-              _buildPdfFooter(
-                maintenanceOfficerName:
-                    widget.args['maintenanceOfficerName'] ?? 'مسؤول الصيانة',
-              ),
-              pw.SizedBox(height: 5),
-              _buildPdfBottomDividerWithAddress(),
-            ],
-          );
-        },
-        build: (context) => [
-          pw.SizedBox(height: 10),
-          _buildPdfTable(),
-        ],
-      ),
-    );
-
-    // ===============================
-    // 🔹 تصدير / تحميل
-    // ===============================
-    final bytes = await pdf.save();
-    final formattedDate = DateFormat('yyyyMMdd').format(checkDate);
-    final plate = (headerInfo['plateNumber'] ?? '').toString().trim();
-    final safePlate = plate.isEmpty ? 'vehicle' : plate;
-    final fileName = 'daily_check_${safePlate}_$formattedDate.pdf';
-
-    await Printing.sharePdf(bytes: bytes, filename: fileName);
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حدث خطأ أثناء التصدير: $e')),
       );
-    }
+
+      // ===============================
+      // 🔹 تصدير / تحميل
+      // ===============================
+      final bytes = await pdf.save();
+      final formattedDate = DateFormat('yyyyMMdd').format(checkDate);
+      final plate = (headerInfo['plateNumber'] ?? '').toString().trim();
+      final safePlate = plate.isEmpty ? 'vehicle' : plate;
+      final fileName = 'daily_check_${safePlate}_$formattedDate.pdf';
+
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء التصدير: $e')));
+      }
     } finally {
       _stopExportDialog();
       if (mounted) {
@@ -491,7 +487,7 @@ class _DailyCheckScreenState extends State<DailyCheckScreen> {
     }
   }
 
-pw.Widget buildArabicInfoTable({required List<Map<String, String>> rows}) {
+  pw.Widget buildArabicInfoTable({required List<Map<String, String>> rows}) {
     return pw.Table(
       border: pw.TableBorder.all(width: 0.4, color: PdfColors.grey400),
       columnWidths: const {
@@ -533,10 +529,7 @@ pw.Widget buildArabicInfoTable({required List<Map<String, String>> rows}) {
     );
   }
 
-
-
-
-pw.Widget _buildPdfHeader(
+  pw.Widget _buildPdfHeader(
     pw.MemoryImage logoImage,
     Map<String, dynamic> record,
     DateTime checkDate,
@@ -627,12 +620,11 @@ pw.Widget _buildPdfHeader(
     );
   }
 
+  // pw.Widget _buildPdfTable() {
+  //   return pw.SizedBox.shrink();
+  // }
 
-// pw.Widget _buildPdfTable() {
-//   return pw.SizedBox.shrink();
-// }
-
-pw.Widget _buildPdfTable() {
+  pw.Widget _buildPdfTable() {
     List<Map<String, String>> rows = [
       {'label': 'قراءة العداد', 'value': _odometerController.text},
       {'label': 'تغيير الزيت', 'value': _oilChangedToday ? 'نعم' : 'لا'},
@@ -704,11 +696,7 @@ pw.Widget _buildPdfTable() {
     );
   }
 
-  
-
-
-
-pw.Widget _buildPdfFooter({required String maintenanceOfficerName}) {
+  pw.Widget _buildPdfFooter({required String maintenanceOfficerName}) {
     pw.Widget signatureLine() => pw.Column(
       children: [
         pw.SizedBox(height: 10),
@@ -759,34 +747,31 @@ pw.Widget _buildPdfFooter({required String maintenanceOfficerName}) {
     );
   }
 
- 
- 
-pw.Widget _footerPerson(String title, String name, pw.Widget signature) {
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.center,
-    children: [
-      pw.Text(
-        title,
-        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-        textAlign: pw.TextAlign.center,
-      ),
-      pw.SizedBox(height: 3),
+  pw.Widget _footerPerson(String title, String name, pw.Widget signature) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(
+          title,
+          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          textAlign: pw.TextAlign.center,
+        ),
+        pw.SizedBox(height: 3),
 
-      pw.Text(
-        name,
-        style: const pw.TextStyle(fontSize: 9),
-        textAlign: pw.TextAlign.center,
-        softWrap: true,
-        maxLines: 2,
-      ),
+        pw.Text(
+          name,
+          style: const pw.TextStyle(fontSize: 9),
+          textAlign: pw.TextAlign.center,
+          softWrap: true,
+          maxLines: 2,
+        ),
 
-      signature,
-    ],
-  );
-}
+        signature,
+      ],
+    );
+  }
 
-
-pw.Widget _footerMaintenance(String maintenanceOfficerName) {
+  pw.Widget _footerMaintenance(String maintenanceOfficerName) {
     return pw.SizedBox(
       width: 140,
       child: pw.Column(
@@ -820,9 +805,7 @@ pw.Widget _footerMaintenance(String maintenanceOfficerName) {
     );
   }
 
-
-
-pw.Widget _buildPdfBottomDividerWithAddress() {
+  pw.Widget _buildPdfBottomDividerWithAddress() {
     return pw.Directionality(
       textDirection: pw.TextDirection.rtl,
       child: pw.Container(
@@ -841,7 +824,7 @@ pw.Widget _buildPdfBottomDividerWithAddress() {
             // 📍 العنوان
             // =====================
             pw.Text(
-                 'المنطقة الصناعية – شركة البحيرة العربية للنقليات, المملكة العربية السعودية – منطقة حائل  – حائل',
+              'المنطقة الصناعية – شركة البحيرة العربية للنقليات, المملكة العربية السعودية – منطقة حائل  – حائل',
               style: const pw.TextStyle(fontSize: 10),
               textAlign: pw.TextAlign.center,
             ),
@@ -871,8 +854,6 @@ pw.Widget _buildPdfBottomDividerWithAddress() {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<MaintenanceProvider>(context);
@@ -884,23 +865,27 @@ pw.Widget _buildPdfBottomDividerWithAddress() {
     final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
-    appBar: AppBar(
-  title: Text(
-    'فحص يوم ${DateFormat('yyyy-MM-dd').format(checkDate)}',
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: isLargeScreen ? 22 : isMediumScreen ? 18 : 16,
-    ),
-  ),
-  actions: [
-    if (isViewMode || widget.args['mode'] == 'edit')
-      IconButton(
-        tooltip: 'طباعة / تصدير PDF',
-        icon: const Icon(Icons.picture_as_pdf),
-        onPressed: _isExporting ? null : _exportPdf,
+      appBar: AppBar(
+        title: Text(
+          'فحص يوم ${DateFormat('yyyy-MM-dd').format(checkDate)}',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: isLargeScreen
+                ? 22
+                : isMediumScreen
+                ? 18
+                : 16,
+          ),
+        ),
+        actions: [
+          if (isViewMode || widget.args['mode'] == 'edit')
+            IconButton(
+              tooltip: 'طباعة / تصدير PDF',
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: _isExporting ? null : _exportPdf,
+            ),
+        ],
       ),
-  ],
-),
 
       body: Center(
         child: Form(
@@ -1086,7 +1071,7 @@ pw.Widget _buildPdfBottomDividerWithAddress() {
                     ),
                   ),
 
-// =========================
+                  // =========================
                   // 🚗 Odometer Reading
                   // =========================
                   Card(
@@ -1164,7 +1149,6 @@ pw.Widget _buildPdfBottomDividerWithAddress() {
                       ),
                     ),
                   ),
-
 
                   SizedBox(
                     height: isLargeScreen
@@ -2128,8 +2112,6 @@ pw.Widget _buildPdfBottomDividerWithAddress() {
       ),
     );
   }
-
-
 
   Widget _buildCheckField({
     required String title,

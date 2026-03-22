@@ -45,11 +45,7 @@ class _AdvanceFilterDialogState extends State<AdvanceFilterDialog> {
     'المحاسبة',
     'الخدمات',
   ];
-  final List<String> _sortOptions = [
-    'الأحدث',
-    'الأقدم',
-    'المبلغ',
-  ];
+  final List<String> _sortOptions = ['الأحدث', 'الأقدم', 'المبلغ'];
 
   @override
   void initState() {
@@ -101,10 +97,7 @@ class _AdvanceFilterDialogState extends State<AdvanceFilterDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: widget.onClear,
-          child: const Text('مسح'),
-        ),
+        TextButton(onPressed: widget.onClear, child: const Text('مسح')),
         ElevatedButton(
           onPressed: widget.onApply,
           style: ElevatedButton.styleFrom(

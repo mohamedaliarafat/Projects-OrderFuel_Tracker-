@@ -339,13 +339,15 @@ class _SalariesScreenState extends State<SalariesScreen> {
     List<Salary> filteredSalaries = List.from(_hrProvider.salaries);
 
     if (_showPaidOnly) {
-      filteredSalaries =
-          filteredSalaries.where((salary) => salary.isPaid).toList();
+      filteredSalaries = filteredSalaries
+          .where((salary) => salary.isPaid)
+          .toList();
     }
 
     if (_showUnpaidOnly) {
-      filteredSalaries =
-          filteredSalaries.where((salary) => !salary.isPaid).toList();
+      filteredSalaries = filteredSalaries
+          .where((salary) => !salary.isPaid)
+          .toList();
     }
 
     if (_selectedPaymentMethod != null) {
@@ -484,22 +486,22 @@ class _SalariesScreenState extends State<SalariesScreen> {
           onApply: () {
             _loadSalaries();
           },
-        onClear: () {
-          setState(() {
-            _selectedStatus = 'جميع الحالات';
-            _selectedDepartment = 'جميع الأقسام';
-            _showPaidOnly = false;
-            _showUnpaidOnly = false;
-            _showByPaymentMethod = false;
-            _selectedPaymentMethod = null;
-            final now = DateTime.now();
-            _selectedMonth = now.month;
-            _selectedYear = now.year;
-            _searchController.clear();
-          });
-          _loadSalaries();
-          Navigator.pop(context);
-        },
+          onClear: () {
+            setState(() {
+              _selectedStatus = 'جميع الحالات';
+              _selectedDepartment = 'جميع الأقسام';
+              _showPaidOnly = false;
+              _showUnpaidOnly = false;
+              _showByPaymentMethod = false;
+              _selectedPaymentMethod = null;
+              final now = DateTime.now();
+              _selectedMonth = now.month;
+              _selectedYear = now.year;
+              _searchController.clear();
+            });
+            _loadSalaries();
+            Navigator.pop(context);
+          },
         );
       },
     );
@@ -509,9 +511,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return GenerateSalaryDialog(
-          onGenerate: () => _loadSalaries(),
-        );
+        return GenerateSalaryDialog(onGenerate: () => _loadSalaries());
       },
     );
   }
@@ -621,11 +621,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
   }
 
   void _openSalaryDetails(Salary salary) {
-    Navigator.pushNamed(
-      context,
-      '/hr/salaries/details',
-      arguments: salary.id,
-    );
+    Navigator.pushNamed(context, '/hr/salaries/details', arguments: salary.id);
   }
 
   Future<void> _exportSalaries() async {

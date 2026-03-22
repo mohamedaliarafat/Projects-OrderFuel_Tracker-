@@ -133,9 +133,7 @@ class _InventoryDashboardScreenState extends State<InventoryDashboardScreen> {
                       if (!success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              provider.error ?? 'فشل إنشاء المخزن',
-                            ),
+                            content: Text(provider.error ?? 'فشل إنشاء المخزن'),
                           ),
                         );
                       }
@@ -239,7 +237,10 @@ class _InventoryDashboardScreenState extends State<InventoryDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('لوحة المخزون', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'لوحة المخزون',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
             tooltip: 'فاتورة مخزون جديدة',
@@ -252,8 +253,7 @@ class _InventoryDashboardScreenState extends State<InventoryDashboardScreen> {
       ),
       body: Column(
         children: [
-          if (provider.isLoading)
-            const LinearProgressIndicator(minHeight: 3),
+          if (provider.isLoading) const LinearProgressIndicator(minHeight: 3),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -342,7 +342,10 @@ class _InventoryDashboardScreenState extends State<InventoryDashboardScreen> {
                         icon: Icons.inventory_outlined,
                         color: AppColors.mediumGray,
                         onPressed: () {
-                          Navigator.pushNamed(context, AppRoutes.inventoryStock);
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.inventoryStock,
+                          );
                         },
                       ),
                     ],
@@ -372,7 +375,12 @@ class _InventoryDashboardScreenState extends State<InventoryDashboardScreen> {
     return Text(title, style: Theme.of(context).textTheme.titleLarge);
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       width: 220,
       padding: const EdgeInsets.all(16),
@@ -478,11 +486,7 @@ class _InventoryDashboardScreenState extends State<InventoryDashboardScreen> {
     return _buildTable(
       columns: const ['اسم المورد', 'الرقم الضريبي', 'العنوان'],
       rows: provider.suppliers.map((supplier) {
-        return [
-          supplier.name,
-          supplier.taxNumber,
-          supplier.address,
-        ];
+        return [supplier.name, supplier.taxNumber, supplier.address];
       }).toList(),
     );
   }

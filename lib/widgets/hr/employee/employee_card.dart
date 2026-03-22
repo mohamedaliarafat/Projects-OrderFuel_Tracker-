@@ -103,7 +103,11 @@ class EmployeeCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.business, size: iconSize, color: AppColors.mediumGray),
+                  Icon(
+                    Icons.business,
+                    size: iconSize,
+                    color: AppColors.mediumGray,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     employee.department,
@@ -117,7 +121,11 @@ class EmployeeCard extends StatelessWidget {
               SizedBox(height: gapSm),
               Row(
                 children: [
-                  Icon(Icons.phone, size: iconSize, color: AppColors.mediumGray),
+                  Icon(
+                    Icons.phone,
+                    size: iconSize,
+                    color: AppColors.mediumGray,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     employee.phone,
@@ -241,7 +249,10 @@ class EmployeeCard extends StatelessWidget {
                     ),
                   if (onFace != null)
                     IconButton(
-                      icon: Icon(Icons.face_retouching_natural, size: actionIconSize),
+                      icon: Icon(
+                        Icons.face_retouching_natural,
+                        size: actionIconSize,
+                      ),
                       onPressed: onFace,
                       tooltip: 'تسجيل الوجه',
                       color: AppColors.hrTeal,

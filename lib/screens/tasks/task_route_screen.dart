@@ -126,7 +126,7 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
     canvas.drawCircle(center, size * 0.26, bgPaint);
 
     final carPainter = TextPainter(
-      textDirection: TextDirection.ltr,
+      textDirection: ui.TextDirection.ltr,
       text: TextSpan(
         text: String.fromCharCode(Icons.directions_car.codePoint),
         style: TextStyle(
@@ -160,16 +160,14 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
     canvas.drawCircle(logoCenter, logoRadius, logoBg);
 
     canvas.save();
-    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: logoCenter, radius: logoRadius)));
+    canvas.clipPath(
+      Path()..addOval(Rect.fromCircle(center: logoCenter, radius: logoRadius)),
+    );
     final logoOffset = Offset(
       logoCenter.dx - logoRadius,
       logoCenter.dy - logoRadius,
     );
-    canvas.drawImage(
-      logo,
-      logoOffset,
-      Paint(),
-    );
+    canvas.drawImage(logo, logoOffset, Paint());
     canvas.restore();
 
     final picture = recorder.endRecording();
@@ -202,18 +200,19 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
     await _fetchRoute();
 
     _positionSubscription?.cancel();
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 8,
-      ),
-    ).listen((pos) {
-      if (!mounted) return;
-      setState(() {
-        _current = LatLng(pos.latitude, pos.longitude);
-      });
-      _maybeRefreshRoute();
-    });
+    _positionSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 8,
+          ),
+        ).listen((pos) {
+          if (!mounted) return;
+          setState(() {
+            _current = LatLng(pos.latitude, pos.longitude);
+          });
+          _maybeRefreshRoute();
+        });
 
     if (mounted) {
       setState(() {
@@ -250,14 +249,18 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
       _routeError = null;
     });
     try {
-      final uri = Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.mapsDirections}')
-          .replace(queryParameters: {
-        'origin': '${_current!.latitude},${_current!.longitude}',
-        'destination': '${widget.latitude},${widget.longitude}',
-        'mode': 'driving',
-        'language': 'ar',
-        'alternatives': 'true',
-      });
+      final uri =
+          Uri.parse(
+            '${ApiEndpoints.baseUrl}${ApiEndpoints.mapsDirections}',
+          ).replace(
+            queryParameters: {
+              'origin': '${_current!.latitude},${_current!.longitude}',
+              'destination': '${widget.latitude},${widget.longitude}',
+              'mode': 'driving',
+              'language': 'ar',
+              'alternatives': 'true',
+            },
+          );
       final response = await http.get(uri, headers: ApiService.headers);
       if (response.statusCode != 200) {
         throw Exception('Failed to load directions');
@@ -353,7 +356,8 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
         Marker(
           markerId: const MarkerId('current'),
           position: _current!,
-          icon: _currentIcon ??
+          icon:
+              _currentIcon ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
       );
@@ -362,8 +366,8 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
     final routeLine = _routePoints.isNotEmpty
         ? _routePoints
         : _current == null
-            ? const <LatLng>[]
-            : [_current!, destination];
+        ? const <LatLng>[]
+        : [_current!, destination];
 
     final polylines = <Polyline>{};
     if (routeLine.isNotEmpty) {
@@ -422,9 +426,7 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
                             widget.address?.isNotEmpty == true
                                 ? widget.address!
                                 : 'موقع المهمة',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -440,9 +442,12 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
-                                children: List.generate(_routes.length, (index) {
+                                children: List.generate(_routes.length, (
+                                  index,
+                                ) {
                                   final route = _routes[index];
-                                  final isSelected = index == _selectedRouteIndex;
+                                  final isSelected =
+                                      index == _selectedRouteIndex;
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
                                     child: ChoiceChip(
@@ -475,7 +480,9 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
                             children: [
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  onPressed: _routeLoading ? null : _refreshRoute,
+                                  onPressed: _routeLoading
+                                      ? null
+                                      : _refreshRoute,
                                   icon: const Icon(Icons.straighten),
                                   label: const Text('تحديث المسار'),
                                 ),
@@ -483,10 +490,14 @@ class _TaskRouteScreenState extends State<TaskRouteScreen> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: _routeLoading ? null : _startNavigation,
+                                  onPressed: _routeLoading
+                                      ? null
+                                      : _startNavigation,
                                   icon: const Icon(Icons.navigation),
                                   label: Text(
-                                    _isNavigating ? 'إيقاف الانطلاق' : 'انطلاق للموقع',
+                                    _isNavigating
+                                        ? 'إيقاف الانطلاق'
+                                        : 'انطلاق للموقع',
                                   ),
                                 ),
                               ),

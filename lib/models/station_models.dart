@@ -223,8 +223,8 @@ class Pump {
     required this.nozzles,
     double? availableStock,
     double? yesterdaySalesLiters,
-  })  : availableStock = availableStock ?? 0,
-        yesterdaySalesLiters = yesterdaySalesLiters ?? 0;
+  }) : availableStock = availableStock ?? 0,
+       yesterdaySalesLiters = yesterdaySalesLiters ?? 0;
 
   factory Pump.fromJson(Map<String, dynamic> json) {
     List<Nozzle> nozzlesList = [];
@@ -245,14 +245,19 @@ class Pump {
           : DateTime.now().toLocal(),
       nozzles: nozzlesList,
 
-      availableStock: _extractStockValue(
-        json,
-        ['availableQuantity', 'availableStock', 'availableLiters', 'stock', 'quantity'],
-      ),
-      yesterdaySalesLiters: _extractStockValue(
-        json,
-        ['yesterdayLiters', 'yesterdaySales', 'soldYesterday', 'yesterdaySoldLiters'],
-      ),
+      availableStock: _extractStockValue(json, [
+        'availableQuantity',
+        'availableStock',
+        'availableLiters',
+        'stock',
+        'quantity',
+      ]),
+      yesterdaySalesLiters: _extractStockValue(json, [
+        'yesterdayLiters',
+        'yesterdaySales',
+        'soldYesterday',
+        'yesterdaySoldLiters',
+      ]),
     );
   }
 
@@ -299,8 +304,7 @@ class Pump {
       createdAt: createdAt ?? this.createdAt,
       nozzles: nozzles ?? this.nozzles,
       availableStock: availableStock ?? this.availableStock,
-      yesterdaySalesLiters:
-          yesterdaySalesLiters ?? this.yesterdaySalesLiters,
+      yesterdaySalesLiters: yesterdaySalesLiters ?? this.yesterdaySalesLiters,
     );
   }
 
@@ -363,6 +367,40 @@ class FuelPrice {
   }
 }
 
+class SessionFuelStockSummary {
+  final String fuelType;
+  final double stockBeforeSales;
+  final double sales;
+  final double supplied;
+  final double returns;
+  final double stockAfterSales;
+
+  const SessionFuelStockSummary({
+    required this.fuelType,
+    required this.stockBeforeSales,
+    required this.sales,
+    required this.supplied,
+    required this.returns,
+    required this.stockAfterSales,
+  });
+
+  factory SessionFuelStockSummary.fromJson(Map<String, dynamic> json) {
+    double _toDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      return double.tryParse(value?.toString() ?? '0') ?? 0;
+    }
+
+    return SessionFuelStockSummary(
+      fuelType: json['fuelType']?.toString() ?? '',
+      stockBeforeSales: _toDouble(json['stockBeforeSales']),
+      sales: _toDouble(json['sales']),
+      supplied: _toDouble(json['supplied']),
+      returns: _toDouble(json['returns']),
+      stockAfterSales: _toDouble(json['stockAfterSales']),
+    );
+  }
+}
+
 // pump_session_model.dart
 class PumpSession {
   final String id;
@@ -414,6 +452,7 @@ class PumpSession {
   final FuelSupply? fuelSupply;
   final FuelReturn? fuelReturn;
   final List<FuelReturn> fuelReturns;
+  final List<SessionFuelStockSummary> fuelStockSummary;
   final List<NozzleReading>? nozzleReadings;
 
   // Balance
@@ -478,6 +517,7 @@ class PumpSession {
     this.fuelSupply,
     this.fuelReturn,
     this.fuelReturns = const [],
+    this.fuelStockSummary = const [],
     this.nozzleReadings,
 
     required this.carriedForwardBalance,
@@ -675,18 +715,26 @@ class PumpSession {
           : null,
       fuelReturns: (json['fuelReturns'] is List)
           ? (json['fuelReturns'] as List)
-              .whereType<Map>()
-              .map(
-                (e) => FuelReturn.fromJson(Map<String, dynamic>.from(e)),
-              )
-              .toList()
+                .whereType<Map>()
+                .map((e) => FuelReturn.fromJson(Map<String, dynamic>.from(e)))
+                .toList()
           : (json['fuelReturn'] != null
-              ? [
-                  FuelReturn.fromJson(
-                    Map<String, dynamic>.from(json['fuelReturn']),
+                ? [
+                    FuelReturn.fromJson(
+                      Map<String, dynamic>.from(json['fuelReturn']),
+                    ),
+                  ]
+                : const []),
+      fuelStockSummary: (json['fuelStockSummary'] is List)
+          ? (json['fuelStockSummary'] as List)
+                .whereType<Map>()
+                .map(
+                  (e) => SessionFuelStockSummary.fromJson(
+                    Map<String, dynamic>.from(e),
                   ),
-                ]
-              : const []),
+                )
+                .toList()
+          : const [],
 
       nozzleReadings: nozzleReadings,
 
@@ -759,6 +807,18 @@ class PumpSession {
       'fuelSupply': fuelSupply?.toJson(),
       'fuelReturn': fuelReturn?.toJson(),
       'fuelReturns': fuelReturns.map((e) => e.toJson()).toList(),
+      'fuelStockSummary': fuelStockSummary
+          .map(
+            (e) => {
+              'fuelType': e.fuelType,
+              'stockBeforeSales': e.stockBeforeSales,
+              'sales': e.sales,
+              'supplied': e.supplied,
+              'returns': e.returns,
+              'stockAfterSales': e.stockAfterSales,
+            },
+          )
+          .toList(),
       'nozzleReadings': nozzleReadings?.map((e) => e.toJson()).toList(),
 
       'carriedForwardBalance': carriedForwardBalance,
@@ -1102,8 +1162,8 @@ class FuelReturn {
       reason: json['reason']?.toString(),
       amount: json['amount'] != null
           ? (json['amount'] is num
-              ? (json['amount'] as num).toDouble()
-              : double.tryParse(json['amount'].toString()))
+                ? (json['amount'] as num).toDouble()
+                : double.tryParse(json['amount'].toString()))
           : null,
     );
   }
@@ -1319,8 +1379,6 @@ class DailyInventory {
     };
   }
 }
-
-
 
 class Expense {
   final String id;

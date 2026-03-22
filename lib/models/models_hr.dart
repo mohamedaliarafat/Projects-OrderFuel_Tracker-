@@ -223,7 +223,8 @@ class Employee {
   bool get isActive => status == 'نشط';
   bool get hasFingerprint => fingerprintEnrolled;
   bool get hasFace => faceEnrolled;
-  bool get hasDevice => assignedDeviceId != null && assignedDeviceId!.isNotEmpty;
+  bool get hasDevice =>
+      assignedDeviceId != null && assignedDeviceId!.isNotEmpty;
 
   String get formattedContractEnd {
     if (contractEndDate == null) return 'غير محدد';
@@ -300,8 +301,9 @@ class Attendance {
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
     final employeeRef = json['employeeId'];
-    final employeeMap =
-        employeeRef is Map ? Map<String, dynamic>.from(employeeRef) : null;
+    final employeeMap = employeeRef is Map
+        ? Map<String, dynamic>.from(employeeRef)
+        : null;
     return Attendance(
       id: json['_id'] ?? json['id'],
       employeeId: employeeMap?['_id'] ?? employeeRef ?? '',
@@ -363,14 +365,14 @@ class AttendanceCheck {
   factory AttendanceCheck.fromJson(Map<String, dynamic> json) {
     return AttendanceCheck(
       time: DateTime.parse(json['time']).toLocal(),
-    location: json['location'] != null
-        ? Location.fromJson(json['location'])
-        : null,
-    isLate: json['isLate'] ?? false,
-    lateMinutes: json['lateMinutes'],
-    isEarly: json['isEarly'] ?? false,
-    earlyMinutes: json['earlyMinutes'],
-    isOutsideLocation: json['isOutsideLocation'] ?? false,
+      location: json['location'] != null
+          ? Location.fromJson(json['location'])
+          : null,
+      isLate: json['isLate'] ?? false,
+      lateMinutes: json['lateMinutes'],
+      isEarly: json['isEarly'] ?? false,
+      earlyMinutes: json['earlyMinutes'],
+      isOutsideLocation: json['isOutsideLocation'] ?? false,
       locationStatus: json['locationStatus'] ?? 'غير مسجل',
       deviceId: json['deviceId'],
       fingerprintMatchScore: (json['fingerprintMatchScore'] as num?)
@@ -457,8 +459,9 @@ class Salary {
 
   factory Salary.fromJson(Map<String, dynamic> json) {
     final employeeRef = json['employeeId'];
-    final employeeMap =
-        employeeRef is Map ? Map<String, dynamic>.from(employeeRef) : null;
+    final employeeMap = employeeRef is Map
+        ? Map<String, dynamic>.from(employeeRef)
+        : null;
     return Salary(
       id: json['_id'] ?? json['id'],
       employeeId: employeeMap?['_id'] ?? employeeRef ?? '',
@@ -575,8 +578,9 @@ class Advance {
 
   factory Advance.fromJson(Map<String, dynamic> json) {
     final employeeRef = json['employeeId'];
-    final employeeMap =
-        employeeRef is Map ? Map<String, dynamic>.from(employeeRef) : null;
+    final employeeMap = employeeRef is Map
+        ? Map<String, dynamic>.from(employeeRef)
+        : null;
     return Advance(
       id: json['_id'] ?? json['id'],
       employeeId: employeeMap?['_id'] ?? employeeRef ?? '',
@@ -705,8 +709,9 @@ class Penalty {
 
   factory Penalty.fromJson(Map<String, dynamic> json) {
     final employeeRef = json['employeeId'];
-    final employeeMap =
-        employeeRef is Map ? Map<String, dynamic>.from(employeeRef) : null;
+    final employeeMap = employeeRef is Map
+        ? Map<String, dynamic>.from(employeeRef)
+        : null;
     return Penalty(
       id: json['_id'] ?? json['id'],
       employeeId: employeeMap?['_id'] ?? employeeRef ?? '',

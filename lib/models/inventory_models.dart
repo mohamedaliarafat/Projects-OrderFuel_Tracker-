@@ -23,11 +23,7 @@ class InventoryBranch {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      if (id.isNotEmpty) '_id': id,
-      'name': name,
-      'isActive': isActive,
-    };
+    return {if (id.isNotEmpty) '_id': id, 'name': name, 'isActive': isActive};
   }
 }
 

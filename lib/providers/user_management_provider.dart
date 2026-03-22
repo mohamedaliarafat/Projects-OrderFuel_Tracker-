@@ -19,19 +19,23 @@ class UserManagementProvider with ChangeNotifier {
   String? get error => _error;
   int get currentPage => _currentPage;
 
-  Future<void> fetchUsers({int page = 1, bool append = false, String? search}) async {
+  Future<void> fetchUsers({
+    int page = 1,
+    bool append = false,
+    String? search,
+    int limit = 50,
+  }) async {
     if (_isLoading) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final queryBuffer = StringBuffer('/users?page=$page&limit=50');
-      if (search != null && search.trim().isNotEmpty) {
-        queryBuffer.write('&search=${Uri.encodeQueryComponent(search.trim())}');
-      }
-      final response = await ApiService.get(queryBuffer.toString());
-      final body = json.decode(response.body) as Map<String, dynamic>;
+      final body = await _requestUsersPage(
+        page: page,
+        search: search,
+        limit: limit,
+      );
       final rawUsers = (body['users'] as List<dynamic>? ?? []);
       final fetched = rawUsers.map((user) => User.fromJson(user)).toList();
 
@@ -50,6 +54,52 @@ class UserManagementProvider with ChangeNotifier {
 
       _currentPage = page;
       _hasMore = page < totalPages;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchAllUsers({String? search, int batchSize = 200}) async {
+    if (_isLoading) return;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final collected = <User>[];
+      final seenIds = <String>{};
+      var page = 1;
+      var totalPages = 1;
+
+      do {
+        final body = await _requestUsersPage(
+          page: page,
+          search: search,
+          limit: batchSize,
+        );
+        final rawUsers = (body['users'] as List<dynamic>? ?? []);
+        for (final rawUser in rawUsers) {
+          final user = User.fromJson(rawUser);
+          if (seenIds.add(user.id)) {
+            collected.add(user);
+          }
+        }
+
+        final pagination = body['pagination'] as Map<String, dynamic>? ?? {};
+        totalPages = pagination['pages'] is int
+            ? pagination['pages'] as int
+            : int.tryParse(pagination['pages']?.toString() ?? '') ?? page;
+        page += 1;
+      } while (page <= totalPages);
+
+      _users
+        ..clear()
+        ..addAll(collected);
+      _currentPage = totalPages;
+      _hasMore = false;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -120,7 +170,9 @@ class UserManagementProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.patch('/users/$userId/block', {'block': block});
+      final response = await ApiService.patch('/users/$userId/block', {
+        'block': block,
+      });
       final userData = json.decode(response.body)['user'];
       final updated = User.fromJson(userData);
       final index = _users.indexWhere((user) => user.id == userId);
@@ -135,5 +187,18 @@ class UserManagementProvider with ChangeNotifier {
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, dynamic>> _requestUsersPage({
+    required int page,
+    required int limit,
+    String? search,
+  }) async {
+    final queryBuffer = StringBuffer('/users?page=$page&limit=$limit');
+    if (search != null && search.trim().isNotEmpty) {
+      queryBuffer.write('&search=${Uri.encodeQueryComponent(search.trim())}');
+    }
+    final response = await ApiService.get(queryBuffer.toString());
+    return json.decode(response.body) as Map<String, dynamic>;
   }
 }

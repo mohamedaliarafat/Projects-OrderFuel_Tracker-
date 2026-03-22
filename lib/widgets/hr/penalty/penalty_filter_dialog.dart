@@ -37,29 +37,15 @@ class _PenaltyFilterDialogState extends State<PenaltyFilterDialog> {
   late String _department;
   late String _sort;
 
-  final List<String> _statusOptions = [
-    'جميع الحالات',
-    'معلق',
-    'مطبق',
-    'ملغي',
-  ];
-  final List<String> _typeOptions = [
-    'جميع الأنواع',
-    'تأخير',
-    'غياب',
-    'سلوك',
-  ];
+  final List<String> _statusOptions = ['جميع الحالات', 'معلق', 'مطبق', 'ملغي'];
+  final List<String> _typeOptions = ['جميع الأنواع', 'تأخير', 'غياب', 'سلوك'];
   final List<String> _departmentOptions = [
     'جميع الأقسام',
     'المبيعات',
     'المحاسبة',
     'التشغيل',
   ];
-  final List<String> _sortOptions = [
-    'الأحدث',
-    'الأقدم',
-    'المبلغ',
-  ];
+  final List<String> _sortOptions = ['الأحدث', 'الأقدم', 'المبلغ'];
 
   @override
   void initState() {
@@ -122,10 +108,7 @@ class _PenaltyFilterDialogState extends State<PenaltyFilterDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: widget.onClear,
-          child: const Text('مسح'),
-        ),
+        TextButton(onPressed: widget.onClear, child: const Text('مسح')),
         ElevatedButton(
           onPressed: widget.onApply,
           style: ElevatedButton.styleFrom(
@@ -151,7 +134,9 @@ class _PenaltyFilterDialogState extends State<PenaltyFilterDialog> {
         filled: true,
         fillColor: AppColors.glassBlue.withOpacity(0.1),
       ),
-      items: items.map((entry) => DropdownMenuItem(value: entry, child: Text(entry))).toList(),
+      items: items
+          .map((entry) => DropdownMenuItem(value: entry, child: Text(entry)))
+          .toList(),
       onChanged: (value) {
         if (value != null) {
           onChanged(value);

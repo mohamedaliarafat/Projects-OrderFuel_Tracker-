@@ -6,8 +6,8 @@ class WorkshopFuelSupplyDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final supply = ModalRoute.of(context)?.settings.arguments
-        as Map<String, dynamic>?;
+    final supply =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     if (supply == null) {
       return const Scaffold(
@@ -15,7 +15,8 @@ class WorkshopFuelSupplyDetailsScreen extends StatelessWidget {
       );
     }
 
-    final date = DateTime.tryParse(supply['createdAt']?.toString() ?? '') ??
+    final date =
+        DateTime.tryParse(supply['createdAt']?.toString() ?? '') ??
         DateTime.now();
 
     return Scaffold(

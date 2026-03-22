@@ -91,15 +91,17 @@ class MarketingStation {
       address: json['address']?.toString() ?? '',
       status: stationStatusFromString(json['status']?.toString()),
       tenantName: json['tenantName']?.toString(),
-      createdByName: json['createdByName']?.toString() ??
+      createdByName:
+          json['createdByName']?.toString() ??
           (json['createdBy'] is Map
               ? json['createdBy']['name']?.toString()
               : null),
       createdAt: createdAtValue != null
           ? DateTime.tryParse(createdAtValue)?.toLocal() ?? DateTime.now()
           : DateTime.now(),
-      location:
-          rawLocation == null ? null : StationLocation.fromJson(rawLocation),
+      location: rawLocation == null
+          ? null
+          : StationLocation.fromJson(rawLocation),
       owner: json['owner'] is Map<String, dynamic>
           ? StationOwner.fromJson(Map<String, dynamic>.from(json['owner']))
           : null,
@@ -107,8 +109,9 @@ class MarketingStation {
           .map((e) => MarketingPump.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       notes: json['notes']?.toString(),
-      attachments:
-          (json['attachments'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      attachments: (json['attachments'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       lease: json['lease'] is Map<String, dynamic>
           ? LeaseContract.fromJson(Map<String, dynamic>.from(json['lease']))
           : null,
@@ -234,8 +237,9 @@ class MarketingPump {
       final index = entry.key;
       final value = entry.value;
       if (value is Map) {
-        final nozzle =
-            MarketingNozzle.fromJson(Map<String, dynamic>.from(value));
+        final nozzle = MarketingNozzle.fromJson(
+          Map<String, dynamic>.from(value),
+        );
         return nozzle.nozzleNumber == 0
             ? nozzle.copyWith(nozzleNumber: index + 1)
             : nozzle;
@@ -251,7 +255,8 @@ class MarketingPump {
     return MarketingPump(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
-      nozzleCount: (json['nozzleCount'] as num?)?.toInt() ??
+      nozzleCount:
+          (json['nozzleCount'] as num?)?.toInt() ??
           (parsedNozzles.isNotEmpty ? parsedNozzles.length : 0),
       status: pumpConditionFromString(json['status']?.toString()),
       nozzles: parsedNozzles.isNotEmpty
@@ -281,8 +286,7 @@ class MarketingPump {
   double get soldLiters {
     final hasNozzleReadings = nozzles.any(
       (nozzle) =>
-          nozzle.openingReading != 0 ||
-          (nozzle.closingReading ?? 0) != 0,
+          nozzle.openingReading != 0 || (nozzle.closingReading ?? 0) != 0,
     );
     if (hasNozzleReadings) {
       return nozzles.fold<double>(
@@ -750,19 +754,16 @@ class HandoverReport {
           json['companyRepresentativeName']?.toString() ?? '',
       contractReference: json['contractReference']?.toString() ?? '',
       dispensersCount: json['dispensersCount']?.toString() ?? '',
-      doubleDispensersCount:
-          json['doubleDispensersCount']?.toString() ?? '',
+      doubleDispensersCount: json['doubleDispensersCount']?.toString() ?? '',
       fuelDispensers: (json['fuelDispensers'] as List<dynamic>? ?? [])
           .map((e) => FuelDispenserRow.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       fuelTanks: (json['fuelTanks'] as List<dynamic>? ?? [])
           .map((e) => FuelTankRow.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      submersiblePumps:
-          (json['submersiblePumps'] as List<dynamic>? ?? [])
-              .map((e) =>
-                  SubmersiblePumpRow.fromJson(Map<String, dynamic>.from(e)))
-              .toList(),
+      submersiblePumps: (json['submersiblePumps'] as List<dynamic>? ?? [])
+          .map((e) => SubmersiblePumpRow.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       equipment: (json['equipment'] as List<dynamic>? ?? [])
           .map(
             (e) => StationEquipmentRow.fromJson(Map<String, dynamic>.from(e)),
@@ -980,24 +981,11 @@ enum StationMarketingStatus {
   study,
 }
 
-enum PumpCondition {
-  good,
-  damaged,
-  needsMaintenance,
-}
+enum PumpCondition { good, damaged, needsMaintenance }
 
-enum NozzleStatus {
-  good,
-  damaged,
-  needsMaintenance,
-}
+enum NozzleStatus { good, damaged, needsMaintenance }
 
-enum FuelType {
-  gas91,
-  gas95,
-  diesel,
-  kerosene,
-}
+enum FuelType { gas91, gas95, diesel, kerosene }
 
 StationMarketingStatus stationStatusFromString(String? value) {
   switch (value) {

@@ -134,7 +134,10 @@ class WorkshopFuelProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await ApiService.post('/workshop-fuel/supplies', payload);
+      final response = await ApiService.post(
+        '/workshop-fuel/supplies',
+        payload,
+      );
       final data = _decodeResponse(response);
       final created = data['data'] ?? {};
       if (created is Map && created['supply'] is Map) {
@@ -213,7 +216,9 @@ class WorkshopFuelProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await ApiService.delete('/workshop-fuel/refuels/$refuelId');
+      final response = await ApiService.delete(
+        '/workshop-fuel/refuels/$refuelId',
+      );
       final data = _decodeResponse(response);
       final payload = data['data'];
 
@@ -271,11 +276,53 @@ class WorkshopFuelProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await ApiService.post('/workshop-fuel/readings', payload);
+      final response = await ApiService.post(
+        '/workshop-fuel/readings',
+        payload,
+      );
       final data = _decodeResponse(response);
       final created = data['data'] ?? {};
       if (created is Map) {
         _readings.insert(0, Map<String, dynamic>.from(created));
+      }
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateReading(
+    String readingId,
+    Map<String, dynamic> payload,
+  ) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await ApiService.put(
+        '/workshop-fuel/readings/$readingId',
+        payload,
+      );
+      final data = _decodeResponse(response);
+      final updated = data['data'] ?? {};
+      if (updated is Map) {
+        final item = Map<String, dynamic>.from(updated);
+        final index = _readings.indexWhere(
+          (entry) =>
+              entry['_id']?.toString() == readingId ||
+              entry['id']?.toString() == readingId,
+        );
+        if (index >= 0) {
+          _readings[index] = item;
+        } else {
+          _readings.insert(0, item);
+        }
       }
       notifyListeners();
       return true;

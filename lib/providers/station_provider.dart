@@ -18,6 +18,7 @@ class StationProvider with ChangeNotifier {
   List<Map<String, dynamic>> get currentStock => _currentStock;
 
   PumpSession? _selectedSession;
+  PumpSession? _lastAutoOpenedSession;
   DailyInventory? _selectedInventory;
   StationStats? _stationStats;
   Map<String, double> _fuelTankCapacities = {};
@@ -37,6 +38,7 @@ class StationProvider with ChangeNotifier {
   Station? get selectedStation => _selectedStation;
   Station? getCachedStation(String stationId) => _stationCache[stationId];
   PumpSession? get selectedSession => _selectedSession;
+  PumpSession? get lastAutoOpenedSession => _lastAutoOpenedSession;
   List<PumpSession> get selectedInventorySessions => _inventorySessions;
   DailyInventory? get selectedInventory => _selectedInventory;
   StationStats? get stationStats => _stationStats;
@@ -81,17 +83,14 @@ class StationProvider with ChangeNotifier {
     }
 
     return latestByFuel.values.map((row) {
-    final balance =
+      final balance =
           row.actualBalance ??
           row.calculatedBalance ??
           (row.openingBalance + row.received - row.sales);
 
-
       return {'fuelType': row.fuelType, 'balance': balance};
     }).toList();
   }
-  
-
 
   Future<void> fetchCurrentStock(String stationId) async {
     _isLoading = true;
@@ -100,9 +99,7 @@ class StationProvider with ChangeNotifier {
 
     try {
       final response = await http.get(
-        Uri.parse(
-          '${ApiEndpoints.baseUrl}/stations/$stationId/current-stock',
-        ),
+        Uri.parse('${ApiEndpoints.baseUrl}/stations/$stationId/current-stock'),
         headers: ApiService.headers,
       );
 
@@ -129,7 +126,6 @@ class StationProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   Future<bool> approveClosingSession(String sessionId) async {
     _isLoading = true;
@@ -497,7 +493,6 @@ class StationProvider with ChangeNotifier {
     }
   }
 
-
   Future<bool> deleteStation(String stationId) async {
     _isLoading = true;
     _error = null;
@@ -541,8 +536,6 @@ class StationProvider with ChangeNotifier {
         throw Exception('نوع وقود غير موجود في المحطة');
       }
     }
-
-  
 
     // 3️⃣ عدد الليّات
     if (nozzles.length != payload['nozzleCount']) {
@@ -792,20 +785,35 @@ class StationProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      String url = '${ApiEndpoints.baseUrl}/stations/sessions?page=$page';
+      final queryParameters = <String, String>{'page': '$page'};
 
       if (filters != null) {
         filters.forEach((key, value) {
-          if (value != null && value.toString().isNotEmpty) {
-            url += '&$key=$value';
+          if (value == null) return;
+
+          if (value is Iterable) {
+            final joinedValue = value
+                .where((item) => item != null && item.toString().isNotEmpty)
+                .map((item) => item.toString())
+                .join(',');
+            if (joinedValue.isNotEmpty) {
+              queryParameters[key] = joinedValue;
+            }
+            return;
+          }
+
+          final stringValue = value.toString();
+          if (stringValue.isNotEmpty) {
+            queryParameters[key] = stringValue;
           }
         });
       }
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: ApiService.headers,
-      );
+      final uri = Uri.parse(
+        '${ApiEndpoints.baseUrl}/stations/sessions',
+      ).replace(queryParameters: queryParameters);
+
+      final response = await http.get(uri, headers: ApiService.headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -869,6 +877,7 @@ class StationProvider with ChangeNotifier {
   ) async {
     _isLoading = true;
     _error = null;
+    _lastAutoOpenedSession = null;
     notifyListeners();
 
     try {
@@ -895,10 +904,9 @@ class StationProvider with ChangeNotifier {
 
         // Auto-opened session (if returned)
         if (data['autoOpenedSession'] != null) {
-          final autoSession =
-              PumpSession.fromJson(data['autoOpenedSession']);
-          final alreadyExists =
-              _sessions.any((s) => s.id == autoSession.id);
+          final autoSession = PumpSession.fromJson(data['autoOpenedSession']);
+          _lastAutoOpenedSession = autoSession;
+          final alreadyExists = _sessions.any((s) => s.id == autoSession.id);
           if (!alreadyExists) {
             _sessions.insert(0, autoSession);
           }
@@ -955,13 +963,13 @@ class StationProvider with ChangeNotifier {
         return true;
       } else {
         final errorData = json.decode(response.body);
-        _error = errorData['error'] ?? 'ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¬Ù„Ø³Ø©';
+        _error = errorData['error'] ?? 'فشل تحديث الجلسة';
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
-      _error = 'Ø­Ø¯Ø« Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø³ÙŠØ±ÙØ±';
+      _error = 'حدث خطأ في الاتصال بالسيرفر';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -1059,8 +1067,8 @@ class StationProvider with ChangeNotifier {
 
         _isLoading = false;
         notifyListeners();
-      return true;
-    } else {
+        return true;
+      } else {
         final errorData = json.decode(response.body);
         _error =
             errorData['error'] ?? errorData['message'] ?? 'فشل إنشاء الجرد';
@@ -1092,8 +1100,9 @@ class StationProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final updatedInventory = DailyInventory.fromJson(data['inventory']);
-        final index =
-            _inventories.indexWhere((inventory) => inventory.id == inventoryId);
+        final index = _inventories.indexWhere(
+          (inventory) => inventory.id == inventoryId,
+        );
         if (index != -1) {
           _inventories[index] = updatedInventory;
         }
@@ -1138,8 +1147,9 @@ class StationProvider with ChangeNotifier {
         final data = json.decode(response.body);
         final updatedInventory = DailyInventory.fromJson(data['inventory']);
 
-        final index =
-            _inventories.indexWhere((inventory) => inventory.id == inventoryId);
+        final index = _inventories.indexWhere(
+          (inventory) => inventory.id == inventoryId,
+        );
         if (index != -1) {
           _inventories[index] = updatedInventory;
         }
@@ -1235,9 +1245,6 @@ class StationProvider with ChangeNotifier {
     }
   }
 
-
-
-
   void clearError() {
     _error = null;
     notifyListeners();
@@ -1259,18 +1266,14 @@ class StationProvider with ChangeNotifier {
   void clearSelected() {
     _selectedStation = null;
     _selectedSession = null;
+    _lastAutoOpenedSession = null;
     _selectedInventory = null;
     _sessions = [];
     _inventorySessions = [];
     _fuelBalanceReport = [];
     notifyListeners();
   }
-
-
-
 }
-
-
 
 // import 'dart:convert';
 // import 'package:flutter/foundation.dart';

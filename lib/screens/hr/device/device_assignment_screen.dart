@@ -95,9 +95,7 @@ class _DeviceAssignmentScreenState extends State<DeviceAssignmentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ربط جهاز الموظف'),
-      ),
+      appBar: AppBar(title: const Text('ربط جهاز الموظف')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

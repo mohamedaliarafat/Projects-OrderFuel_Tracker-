@@ -36,10 +36,10 @@ class FilterDialog extends StatelessWidget {
               value: selectedDepartment,
               decoration: _inputDecoration('القسم'),
               items: departments
-                  .map((value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(value),
-                      ))
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
                   .toList(),
               onChanged: (value) {
                 if (value != null) {
@@ -52,10 +52,10 @@ class FilterDialog extends StatelessWidget {
               value: selectedStatus,
               decoration: _inputDecoration('الحالة'),
               items: statuses
-                  .map((value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(value),
-                      ))
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
                   .toList(),
               onChanged: (value) {
                 if (value != null) {
@@ -67,15 +67,10 @@ class FilterDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: onClear,
-          child: const Text('مسح'),
-        ),
+        TextButton(onPressed: onClear, child: const Text('مسح')),
         ElevatedButton(
           onPressed: onApply,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.hrPurple,
-          ),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.hrPurple),
           child: const Text('تطبيق'),
         ),
       ],
@@ -85,9 +80,7 @@ class FilterDialog extends StatelessWidget {
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       filled: true,
       fillColor: AppColors.glassBlue.withOpacity(0.1),
     );

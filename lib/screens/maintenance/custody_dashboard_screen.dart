@@ -9,8 +9,7 @@ class CustodyDashboardScreen extends StatefulWidget {
   const CustodyDashboardScreen({super.key});
 
   @override
-  State<CustodyDashboardScreen> createState() =>
-      _CustodyDashboardScreenState();
+  State<CustodyDashboardScreen> createState() => _CustodyDashboardScreenState();
 }
 
 class _CustodyDashboardScreenState extends State<CustodyDashboardScreen> {
@@ -46,10 +45,7 @@ class _CustodyDashboardScreenState extends State<CustodyDashboardScreen> {
       decimalDigits: 2,
     );
 
-    final totalAll = documents.fold<double>(
-      0,
-      (sum, doc) => sum + doc.amount,
-    );
+    final totalAll = documents.fold<double>(0, (sum, doc) => sum + doc.amount);
     final totalApproved = documents
         .where((doc) => doc.status == CustodyDocumentStatus.approved)
         .fold<double>(0, (sum, doc) => sum + doc.amount);
@@ -63,8 +59,7 @@ class _CustodyDashboardScreenState extends State<CustodyDashboardScreen> {
       final key = _monthKey(doc.documentDate);
       monthGroups.putIfAbsent(key, () => []).add(doc);
     }
-    final monthKeys = monthGroups.keys.toList()
-      ..sort((a, b) => b.compareTo(a));
+    final monthKeys = monthGroups.keys.toList()..sort((a, b) => b.compareTo(a));
 
     final selectedKey = _selectedMonthKey;
     final filteredDocuments = selectedKey == null
@@ -239,9 +234,11 @@ class _CustodyDashboardScreenState extends State<CustodyDashboardScreen> {
                                 (sum, doc) => sum + doc.amount,
                               );
                               final monthReturned = items
-                                  .where((doc) =>
-                                      doc.returnStatus ==
-                                      CustodyReturnStatus.approved)
+                                  .where(
+                                    (doc) =>
+                                        doc.returnStatus ==
+                                        CustodyReturnStatus.approved,
+                                  )
                                   .fold<double>(
                                     0,
                                     (sum, doc) => sum + doc.returnAmount,
@@ -367,18 +364,12 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             title,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -390,10 +381,7 @@ class _MiniStat extends StatelessWidget {
   final String label;
   final String value;
 
-  const _MiniStat({
-    required this.label,
-    required this.value,
-  });
+  const _MiniStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -412,10 +400,7 @@ class _MiniStat extends StatelessWidget {
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );

@@ -42,12 +42,36 @@
   <!-- Google Maps Map ID -->
   <script>
     window.GOOGLE_MAPS_MAP_ID = "91aedc28da83b4c9d9692050";
+    window.__googleMapsLoadState = "loading";
+    window.__googleMapsLoadError = "";
+    window.gm_authFailure = function () {
+      window.__googleMapsLoadState = "auth_failure";
+      window.__googleMapsLoadError =
+        "Google Maps authentication failed. Check the API key, referrer restrictions, and billing.";
+    };
   </script>
 
-  <!-- ✅ Google Maps JS -->
+  <!-- Google Maps JS -->
   <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCayUZhpM7kmI4rxeg-URtOBjk5137XLS4&v=weekly&libraries=marker&map_ids=91aedc28da83b4c9d9692050">
-    </script>
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCayUZhpM7kmI4rxeg-URtOBjk5137XLS4&v=weekly&libraries=marker&map_ids=91aedc28da83b4c9d9692050"
+    onload="window.__googleMapsLoadState = (window.google && window.google.maps) ? 'ready' : 'loaded_no_maps'; if (window.__googleMapsLoadState !== 'ready' && !window.__googleMapsLoadError) { window.__googleMapsLoadError = 'Google Maps script loaded but google.maps is unavailable.'; }"
+    onerror="window.__googleMapsLoadState = 'load_error'; window.__googleMapsLoadError = 'Failed to load Google Maps JavaScript API.';">
+  </script>
+  <script>
+    document.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+    }, { capture: true });
+
+    document.addEventListener('keydown', function (event) {
+      const isKeyboardContextMenu =
+        event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+
+      if (isKeyboardContextMenu) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, { capture: true });
+  </script>
 
 </head>
 

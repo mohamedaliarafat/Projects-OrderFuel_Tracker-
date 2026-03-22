@@ -43,7 +43,7 @@ class UpcomingEventsCard extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 if (isLoading)
-                  const SizedBox(width: 100, child: LinearProgressIndicator())
+                  const SizedBox(width: 100, child: LinearProgressIndicator()),
               ],
             ),
             const SizedBox(height: 12),
@@ -54,7 +54,9 @@ class UpcomingEventsCard extends StatelessWidget {
                 (event) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.appBarWaterBright.withOpacity(0.2),
+                    backgroundColor: AppColors.appBarWaterBright.withOpacity(
+                      0.2,
+                    ),
                     child: Text(_initial(event.name)),
                   ),
                   title: Text(event.name),

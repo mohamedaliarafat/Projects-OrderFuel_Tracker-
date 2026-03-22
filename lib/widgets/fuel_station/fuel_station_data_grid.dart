@@ -79,7 +79,7 @@ class FuelStationDataSource extends DataGridSource {
       color: rowIndex.isEven ? Colors.grey.shade50 : Colors.white,
       cells: row.getCells().map<Widget>((cell) {
         // Actions
-       if (cell.columnName == 'actions') {
+        if (cell.columnName == 'actions') {
           final station = cell.value as FuelStation;
 
           return Center(
@@ -172,7 +172,6 @@ class FuelStationDataSource extends DataGridSource {
             ),
           );
         }
-
 
         // Status badge
         if (cell.columnName == 'status') {

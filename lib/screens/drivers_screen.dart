@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:order_tracker/models/models.dart';
+import 'package:order_tracker/utils/app_routes.dart';
+import 'package:order_tracker/utils/driver_user_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/driver_provider.dart';
 import '../widgets/driver_item.dart';
@@ -13,6 +16,7 @@ class DriversScreen extends StatefulWidget {
 class _DriversScreenState extends State<DriversScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedStatus;
+  Map<String, User> _linkedUsersByDriverId = <String, User>{};
 
   @override
   void initState() {
@@ -75,7 +79,29 @@ class _DriversScreenState extends State<DriversScreen> {
   }
 
   Future<void> _loadDrivers() async {
-    await Provider.of<DriverProvider>(context, listen: false).fetchDrivers();
+    final driverProvider = Provider.of<DriverProvider>(context, listen: false);
+    await Future.wait<void>([
+      driverProvider.fetchDrivers(status: _selectedStatus),
+      _loadLinkedDriverUsers(),
+    ]);
+  }
+
+  Future<void> _loadLinkedDriverUsers() async {
+    try {
+      final users = await fetchDriverUsers();
+      if (!mounted) return;
+      setState(() {
+        _linkedUsersByDriverId = {
+          for (final user in users)
+            if ((user.driverId ?? '').trim().isNotEmpty) user.driverId!: user,
+        };
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _linkedUsersByDriverId = <String, User>{};
+      });
+    }
   }
 
   void _searchDrivers(String query) {
@@ -92,6 +118,16 @@ class _DriversScreenState extends State<DriversScreen> {
     ).fetchDrivers(status: status);
   }
 
+  Future<void> _openDriverForm({Object? arguments}) async {
+    await Navigator.pushNamed(
+      context,
+      AppRoutes.driverForm,
+      arguments: arguments,
+    );
+    if (!mounted) return;
+    await _loadDrivers();
+  }
+
   @override
   Widget build(BuildContext context) {
     final driverProvider = Provider.of<DriverProvider>(context);
@@ -101,7 +137,6 @@ class _DriversScreenState extends State<DriversScreen> {
         final width = constraints.maxWidth;
 
         final bool isMobile = width < 600;
-        final bool isTablet = width >= 600 && width < 1024;
         final bool isDesktop = width >= 1024;
 
         final double maxWidth = isDesktop ? 1200 : double.infinity;
@@ -114,9 +149,7 @@ class _DriversScreenState extends State<DriversScreen> {
             ),
           ),
           floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/driver/form');
-            },
+            onPressed: () => _openDriverForm(),
             child: const Icon(Icons.add),
           ),
           body: Center(
@@ -160,15 +193,12 @@ class _DriversScreenState extends State<DriversScreen> {
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final driver = driverProvider.drivers[index];
+                                final linkedUser =
+                                    _linkedUsersByDriverId[driver.id];
                                 return DriverItem(
                                   driver: driver,
-                                  onTap: () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/driver/form',
-                                      arguments: driver,
-                                    );
-                                  },
+                                  linkedUsername: linkedUser?.username,
+                                  onTap: () => _openDriverForm(arguments: driver),
                                   onDelete: () {
                                     _confirmDeleteDriver(context, driver.id);
                                   },
@@ -213,6 +243,7 @@ class _DriversScreenState extends State<DriversScreen> {
         _buildChip('نشط', 'نشط'),
         _buildChip('غير نشط', 'غير نشط'),
         _buildChip('في إجازة', 'في إجازة'),
+        _buildChip('مرفود', 'مرفود'),
       ],
     );
   }

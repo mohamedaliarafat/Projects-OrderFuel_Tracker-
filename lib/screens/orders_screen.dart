@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/order_model.dart';
+import 'package:order_tracker/providers/auth_provider.dart';
+import 'package:order_tracker/screens/tracking/driver_delivery_tracking_screen.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:provider/provider.dart';
@@ -55,7 +58,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   /// ✅ هنا التعديل المهم
-  Widget _buildOrdersTab(List<Order> orders) {
+  Widget _buildOrdersTab(List<Order> orders, {required bool isDriverUser}) {
     final filtered = _applySearch(orders);
 
     if (filtered.isEmpty) {
@@ -83,6 +86,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
             child: OrderDataGrid(
               dataSource: OrderDataSource(filtered),
               onRowTap: (order) {
+                if (isDriverUser) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DriverDeliveryTrackingScreen(initialOrder: order),
+                    ),
+                  );
+                  return;
+                }
+
                 Navigator.pushNamed(
                   context,
                   AppRoutes.orderDetails,
@@ -99,6 +113,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final orderProvider = Provider.of<OrderProvider>(context);
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+    final isDriverUser =
+        user?.role == 'driver' && (user?.driverId?.trim().isNotEmpty ?? false);
+    final canCreateOrders =
+        user?.hasAnyPermission(const [
+          'orders_create_customer',
+          'orders_create_supplier',
+          'orders_manage',
+        ]) ??
+        false;
 
     return DefaultTabController(
       length: 4,
@@ -132,12 +157,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ],
         ),
 
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.pushNamed(context, AppRoutes.orderForm);
-          },
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: canCreateOrders
+            ? FloatingActionButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.orderForm);
+                },
+                child: const Icon(Icons.add),
+              )
+            : null,
 
         body: Column(
           children: [
@@ -165,24 +192,30 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : TabBarView(
                       children: [
-                        _buildOrdersTab(orderProvider.orders),
+                        _buildOrdersTab(
+                          orderProvider.orders,
+                          isDriverUser: isDriverUser,
+                        ),
 
                         _buildOrdersTab(
                           orderProvider.orders
                               .where((o) => o.orderNumber.startsWith('CUS-'))
                               .toList(),
+                          isDriverUser: isDriverUser,
                         ),
 
                         _buildOrdersTab(
                           orderProvider.orders
                               .where((o) => o.orderNumber.startsWith('SUP-'))
                               .toList(),
+                          isDriverUser: isDriverUser,
                         ),
 
                         _buildOrdersTab(
                           orderProvider.orders
                               .where((o) => o.orderNumber.startsWith('MIX-'))
                               .toList(),
+                          isDriverUser: isDriverUser,
                         ),
                       ],
                     ),

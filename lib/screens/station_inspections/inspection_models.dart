@@ -70,7 +70,8 @@ class StationInspection {
       region: json['region']?.toString() ?? '',
       address: json['address']?.toString() ?? '',
       status: inspectionStatusFromString(json['status']?.toString()),
-      createdByName: json['createdByName']?.toString() ??
+      createdByName:
+          json['createdByName']?.toString() ??
           (json['createdBy'] is Map
               ? json['createdBy']['name']?.toString()
               : null),
@@ -90,8 +91,11 @@ class StationInspection {
           .toList(),
       notes: json['notes']?.toString(),
       attachments: (json['attachments'] as List<dynamic>? ?? [])
-          .map((e) => InspectionAttachment.fromJson(
-              Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => InspectionAttachment.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList(),
     );
   }
@@ -149,11 +153,7 @@ class InspectionOwner {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'phone': phone,
-      'address': address,
-    };
+    return {'name': name, 'phone': phone, 'address': address};
   }
 }
 
@@ -221,8 +221,9 @@ class InspectionPump {
       final index = entry.key;
       final value = entry.value;
       if (value is Map) {
-        final nozzle =
-            InspectionNozzle.fromJson(Map<String, dynamic>.from(value));
+        final nozzle = InspectionNozzle.fromJson(
+          Map<String, dynamic>.from(value),
+        );
         return nozzle.nozzleNumber == 0
             ? nozzle.copyWith(nozzleNumber: index + 1)
             : nozzle;
@@ -240,7 +241,8 @@ class InspectionPump {
     return InspectionPump(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
-      nozzleCount: (json['nozzleCount'] as num?)?.toInt() ??
+      nozzleCount:
+          (json['nozzleCount'] as num?)?.toInt() ??
           (parsedNozzles.isNotEmpty ? parsedNozzles.length : 0),
       status: pumpConditionFromString(json['status']?.toString()),
       nozzles: parsedNozzles.isNotEmpty
@@ -271,8 +273,7 @@ class InspectionPump {
   double get soldLiters {
     final hasNozzleReadings = nozzles.any(
       (nozzle) =>
-          nozzle.openingReading != 0 ||
-          (nozzle.closingReading ?? 0) != 0,
+          nozzle.openingReading != 0 || (nozzle.closingReading ?? 0) != 0,
     );
     if (hasNozzleReadings) {
       return nozzles.fold<double>(

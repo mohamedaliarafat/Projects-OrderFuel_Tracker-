@@ -5,6 +5,8 @@ import 'package:order_tracker/screens/reports/supplier_report_screen.dart';
 import 'package:order_tracker/screens/reports/user_report_screen.dart';
 import 'package:order_tracker/screens/reports/invoice_report_screen.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:order_tracker/widgets/reports/advanced_filter_sheet.dart';
 
 /// 🟢 أنواع الشاشات
@@ -57,6 +59,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   ];
 
   final TextEditingController _searchController = TextEditingController();
+  String _query = '';
 
   /// 🟢 تحديد نوع الشاشة
   ScreenType getScreenType(BuildContext context) {
@@ -85,9 +88,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final bool isTablet = screenType == ScreenType.tablet;
     final bool isDesktop = screenType == ScreenType.desktop;
 
+    final query = _query.trim().toLowerCase();
+    final categories = query.isEmpty
+        ? _reportCategories
+        : _reportCategories.where((c) {
+            final haystack = '${c.title} ${c.description}'.trim().toLowerCase();
+            return haystack.contains(query);
+          }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('التقارير'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt),
@@ -101,30 +124,48 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop
-                ? 40
-                : isTablet
-                ? 24
-                : 16,
-            vertical: isDesktop ? 32 : 16,
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1500),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop
+                            ? 28
+                            : isTablet
+                            ? 18
+                            : 16,
+                        vertical: isDesktop ? 22 : 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(isDesktop),
+                          const SizedBox(height: 16),
+                          _buildSearchBar(),
+                          const SizedBox(height: 18),
+                          if (categories.isEmpty)
+                            _buildEmptyState()
+                          else
+                            _buildReportsGrid(screenType, categories),
+                          const SizedBox(height: 18),
+                          _buildQuickStats(screenType),
+                          const SizedBox(height: 96),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(isDesktop),
-              const SizedBox(height: 20),
-              _buildSearchBar(),
-              const SizedBox(height: 20),
-              _buildReportsGrid(screenType),
-              const SizedBox(height: 24),
-              _buildQuickStats(screenType),
-              const SizedBox(height: 80),
-            ],
-          ),
-        ),
+        ],
       ),
       floatingActionButton: isMobile
           ? null
@@ -141,78 +182,158 @@ class _ReportsScreenState extends State<ReportsScreen> {
   // ===================== UI =====================
 
   Widget _buildHeader(bool isDesktop) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'نظام التقارير المتكامل',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryBlue,
-            fontSize: isDesktop ? 32 : 24,
+    final theme = Theme.of(context);
+
+    return AppSurfaceCard(
+      padding: EdgeInsets.all(isDesktop ? 22 : 18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: isDesktop ? 64 : 56,
+            height: isDesktop ? 64 : 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.appBarWaterGlow,
+                  AppColors.appBarWaterBright,
+                  AppColors.appBarWaterDeep,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.appBarWaterDeep.withValues(alpha: 0.18),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.assessment_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'اختر نوع التقرير للبدء',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppColors.mediumGray,
-            fontSize: isDesktop ? 18 : 16,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'نظام التقارير المتكامل',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    fontSize: isDesktop ? 30 : 22,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'اختر نوع التقرير للبدء',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                    fontSize: isDesktop ? 16 : 14,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          if (isDesktop)
+            FilledButton.icon(
+              onPressed: _exportAllReports,
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('تصدير الجميع'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    final theme = Theme.of(context);
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'ابحث في التقارير...',
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.60),
+                ),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF0F172A),
+                fontWeight: FontWeight.w700,
+              ),
+              onChanged: _searchReports,
+            ),
           ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'ابحث في التقارير...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.tune),
+          const SizedBox(width: 10),
+          IconButton(
+            tooltip: 'خيارات',
             onPressed: _showFilterOptions,
+            icon: const Icon(Icons.tune_rounded),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.70),
           ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        onChanged: _searchReports,
+          if (_query.trim().isNotEmpty) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'مسح البحث',
+              onPressed: () {
+                setState(() => _query = '');
+                _searchController.clear();
+              },
+              icon: const Icon(Icons.close_rounded),
+              color: const Color(0xFF0F172A).withValues(alpha: 0.60),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildReportsGrid(ScreenType screenType) {
+  Widget _buildReportsGrid(
+    ScreenType screenType,
+    List<ReportCategory> categories,
+  ) {
     int crossAxisCount;
     double aspectRatio;
 
     switch (screenType) {
       case ScreenType.desktop:
         crossAxisCount = 3;
-        aspectRatio = 1.5;
+        aspectRatio = 1.55;
         break;
       case ScreenType.tablet:
         crossAxisCount = 2;
-        aspectRatio = 1.3;
+        aspectRatio = 1.35;
         break;
       case ScreenType.mobile:
         crossAxisCount = 1;
-        aspectRatio = 1.1;
+        aspectRatio = 1.20;
         break;
     }
 
@@ -221,14 +342,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
         childAspectRatio: aspectRatio,
       ),
-      itemCount: _reportCategories.length,
+      itemCount: categories.length,
       itemBuilder: (context, index) {
         return _buildReportCard(
-          _reportCategories[index],
+          categories[index],
           screenType == ScreenType.desktop,
         );
       },
@@ -236,88 +357,224 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildReportCard(ReportCategory category, bool isDesktop) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.pushNamed(context, category.route),
-        child: Padding(
-          padding: EdgeInsets.all(isDesktop ? 20 : 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: isDesktop ? 28 : 24,
-                backgroundColor: category.color.withOpacity(0.2),
-                child: Icon(category.icon, color: category.color),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                category.title,
-                style: TextStyle(
-                  fontSize: isDesktop ? 20 : 16,
-                  fontWeight: FontWeight.bold,
+    final theme = Theme.of(context);
+
+    return AppSurfaceCard(
+      onTap: () => Navigator.pushNamed(context, category.route),
+      padding: EdgeInsets.all(isDesktop ? 18 : 16),
+      child: Stack(
+        children: [
+          PositionedDirectional(
+            start: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 6,
+              decoration: BoxDecoration(
+                color: category.color.withValues(alpha: 0.55),
+                borderRadius: const BorderRadiusDirectional.only(
+                  topStart: Radius.circular(22),
+                  bottomStart: Radius.circular(22),
                 ),
               ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: Text(
-                  category.description,
-                  style: const TextStyle(color: AppColors.mediumGray),
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, category.route),
-                  child: const Text('فتح'),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: isDesktop ? 52 : 46,
+                      height: isDesktop ? 52 : 46,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: category.color.withValues(alpha: 0.14),
+                        border: Border.all(
+                          color: category.color.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Icon(category.icon, color: category.color),
+                    ),
+                    const Spacer(),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, category.route),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: const Text('فتح'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: category.color,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  category.title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    fontSize: isDesktop ? 20 : 18,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  category.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_back_rounded,
+                      size: 18,
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.40),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'افتح التقرير',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildQuickStats(ScreenType screenType) {
-    return screenType == ScreenType.mobile
-        ? _buildQuickStatsVertical()
-        : _buildQuickStatsHorizontal();
-  }
+    final theme = Theme.of(context);
+    final isMobile = screenType == ScreenType.mobile;
 
-  Widget _buildQuickStatsHorizontal() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _stat('٥٠', 'جاهز', Icons.check_circle, AppColors.successGreen),
-        _stat('١٠', 'قيد الإنشاء', Icons.schedule, AppColors.warningOrange),
-        _stat('٢', 'يحتاج تحديث', Icons.warning, AppColors.errorRed),
-      ],
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'حالة النظام',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.insights_rounded,
+                color: const Color(0xFF0F172A).withValues(alpha: 0.55),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _statTile(
+                value: '٥٠',
+                label: 'جاهز',
+                icon: Icons.check_circle_rounded,
+                color: AppColors.successGreen,
+                wide: !isMobile,
+              ),
+              _statTile(
+                value: '١٠',
+                label: 'قيد الإنشاء',
+                icon: Icons.schedule_rounded,
+                color: AppColors.warningOrange,
+                wide: !isMobile,
+              ),
+              _statTile(
+                value: '٢',
+                label: 'يحتاج تحديث',
+                icon: Icons.warning_rounded,
+                color: AppColors.errorRed,
+                wide: !isMobile,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildQuickStatsVertical() {
-    return Column(
-      children: [
-        _stat('٥٠', 'جاهز', Icons.check_circle, AppColors.successGreen),
-        const SizedBox(height: 12),
-        _stat('١٠', 'قيد الإنشاء', Icons.schedule, AppColors.warningOrange),
-        const SizedBox(height: 12),
-        _stat('٢', 'يحتاج تحديث', Icons.warning, AppColors.errorRed),
-      ],
-    );
-  }
+  Widget _statTile({
+    required String value,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool wide,
+  }) {
+    final theme = Theme.of(context);
 
-  Widget _stat(String value, String label, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 32),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: AppColors.mediumGray)),
-      ],
+    return Container(
+      width: wide ? 220 : null,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.16),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -336,7 +593,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   void _showFilterOptions() {}
 
-  void _searchReports(String query) {}
+  void _searchReports(String query) {
+    setState(() => _query = query);
+  }
 
   void _exportAllReports() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -354,6 +613,51 @@ class _ReportsScreenState extends State<ReportsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('حسنًا'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final theme = Theme.of(context);
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryBlue.withValues(alpha: 0.10),
+              border: Border.all(
+                color: AppColors.primaryBlue.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.search_off_rounded,
+              color: AppColors.primaryBlue,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'لا توجد نتائج',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'جرّب البحث بكلمة مختلفة أو امسح البحث.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w700,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

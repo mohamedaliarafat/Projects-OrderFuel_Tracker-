@@ -424,6 +424,7 @@ class NotificationListTile extends StatelessWidget {
 class _NotificationUiHelper {
   static const Set<String> _hiddenDataKeys = {
     'reportType',
+    'deviceRecordId',
     'periodKey',
     'statsCriteria',
     'sampleOrders',
@@ -491,6 +492,9 @@ class _NotificationUiHelper {
       case 'execution_completed':
         return Icons.done_all_outlined;
       case 'system_alert':
+        if (reportType == 'blocked_login_device') {
+          return Icons.phonelink_lock_outlined;
+        }
         if (reportType == 'owner_weekly_completed_orders') {
           return Icons.view_week_outlined;
         }
@@ -535,6 +539,9 @@ class _NotificationUiHelper {
             ? AppColors.successGreen
             : AppColors.infoBlue;
       case 'system_alert':
+        if (reportType == 'blocked_login_device') {
+          return AppColors.errorRed;
+        }
         if (reportType == 'owner_monthly_completed_orders') {
           return AppColors.primaryBlue;
         }
@@ -591,6 +598,9 @@ class _NotificationUiHelper {
       case 'execution_completed':
         return 'تم التنفيذ';
       case 'system_alert':
+        if (reportType == 'blocked_login_device') {
+          return 'جهاز محظور';
+        }
         if (reportType == 'owner_weekly_completed_orders') {
           return 'ملخص أسبوعي';
         }

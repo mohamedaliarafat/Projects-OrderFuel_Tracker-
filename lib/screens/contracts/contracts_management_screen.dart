@@ -52,8 +52,7 @@ class ContractsManagementScreen extends StatefulWidget {
       _ContractsManagementScreenState();
 }
 
-class _ContractsManagementScreenState
-    extends State<ContractsManagementScreen> {
+class _ContractsManagementScreenState extends State<ContractsManagementScreen> {
   bool _loading = true;
   String? _error;
   Map<String, List<Map<String, dynamic>>> _byType = {};
@@ -152,10 +151,8 @@ class _ContractsManagementScreenState
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => _ContractsTypeListScreen(
-          contractType: type.key,
-          title: type.label,
-        ),
+        builder: (_) =>
+            _ContractsTypeListScreen(contractType: type.key, title: type.label),
       ),
     );
   }
@@ -206,51 +203,51 @@ class _ContractsManagementScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'تعذر تحميل البيانات\n$_error',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: _load,
-                          child: const Text('إعادة المحاولة'),
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'تعذر تحميل البيانات\n$_error',
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      _buildOverviewCard(context),
-                      const SizedBox(height: 16),
-                      _sectionTitle('إحصائيات العقود'),
-                      const SizedBox(height: 10),
-                      _buildStatsGrid(context),
-                      const SizedBox(height: 16),
-                      _sectionTitle('إحصائيات الشركات المتعاقدة'),
-                      const SizedBox(height: 10),
-                      _buildCompaniesCard(context),
-                      const SizedBox(height: 16),
-                      _sectionTitle('إجراءات العقود'),
-                      const SizedBox(height: 10),
-                      _buildActionsGrid(context),
-                      const SizedBox(height: 16),
-                      _sectionTitle('سجل العقود'),
-                      const SizedBox(height: 10),
-                      _buildRecentContracts(context),
-                    ],
-                  ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _load,
+                      child: const Text('إعادة المحاولة'),
+                    ),
+                  ],
                 ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  _buildOverviewCard(context),
+                  const SizedBox(height: 16),
+                  _sectionTitle('إحصائيات العقود'),
+                  const SizedBox(height: 10),
+                  _buildStatsGrid(context),
+                  const SizedBox(height: 16),
+                  _sectionTitle('إحصائيات الشركات المتعاقدة'),
+                  const SizedBox(height: 10),
+                  _buildCompaniesCard(context),
+                  const SizedBox(height: 16),
+                  _sectionTitle('إجراءات العقود'),
+                  const SizedBox(height: 10),
+                  _buildActionsGrid(context),
+                  const SizedBox(height: 16),
+                  _sectionTitle('سجل العقود'),
+                  const SizedBox(height: 10),
+                  _buildRecentContracts(context),
+                ],
+              ),
+            ),
     );
   }
 
@@ -266,7 +263,11 @@ class _ContractsManagementScreenState
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.description_outlined, color: Colors.white, size: 34),
+            const Icon(
+              Icons.description_outlined,
+              color: Colors.white,
+              size: 34,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -369,10 +370,7 @@ class _ContractsManagementScreenState
           spacing: 12,
           runSpacing: 12,
           children: stats
-              .map((s) => SizedBox(
-                    width: itemWidth,
-                    child: _statCard(s),
-                  ))
+              .map((s) => SizedBox(width: itemWidth, child: _statCard(s)))
               .toList(),
         );
       },
@@ -448,8 +446,10 @@ class _ContractsManagementScreenState
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryBlue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -474,8 +474,10 @@ class _ContractsManagementScreenState
                   leading: const Icon(Icons.business_center_outlined),
                   title: Text(e.key),
                   trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.secondaryTeal.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
@@ -508,10 +510,7 @@ class _ContractsManagementScreenState
           runSpacing: 12,
           children: _contractTypes
               .map(
-                (type) => SizedBox(
-                  width: itemWidth,
-                  child: _actionCard(type),
-                ),
+                (type) => SizedBox(width: itemWidth, child: _actionCard(type)),
               )
               .toList(),
         );
@@ -561,8 +560,10 @@ class _ContractsManagementScreenState
               style: ElevatedButton.styleFrom(
                 backgroundColor: type.color,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
               ),
               child: const Text('عرض'),
             ),
@@ -668,7 +669,8 @@ class _ContractsTypeListScreen extends StatefulWidget {
   });
 
   @override
-  State<_ContractsTypeListScreen> createState() => _ContractsTypeListScreenState();
+  State<_ContractsTypeListScreen> createState() =>
+      _ContractsTypeListScreenState();
 }
 
 class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
@@ -695,7 +697,10 @@ class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
       _error = null;
     });
     try {
-      final data = await _ContractsApi.list(widget.contractType, q: _search.text.trim());
+      final data = await _ContractsApi.list(
+        widget.contractType,
+        q: _search.text.trim(),
+      );
       final items = (data['contracts'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -742,8 +747,14 @@ class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
         title: const Text('حذف العقد'),
         content: Text('تأكيد حذف العقد ${item['contractNumber'] ?? ''}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
         ],
       ),
     );
@@ -751,11 +762,15 @@ class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
     try {
       await _ContractsApi.delete(item['_id'].toString());
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف العقد')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حذف العقد')));
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
     }
   }
 
@@ -763,11 +778,15 @@ class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
     try {
       await _ContractsApi.print(id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تجهيز الطباعة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم تجهيز الطباعة')));
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الطباعة: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الطباعة: $e')));
     }
   }
 
@@ -778,7 +797,10 @@ class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
         title: Text(widget.title),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          IconButton(onPressed: () => _openEditor(), icon: const Icon(Icons.add)),
+          IconButton(
+            onPressed: () => _openEditor(),
+            icon: const Icon(Icons.add),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -813,44 +835,57 @@ class _ContractsTypeListScreenState extends State<_ContractsTypeListScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text('تعذر تحميل العقود\n$_error'))
-                    : _items.isEmpty
-                        ? const Center(child: Text('لا توجد عقود'))
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: _items.length,
-                              itemBuilder: (_, i) {
-                                final c = _items[i];
-                                return Card(
-                                  child: ListTile(
-                                    onTap: () => _openDetails(c['_id'].toString()),
-                                    title: Text('${c['title'] ?? ''}'),
-                                    subtitle: Text(
-                                      'رقم: ${c['contractNumber'] ?? '-'} | الطرف: ${c['counterpartyName'] ?? '-'}\n'
-                                      'الحالة: ${_statusLabel(c['status'])} | القيمة: ${_money(c['value'], c['currency'])}',
-                                    ),
-                                    isThreeLine: true,
-                                    trailing: PopupMenuButton<String>(
-                                      onSelected: (v) {
-                                        if (v == 'edit') _openEditor(c);
-                                        if (v == 'delete') _delete(c);
-                                        if (v == 'print') _print(c['_id'].toString());
-                                        if (v == 'details') _openDetails(c['_id'].toString());
-                                      },
-                                      itemBuilder: (_) => const [
-                                        PopupMenuItem(value: 'details', child: Text('التفاصيل')),
-                                        PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                                        PopupMenuItem(value: 'print', child: Text('طباعة')),
-                                        PopupMenuItem(value: 'delete', child: Text('حذف')),
-                                      ],
-                                    ),
-                                  ),
-                                );
+                ? Center(child: Text('تعذر تحميل العقود\n$_error'))
+                : _items.isEmpty
+                ? const Center(child: Text('لا توجد عقود'))
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _items.length,
+                      itemBuilder: (_, i) {
+                        final c = _items[i];
+                        return Card(
+                          child: ListTile(
+                            onTap: () => _openDetails(c['_id'].toString()),
+                            title: Text('${c['title'] ?? ''}'),
+                            subtitle: Text(
+                              'رقم: ${c['contractNumber'] ?? '-'} | الطرف: ${c['counterpartyName'] ?? '-'}\n'
+                              'الحالة: ${_statusLabel(c['status'])} | القيمة: ${_money(c['value'], c['currency'])}',
+                            ),
+                            isThreeLine: true,
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (v) {
+                                if (v == 'edit') _openEditor(c);
+                                if (v == 'delete') _delete(c);
+                                if (v == 'print') _print(c['_id'].toString());
+                                if (v == 'details')
+                                  _openDetails(c['_id'].toString());
                               },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'details',
+                                  child: Text('التفاصيل'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('تعديل'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'print',
+                                  child: Text('طباعة'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('حذف'),
+                                ),
+                              ],
                             ),
                           ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -892,13 +927,23 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
   void initState() {
     super.initState();
     final c = widget.contract;
-    _number = TextEditingController(text: c?['contractNumber']?.toString() ?? '');
+    _number = TextEditingController(
+      text: c?['contractNumber']?.toString() ?? '',
+    );
     _title = TextEditingController(text: c?['title']?.toString() ?? '');
-    _party = TextEditingController(text: c?['counterpartyName']?.toString() ?? '');
-    _contact = TextEditingController(text: c?['counterpartyContact']?.toString() ?? '');
+    _party = TextEditingController(
+      text: c?['counterpartyName']?.toString() ?? '',
+    );
+    _contact = TextEditingController(
+      text: c?['counterpartyContact']?.toString() ?? '',
+    );
     _value = TextEditingController(text: c?['value']?.toString() ?? '');
-    _paymentTerms = TextEditingController(text: c?['paymentTerms']?.toString() ?? '');
-    _description = TextEditingController(text: c?['description']?.toString() ?? '');
+    _paymentTerms = TextEditingController(
+      text: c?['paymentTerms']?.toString() ?? '',
+    );
+    _description = TextEditingController(
+      text: c?['description']?.toString() ?? '',
+    );
     _status = c?['status']?.toString() ?? 'draft';
     _startDate = _date(c?['startDate']);
     _endDate = _date(c?['endDate']);
@@ -954,7 +999,9 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -969,7 +1016,10 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('النوع: ${widget.categoryTitle}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'النوع: ${widget.categoryTitle}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             _field(_number, 'رقم العقد', required: true),
             const SizedBox(height: 10),
@@ -981,7 +1031,10 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _status,
-              decoration: const InputDecoration(labelText: 'الحالة', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'الحالة',
+                border: OutlineInputBorder(),
+              ),
               items: const [
                 DropdownMenuItem(value: 'draft', child: Text('مسودة')),
                 DropdownMenuItem(value: 'active', child: Text('نشط')),
@@ -994,9 +1047,21 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _dateTile('بداية العقد', _startDate, () => _pickDate(true))),
+                Expanded(
+                  child: _dateTile(
+                    'بداية العقد',
+                    _startDate,
+                    () => _pickDate(true),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: _dateTile('نهاية العقد', _endDate, () => _pickDate(false))),
+                Expanded(
+                  child: _dateTile(
+                    'نهاية العقد',
+                    _endDate,
+                    () => _pickDate(false),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -1009,7 +1074,11 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.save_outlined),
               label: Text(_isEdit ? 'حفظ التعديل' : 'إنشاء العقد'),
             ),
@@ -1019,14 +1088,24 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label,
-      {bool required = false, int maxLines = 1, TextInputType? keyboardType}) {
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    bool required = false,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
     return TextFormField(
       controller: c,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null : null,
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      validator: required
+          ? (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null
+          : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
     );
   }
 
@@ -1034,7 +1113,10 @@ class _ContractEditorScreenState extends State<_ContractEditorScreen> {
     return InkWell(
       onTap: onTap,
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
         child: Text(d == null ? '-' : _dateText(d)),
       ),
     );
@@ -1085,11 +1167,15 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
     try {
       await _ContractsApi.print(widget.contractId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل الطباعة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم تسجيل الطباعة')));
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الطباعة: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الطباعة: $e')));
     }
   }
 
@@ -1115,8 +1201,14 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
         title: const Text('حذف العقد'),
         content: const Text('تأكيد حذف العقد؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
         ],
       ),
     );
@@ -1127,7 +1219,9 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
     }
   }
 
@@ -1138,16 +1232,26 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
       if (voucher == null) {
         await _ContractsApi.addVoucher(widget.contractId, data);
       } else {
-        await _ContractsApi.updateVoucher(widget.contractId, voucher['_id'].toString(), data);
+        await _ContractsApi.updateVoucher(
+          widget.contractId,
+          voucher['_id'].toString(),
+          data,
+        );
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(voucher == null ? 'تم إضافة سند أمر' : 'تم تحديث سند الأمر')),
+        SnackBar(
+          content: Text(
+            voucher == null ? 'تم إضافة سند أمر' : 'تم تحديث سند الأمر',
+          ),
+        ),
       );
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل العملية: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل العملية: $e')));
     }
   }
 
@@ -1158,29 +1262,52 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
         title: const Text('حذف سند أمر'),
         content: const Text('تأكيد حذف سند الأمر؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
     try {
-      await _ContractsApi.deleteVoucher(widget.contractId, voucher['_id'].toString());
+      await _ContractsApi.deleteVoucher(
+        widget.contractId,
+        voucher['_id'].toString(),
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف سند الأمر')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حذف سند الأمر')));
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
     }
   }
 
-  Future<Map<String, dynamic>?> _voucherDialog({Map<String, dynamic>? voucher}) async {
+  Future<Map<String, dynamic>?> _voucherDialog({
+    Map<String, dynamic>? voucher,
+  }) async {
     final formKey = GlobalKey<FormState>();
-    final number = TextEditingController(text: voucher?['voucherNumber']?.toString() ?? '');
-    final title = TextEditingController(text: voucher?['title']?.toString() ?? '');
-    final amount = TextEditingController(text: voucher?['amount']?.toString() ?? '');
-    final notes = TextEditingController(text: voucher?['notes']?.toString() ?? '');
+    final number = TextEditingController(
+      text: voucher?['voucherNumber']?.toString() ?? '',
+    );
+    final title = TextEditingController(
+      text: voucher?['title']?.toString() ?? '',
+    );
+    final amount = TextEditingController(
+      text: voucher?['amount']?.toString() ?? '',
+    );
+    final notes = TextEditingController(
+      text: voucher?['notes']?.toString() ?? '',
+    );
     var status = voucher?['status']?.toString() ?? 'draft';
     DateTime date = _date(voucher?['issueDate']) ?? DateTime.now();
 
@@ -1197,11 +1324,15 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextFormField(controller: number, decoration: const InputDecoration(labelText: 'رقم السند')),
+                    TextFormField(
+                      controller: number,
+                      decoration: const InputDecoration(labelText: 'رقم السند'),
+                    ),
                     TextFormField(
                       controller: title,
                       decoration: const InputDecoration(labelText: 'العنوان'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                     ),
                     TextFormField(
                       controller: amount,
@@ -1213,11 +1344,18 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
                       decoration: const InputDecoration(labelText: 'الحالة'),
                       items: const [
                         DropdownMenuItem(value: 'draft', child: Text('مسودة')),
-                        DropdownMenuItem(value: 'approved', child: Text('معتمد')),
+                        DropdownMenuItem(
+                          value: 'approved',
+                          child: Text('معتمد'),
+                        ),
                         DropdownMenuItem(value: 'issued', child: Text('صادر')),
-                        DropdownMenuItem(value: 'cancelled', child: Text('ملغي')),
+                        DropdownMenuItem(
+                          value: 'cancelled',
+                          child: Text('ملغي'),
+                        ),
                       ],
-                      onChanged: (v) => setStateDialog(() => status = v ?? 'draft'),
+                      onChanged: (v) =>
+                          setStateDialog(() => status = v ?? 'draft'),
                     ),
                     const SizedBox(height: 8),
                     ListTile(
@@ -1246,7 +1384,10 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
             ElevatedButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
@@ -1279,7 +1420,10 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_error != null || _contract == null) {
-      return Scaffold(appBar: AppBar(title: const Text('تفاصيل العقد')), body: Center(child: Text('تعذر التحميل\n$_error')));
+      return Scaffold(
+        appBar: AppBar(title: const Text('تفاصيل العقد')),
+        body: Center(child: Text('تعذر التحميل\n$_error')),
+      );
     }
     final c = _contract!;
     final vouchers = (c['orderVouchers'] as List? ?? [])
@@ -1292,7 +1436,10 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
         actions: [
           IconButton(onPressed: _print, icon: const Icon(Icons.print_outlined)),
           IconButton(onPressed: _edit, icon: const Icon(Icons.edit_outlined)),
-          IconButton(onPressed: _deleteContract, icon: const Icon(Icons.delete_outline)),
+          IconButton(
+            onPressed: _deleteContract,
+            icon: const Icon(Icons.delete_outline),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -1334,7 +1481,10 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
                     Row(
                       children: [
                         const Expanded(
-                          child: Text('سندات الأمر', style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(
+                            'سندات الأمر',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                         TextButton.icon(
                           onPressed: () => _saveVoucher(),
@@ -1360,8 +1510,14 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
                               if (x == 'delete') _deleteVoucher(v);
                             },
                             itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                              PopupMenuItem(value: 'delete', child: Text('حذف')),
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Text('تعديل'),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('حذف'),
+                              ),
                             ],
                           ),
                         ),
@@ -1381,11 +1537,14 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          ...children,
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -1395,7 +1554,13 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          SizedBox(width: 150, child: Text('$k:', style: const TextStyle(fontWeight: FontWeight.w600))),
+          SizedBox(
+            width: 150,
+            child: Text(
+              '$k:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
           Expanded(child: Text(v)),
         ],
       ),
@@ -1405,21 +1570,56 @@ class _ContractDetailsScreenState extends State<_ContractDetailsScreen> {
 
 class _ContractsApi {
   static Future<Map<String, dynamic>> list(String type, {String? q}) async {
-    final qp = {'type': type, 'limit': '200', if ((q ?? '').isNotEmpty) 'q': q!};
-    final r = await ApiService.get('/contracts?${Uri(queryParameters: qp).query}');
+    final qp = {
+      'type': type,
+      'limit': '200',
+      if ((q ?? '').isNotEmpty) 'q': q!,
+    };
+    final r = await ApiService.get(
+      '/contracts?${Uri(queryParameters: qp).query}',
+    );
     return _json(r.bodyBytes);
   }
 
-  static Future<Map<String, dynamic>> get(String id) async => _json((await ApiService.get('/contracts/$id')).bodyBytes);
-  static Future<Map<String, dynamic>> create(Map<String, dynamic> body) async => _json((await ApiService.post('/contracts', body)).bodyBytes);
-  static Future<Map<String, dynamic>> update(String id, Map<String, dynamic> body) async => _json((await ApiService.put('/contracts/$id', body)).bodyBytes);
-  static Future<Map<String, dynamic>> delete(String id) async => _json((await ApiService.delete('/contracts/$id')).bodyBytes);
-  static Future<Map<String, dynamic>> print(String id) async => _json((await ApiService.post('/contracts/$id/print', {})).bodyBytes);
-  static Future<Map<String, dynamic>> addVoucher(String id, Map<String, dynamic> body) async => _json((await ApiService.post('/contracts/$id/order-vouchers', body)).bodyBytes);
-  static Future<Map<String, dynamic>> updateVoucher(String id, String voucherId, Map<String, dynamic> body) async => _json((await ApiService.put('/contracts/$id/order-vouchers/$voucherId', body)).bodyBytes);
-  static Future<Map<String, dynamic>> deleteVoucher(String id, String voucherId) async => _json((await ApiService.delete('/contracts/$id/order-vouchers/$voucherId')).bodyBytes);
+  static Future<Map<String, dynamic>> get(String id) async =>
+      _json((await ApiService.get('/contracts/$id')).bodyBytes);
+  static Future<Map<String, dynamic>> create(Map<String, dynamic> body) async =>
+      _json((await ApiService.post('/contracts', body)).bodyBytes);
+  static Future<Map<String, dynamic>> update(
+    String id,
+    Map<String, dynamic> body,
+  ) async => _json((await ApiService.put('/contracts/$id', body)).bodyBytes);
+  static Future<Map<String, dynamic>> delete(String id) async =>
+      _json((await ApiService.delete('/contracts/$id')).bodyBytes);
+  static Future<Map<String, dynamic>> print(String id) async =>
+      _json((await ApiService.post('/contracts/$id/print', {})).bodyBytes);
+  static Future<Map<String, dynamic>> addVoucher(
+    String id,
+    Map<String, dynamic> body,
+  ) async => _json(
+    (await ApiService.post('/contracts/$id/order-vouchers', body)).bodyBytes,
+  );
+  static Future<Map<String, dynamic>> updateVoucher(
+    String id,
+    String voucherId,
+    Map<String, dynamic> body,
+  ) async => _json(
+    (await ApiService.put(
+      '/contracts/$id/order-vouchers/$voucherId',
+      body,
+    )).bodyBytes,
+  );
+  static Future<Map<String, dynamic>> deleteVoucher(
+    String id,
+    String voucherId,
+  ) async => _json(
+    (await ApiService.delete(
+      '/contracts/$id/order-vouchers/$voucherId',
+    )).bodyBytes,
+  );
 
-  static Map<String, dynamic> _json(List<int> bytes) => Map<String, dynamic>.from(json.decode(utf8.decode(bytes)) as Map);
+  static Map<String, dynamic> _json(List<int> bytes) =>
+      Map<String, dynamic>.from(json.decode(utf8.decode(bytes)) as Map);
 }
 
 String _typeLabel(dynamic type) {
@@ -1469,7 +1669,8 @@ String _voucherStatus(dynamic s) {
   }
 }
 
-DateTime? _date(dynamic value) => value == null ? null : DateTime.tryParse(value.toString());
+DateTime? _date(dynamic value) =>
+    value == null ? null : DateTime.tryParse(value.toString());
 
 String _dateText(DateTime? d) {
   if (d == null) return '-';

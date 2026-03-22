@@ -23,8 +23,7 @@ class SupplierDetailsScreen extends StatefulWidget {
 
 class _SupplierDetailsScreenState extends State<SupplierDetailsScreen> {
   int _selectedTab = 0;
-  String get _effectiveSupplierId =>
-      widget.supplier?.id ?? widget.supplierId;
+  String get _effectiveSupplierId => widget.supplier?.id ?? widget.supplierId;
 
   @override
   void initState() {

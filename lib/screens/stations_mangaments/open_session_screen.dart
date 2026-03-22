@@ -1440,10 +1440,7 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
         salesTotals[normalized] = (salesTotals[normalized] ?? 0) + value;
       });
     } else {
-      salesTotals = _salesByFuelForDate(
-        stationProvider.sessions,
-        targetDate,
-      );
+      salesTotals = _salesByFuelForDate(stationProvider.sessions, targetDate);
     }
 
     _lastDeductedSalesByFuel
@@ -1943,12 +1940,15 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
 
   Future<void> _pickSessionDateTime() async {
     final DateTime initialDate = _selectedSessionDateTime;
-    final DateTime now = DateTime.now();
+    final DateTime firstAllowedDate = DateTime(2000);
+    final DateTime lastAllowedDate = DateTime.now().add(
+      const Duration(days: 3650),
+    );
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: now.subtract(const Duration(days: 365)),
-      lastDate: now.add(const Duration(days: 365)),
+      firstDate: firstAllowedDate,
+      lastDate: lastAllowedDate,
     );
     if (pickedDate == null) return;
 

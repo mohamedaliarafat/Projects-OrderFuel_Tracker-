@@ -46,7 +46,11 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>نحتاج إلى موقعك لتحديد موقع المحطة على الخريطة.</string>
+	<string>نحتاج إلى موقعك لمتابعة الطلب مباشرة وإظهار مسار الشاحنة على الخريطة أثناء التنفيذ.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>نحتاج إلى موقعك في الخلفية لكي يستمر التتبع المباشر للطلب ويظل المالك قادرًا على متابعة المسار والمسافة والوقت المتوقع حتى لو خرجت من التطبيق.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>نحتاج إلى موقعك في الخلفية لمواصلة التتبع المباشر للطلب أثناء الرحلة.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>نحتاج إلى الميكروفون لتسجيل الرسائل الصوتية داخل المحادثات.</string>
 	<key>NSCameraUsageDescription</key>
@@ -58,6 +62,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>location</string>
 		<string>remote-notification</string>
 	</array>
 </dict>

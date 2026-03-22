@@ -1,7 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 
 class FirebaseStorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -14,78 +16,226 @@ class FirebaseStorageService {
     String? contentType,
   }) async {
     try {
-      final safeName = fileName.replaceAll(RegExp(r'\s+'), '_');
+      final safeName = _sanitizeFileName(fileName);
       final ref = _storage.ref(
         'employees/$employeeKey/documents/${DateTime.now().millisecondsSinceEpoch}_$safeName',
       );
-
-      UploadTask uploadTask;
 
       if (kIsWeb) {
         if (webBytes == null) {
           throw Exception('Web file bytes are null');
         }
-        uploadTask = ref.putData(
-          webBytes,
-          SettableMetadata(contentType: contentType),
-        );
+        await ref.putData(webBytes, SettableMetadata(contentType: contentType));
       } else {
         if (filePath == null) {
           throw Exception('File path is null');
         }
-        uploadTask = ref.putFile(
+        await ref.putFile(
           File(filePath),
           SettableMetadata(contentType: contentType),
         );
       }
 
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      return await ref.getDownloadURL();
     } catch (e) {
-      debugPrint('❌ Firebase upload error: $e');
+      debugPrint('Firebase upload error: $e');
       rethrow;
     }
   }
 
   static Future<String> uploadSessionImage({
     required String sessionId,
-    required String type, // opening | closing
+    required String type,
     required String nozzleId,
-    Uint8List? webBytes, // 👈 للويب
-    String? filePath, // 👈 للموبايل
+    Uint8List? webBytes,
+    String? filePath,
   }) async {
     try {
       final ref = _storage.ref(
         'sessions/$sessionId/$type/$nozzleId${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
 
-      UploadTask uploadTask;
-
       if (kIsWeb) {
-        // 🌐 WEB
         if (webBytes == null) {
           throw Exception('Web image bytes are null');
         }
-        uploadTask = ref.putData(
+        await ref.putData(
           webBytes,
           SettableMetadata(contentType: 'image/jpeg'),
         );
       } else {
-        // 📱 MOBILE
         if (filePath == null) {
           throw Exception('File path is null');
         }
-        uploadTask = ref.putFile(
+        await ref.putFile(
           File(filePath),
           SettableMetadata(contentType: 'image/jpeg'),
         );
       }
 
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      return await ref.getDownloadURL();
     } catch (e) {
-      debugPrint('❌ Firebase upload error: $e');
+      debugPrint('Firebase upload error: $e');
       rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadStationMaintenanceMedia({
+    required String requestId,
+    required String section,
+    required XFile file,
+  }) async {
+    final safeName = _sanitizeFileName(file.name);
+    final contentType = _inferContentType(safeName);
+    final ref = _storage.ref(
+      'station-maintenance/$requestId/$section/${DateTime.now().millisecondsSinceEpoch}_$safeName',
+    );
+
+    try {
+      if (kIsWeb) {
+        final bytes = await file.readAsBytes();
+        await ref.putData(bytes, SettableMetadata(contentType: contentType));
+      } else {
+        await ref.putFile(
+          File(file.path),
+          SettableMetadata(contentType: contentType),
+        );
+      }
+
+      return {
+        'filename': safeName,
+        'path': await ref.getDownloadURL(),
+        'fileType': contentType,
+      };
+    } catch (e) {
+      debugPrint('Station maintenance Firebase upload error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadStationMaintenanceDocument({
+    required String requestId,
+    required String section,
+    required PlatformFile file,
+  }) async {
+    final safeName = _sanitizeFileName(file.name);
+    final contentType = _inferContentType(safeName);
+    final ref = _storage.ref(
+      'station-maintenance/$requestId/$section/${DateTime.now().millisecondsSinceEpoch}_$safeName',
+    );
+
+    try {
+      if (kIsWeb) {
+        if (file.bytes == null) {
+          throw Exception('Web file bytes are null');
+        }
+        await ref.putData(
+          file.bytes!,
+          SettableMetadata(contentType: contentType),
+        );
+      } else {
+        final filePath = file.path;
+        if (filePath == null || filePath.isEmpty) {
+          throw Exception('File path is null');
+        }
+        await ref.putFile(
+          File(filePath),
+          SettableMetadata(contentType: contentType),
+        );
+      }
+
+      return {
+        'filename': safeName,
+        'path': await ref.getDownloadURL(),
+        'fileType': contentType,
+      };
+    } catch (e) {
+      debugPrint('Station maintenance Firebase upload error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadOrderAttachment({
+    required String orderKey,
+    required PlatformFile file,
+  }) async {
+    final safeName = _sanitizeFileName(file.name);
+    final contentType = _inferContentType(safeName);
+    final ref = _storage.ref(
+      'orders/$orderKey/attachments/${DateTime.now().millisecondsSinceEpoch}_$safeName',
+    );
+
+    try {
+      if (kIsWeb) {
+        if (file.bytes == null) {
+          throw Exception('Web file bytes are null');
+        }
+        await ref.putData(
+          file.bytes!,
+          SettableMetadata(contentType: contentType),
+        );
+      } else {
+        final filePath = file.path;
+        if (filePath == null || filePath.isEmpty) {
+          throw Exception('File path is null');
+        }
+        await ref.putFile(
+          File(filePath),
+          SettableMetadata(contentType: contentType),
+        );
+      }
+
+      return {
+        'filename': safeName,
+        'path': await ref.getDownloadURL(),
+        'fileType': contentType,
+      };
+    } catch (e) {
+      debugPrint('Order Firebase upload error: $e');
+      rethrow;
+    }
+  }
+
+  static String _sanitizeFileName(String fileName) {
+    final collapsed = fileName.trim().replaceAll(RegExp(r'\s+'), '_');
+    return collapsed.isEmpty ? 'file' : collapsed;
+  }
+
+  static String? _inferContentType(String fileName) {
+    switch (p.extension(fileName).toLowerCase()) {
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.webp':
+        return 'image/webp';
+      case '.gif':
+        return 'image/gif';
+      case '.mp4':
+        return 'video/mp4';
+      case '.mov':
+        return 'video/quicktime';
+      case '.avi':
+        return 'video/x-msvideo';
+      case '.mkv':
+        return 'video/x-matroska';
+      case '.pdf':
+        return 'application/pdf';
+      case '.doc':
+        return 'application/msword';
+      case '.docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case '.xls':
+        return 'application/vnd.ms-excel';
+      case '.xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case '.zip':
+        return 'application/zip';
+      case '.txt':
+        return 'text/plain';
+      default:
+        return null;
     }
   }
 }

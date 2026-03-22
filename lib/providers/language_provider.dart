@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:order_tracker/localization/app_localizations.dart';
 
 class LanguageProvider extends ChangeNotifier {
-  AppLanguage _language = AppLanguage.arabic;
+  AppLanguage _language = AppLanguage.english;
   bool _hasManualSelection = false;
 
   AppLanguage get language => _language;
@@ -21,13 +21,16 @@ class LanguageProvider extends ChangeNotifier {
   void updateDefaultForRole(String? role) {
     if (role == null) {
       _hasManualSelection = false;
-      return setLanguage(AppLanguage.arabic, manual: false);
+      return setLanguage(AppLanguage.english, manual: false);
     }
 
     if (_hasManualSelection) return;
 
-    final defaultLang =
-        role == 'station_boy' ? AppLanguage.bengali : AppLanguage.arabic;
+    final defaultLang = switch (role) {
+      'station_boy' => AppLanguage.bengali,
+      'driver' => AppLanguage.english,
+      _ => AppLanguage.arabic,
+    };
     setLanguage(defaultLang, manual: false);
   }
 }
