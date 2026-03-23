@@ -1204,6 +1204,7 @@ class FuelStockSummary {
     required this.fuelType,
     required this.baseStock,
     this.initialSales = 0,
+    this.salesAlreadyAppliedInBase = false,
   });
 
   final String fuelType;
@@ -1214,12 +1215,17 @@ class FuelStockSummary {
   /// المبيعات التي حصلت بالفعل (من الجلسات اليومية)
   double initialSales;
 
+  final bool salesAlreadyAppliedInBase;
+
   /// المبيعات اللحظية أثناء فتح الجلسة
   double liveSales = 0;
 
   /// ✅ الرصيد بعد خصم المبيعات (اللي انت محتاجه)
   double get postSalesBalance =>
-      (baseStock - initialSales - liveSales).clamp(0, double.infinity);
+      (baseStock -
+              (salesAlreadyAppliedInBase ? 0 : initialSales) -
+              liveSales)
+          .clamp(0, double.infinity);
 
   /// للاستخدامات القديمة إن لزم
   double get availableStock => postSalesBalance;
@@ -1524,17 +1530,14 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
       return;
     }
 
-    final summaries = _summariesFromInventories(inventories);
-    _applySalesDeductionsToSummaries(summaries, _selectedSessionDateTime);
-
-    if (!mounted) return;
-    setState(() {
-      _fuelStockSummaries = summaries;
-      _lastInventorySyncAt = latestUpdate;
-    });
+    _lastInventorySyncAt = latestUpdate;
+    _loadFuelBalanceReportForStation(_selectedStationId!);
   }
 
   Future<void> _loadLiveFuelStockFromInventory(String stationId) async {
+    await _loadFuelBalanceReportForStation(stationId);
+    return;
+
     final stationProvider = context.read<StationProvider>();
 
     await stationProvider.fetchInventories(filters: {'stationId': stationId});
@@ -1700,6 +1703,45 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
     }
   }
 
+  List<FuelStockSummary> _buildFuelStockSummariesFromCurrentStock(
+    List<Map<String, dynamic>> currentStock,
+  ) {
+    final latestByFuel = <String, FuelStockSummary>{};
+
+    double readValue(Map<String, dynamic> item, List<String> keys) {
+      for (final key in keys) {
+        final value = item[key];
+        if (value is num) return value.toDouble();
+        final parsed = double.tryParse(value?.toString() ?? '');
+        if (parsed != null) return parsed;
+      }
+      return 0;
+    }
+
+    for (final item in currentStock) {
+      final fuelType = item['fuelType']?.toString().trim() ?? '';
+      final key = _normalizeFuelType(fuelType);
+      if (key.isEmpty) continue;
+
+      latestByFuel[key] = FuelStockSummary(
+        fuelType: fuelType,
+        baseStock: readValue(item, const [
+          'currentBalance',
+          'inventoryReferenceBalance',
+          'balance',
+          'availableStock',
+          'actualBalance',
+          'calculatedBalance',
+        ]),
+        salesAlreadyAppliedInBase: true,
+      );
+    }
+
+    final summaries = latestByFuel.values.toList();
+    summaries.sort((a, b) => a.fuelType.compareTo(b.fuelType));
+    return summaries;
+  }
+
   Future<void> _loadFuelBalanceReportForStation(String stationId) async {
     if (!mounted) return;
 
@@ -1721,32 +1763,52 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
       _selectedSessionDateTime.day,
     );
 
-    final startOfYear = DateTime(targetDate.year, 1, 1);
-    final endOfRange = targetDate; // inclusive day logic handled below
-
-    List<FuelBalanceReportRow> rows = [];
+    List<FuelStockSummary> summaries = [];
     String? error;
 
     try {
-      await stationProvider.fetchFuelBalanceReport(
-        stationId: stationId,
-        startDate: startOfYear,
-        endDate: endOfRange,
+      await stationProvider.fetchCurrentStock(
+        stationId,
+        asOfDate: _selectedSessionDateTime,
       );
-      rows = stationProvider.fuelBalanceReport;
+      summaries = _buildFuelStockSummariesFromCurrentStock(
+        stationProvider.currentStock,
+      );
     } catch (e) {
       error = e.toString();
     }
 
     // ✅ بدل التجميع السنوي: خُد آخر رصيد لكل نوع وقود حتى targetDate
-    final summaries = _buildFuelStockSummariesFromReport(rows, targetDate);
+    var finalSummaries = summaries;
 
     // ✅ fallback: لو التقرير رجّع فاضي
-    final finalSummaries = summaries.isNotEmpty
-        ? summaries
-        : await _loadInventorySummariesFallback(stationId, targetDate);
+    if (finalSummaries.isEmpty) {
+      final startOfYear = DateTime(targetDate.year, 1, 1);
+      final endOfRange = targetDate;
+      List<FuelBalanceReportRow> rows = [];
 
-    _applySalesDeductionsToSummaries(finalSummaries, targetDate);
+      try {
+        await stationProvider.fetchFuelBalanceReport(
+          stationId: stationId,
+          startDate: startOfYear,
+          endDate: endOfRange,
+        );
+        rows = stationProvider.fuelBalanceReport;
+      } catch (e) {
+        error ??= e.toString();
+      }
+
+      finalSummaries = _buildFuelStockSummariesFromReport(rows, targetDate);
+      if (finalSummaries.isEmpty) {
+        finalSummaries = await _loadInventorySummariesFallback(
+          stationId,
+          targetDate,
+        );
+      }
+      _applySalesDeductionsToSummaries(finalSummaries, targetDate);
+    } else {
+      _lastDeductedSalesByFuel.clear();
+    }
 
     if (!mounted) return;
 
@@ -1923,7 +1985,11 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
         inventory.receivedQuantity -
         inventory.totalSales;
 
-    return FuelStockSummary(fuelType: inventory.fuelType, baseStock: baseStock);
+    return FuelStockSummary(
+      fuelType: inventory.fuelType,
+      baseStock: baseStock,
+      salesAlreadyAppliedInBase: true,
+    );
   }
 
   Future<void> _pickNozzleImage(String key) async {
@@ -1973,6 +2039,10 @@ class _OpenSessionScreenState extends State<OpenSessionScreen> {
       _selectedSessionDateTime = newDateTime;
       _sessionDateController.text = _sessionDateFormat.format(newDateTime);
     });
+
+    if (_selectedStationId != null) {
+      await _loadFuelBalanceReportForStation(_selectedStationId!);
+    }
   }
 
   Future<void> _submitForm() async {

@@ -428,6 +428,9 @@ class _NotificationUiHelper {
     'periodKey',
     'statsCriteria',
     'sampleOrders',
+    'task',
+    'voucherPath',
+    'voucherUrl',
   };
 
   static bool isReadForUser(NotificationModel notification, String? userId) {
@@ -480,6 +483,14 @@ class _NotificationUiHelper {
         return Icons.verified_outlined;
       case 'task_rejected':
         return Icons.cancel_outlined;
+      case 'task_extension_requested':
+        return Icons.pending_actions_outlined;
+      case 'task_extension_approved':
+        return Icons.more_time_outlined;
+      case 'task_extension_rejected':
+        return Icons.event_busy_outlined;
+      case 'task_penalty_applied':
+        return Icons.receipt_long_outlined;
       case 'chat_message':
         return Icons.chat_bubble_outline;
       case 'task_reminder':
@@ -515,6 +526,7 @@ class _NotificationUiHelper {
       case 'order_created':
       case 'task_completed':
       case 'task_approved':
+      case 'task_extension_approved':
       case 'loading_completed':
       case 'execution_completed':
         return AppColors.successGreen;
@@ -525,10 +537,13 @@ class _NotificationUiHelper {
         return AppColors.infoBlue;
       case 'order_overdue':
       case 'task_rejected':
+      case 'task_extension_rejected':
       case 'task_overdue':
+      case 'task_penalty_applied':
         return AppColors.errorRed;
       case 'order_updated':
       case 'task_reminder':
+      case 'task_extension_requested':
       case 'loading_reminder':
       case 'arrival_reminder':
         return AppColors.warningOrange;
@@ -584,6 +599,14 @@ class _NotificationUiHelper {
         return 'اعتماد مهمة';
       case 'task_rejected':
         return 'رفض مهمة';
+      case 'task_extension_requested':
+        return 'طلب تمديد';
+      case 'task_extension_approved':
+        return 'اعتماد تمديد';
+      case 'task_extension_rejected':
+        return 'رفض تمديد';
+      case 'task_penalty_applied':
+        return 'استقطاع مهمة';
       case 'task_reminder':
         return 'تذكير مهمة';
       case 'task_overdue':
@@ -680,6 +703,16 @@ class _NotificationUiHelper {
       'score': 'الدرجة',
       'label': 'التصنيف',
       'description': 'الوصف',
+      'actorName': 'بواسطة',
+      'taskId': 'معرّف المهمة',
+      'taskCode': 'رقم المهمة',
+      'extensionSeconds': 'مدة التمديد بالثواني',
+      'extensionReason': 'سبب التمديد',
+      'decisionReason': 'سبب القرار',
+      'penaltyAmount': 'قيمة الاستقطاع',
+      'penaltyCurrency': 'عملة الاستقطاع',
+      'voucherNumber': 'رقم السند',
+      'notes': 'ملاحظات',
     };
     return translations[key] ?? key;
   }

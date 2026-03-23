@@ -8,6 +8,8 @@ import 'package:order_tracker/models/station_treasury_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:provider/provider.dart';
 
 class StationTreasuryScreen extends StatefulWidget {
@@ -35,6 +37,8 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
   StationTreasuryOverview? _overview;
   String? _selectedStationId;
   String? _errorMessage;
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   bool _isLoadingStations = false;
   bool _isLoadingOverview = false;
@@ -69,6 +73,64 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
     _amountController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  String? _formatApiDate(DateTime? value) {
+    if (value == null) return null;
+    return value.toIso8601String().split('T').first;
+  }
+
+  String _formatFilterDate(DateTime? value, {required String fallback}) {
+    if (value == null) return fallback;
+    return DateFormat('yyyy/MM/dd', 'ar').format(value);
+  }
+
+  String _currentPeriodLabel() {
+    if (_startDate == null && _endDate == null) {
+      return 'كل الفترات';
+    }
+
+    return '${_formatFilterDate(_startDate, fallback: 'البداية')} - ${_formatFilterDate(_endDate, fallback: 'الآن')}';
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final initialDate =
+        (isStart ? _startDate : _endDate) ??
+        (isStart ? (_endDate ?? DateTime.now()) : (_startDate ?? DateTime.now()));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2023),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      if (isStart) {
+        _startDate = picked;
+        if (_endDate != null && _endDate!.isBefore(picked)) {
+          _endDate = picked;
+        }
+      } else {
+        _endDate = picked;
+        if (_startDate != null && _startDate!.isAfter(picked)) {
+          _startDate = picked;
+        }
+      }
+    });
+
+    await _loadTreasuryData();
+  }
+
+  Future<void> _clearDateRange() async {
+    setState(() {
+      _startDate = null;
+      _endDate = null;
+    });
+
+    await _loadTreasuryData();
   }
 
   Future<void> _loadInitialData() async {
@@ -159,7 +221,15 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
   Future<StationTreasuryOverview> _fetchOverview(String stationId) async {
     final uri = Uri.parse(
       '${ApiEndpoints.baseUrl}/stations/treasury/summary',
-    ).replace(queryParameters: {'stationId': stationId});
+    ).replace(
+      queryParameters: {
+        'stationId': stationId,
+        if (_formatApiDate(_startDate) != null)
+          'startDate': _formatApiDate(_startDate)!,
+        if (_formatApiDate(_endDate) != null)
+          'endDate': _formatApiDate(_endDate)!,
+      },
+    );
 
     final response = await http.get(uri, headers: ApiService.headers);
     if (response.statusCode != 200) {
@@ -177,13 +247,18 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
   Future<List<StationTreasuryVoucherRecord>> _fetchVouchers(
     String stationId,
   ) async {
-    final uri = Uri.parse(
-      '${ApiEndpoints.baseUrl}/stations/treasury/vouchers',
-    ).replace(queryParameters: {
-      'stationId': stationId,
-      'page': '1',
-      'limit': '100',
-    });
+    final uri = Uri.parse('${ApiEndpoints.baseUrl}/stations/treasury/vouchers')
+        .replace(
+          queryParameters: {
+            'stationId': stationId,
+            'page': '1',
+            'limit': '100',
+            if (_formatApiDate(_startDate) != null)
+              'startDate': _formatApiDate(_startDate)!,
+            if (_formatApiDate(_endDate) != null)
+              'endDate': _formatApiDate(_endDate)!,
+          },
+        );
 
     final response = await http.get(uri, headers: ApiService.headers);
     if (response.statusCode != 200) {
@@ -244,9 +319,9 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
       await _loadTreasuryData();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (!mounted) return;
       setState(() {
@@ -258,114 +333,221 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
   @override
   Widget build(BuildContext context) {
     final summary = _overview?.summary;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 1100;
+    final isTablet = width >= 700;
+    final horizontalPadding = isDesktop ? 28.0 : (isTablet ? 20.0 : 16.0);
 
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        centerTitle: true,
         title: const Text('خزنة المحطات'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadTreasuryData,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildFilterCard(),
-            if (_isBusy) ...[
-              const SizedBox(height: 12),
-              const LinearProgressIndicator(minHeight: 3),
-            ],
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 12),
-              _buildErrorCard(_errorMessage!),
-            ],
-            if (summary != null) ...[
-              const SizedBox(height: 16),
-              _buildInfoCard(summary),
-              const SizedBox(height: 16),
-              _buildSummarySection(summary),
-              const SizedBox(height: 16),
-              _buildNetworkBreakdown(summary),
-            ],
-            if (_canCreateVoucher && _selectedStationId != null) ...[
-              const SizedBox(height: 16),
-              _buildVoucherForm(summary),
-            ],
-            const SizedBox(height: 16),
-            _buildVouchersSection(),
-          ],
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
         ),
+      ),
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: RefreshIndicator(
+                onRefresh: _loadTreasuryData,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    20,
+                    horizontalPadding,
+                    120,
+                  ),
+                  children: [
+                    _buildFilterCard(),
+                    if (_isBusy) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: const LinearProgressIndicator(minHeight: 4),
+                      ),
+                    ],
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      _buildErrorCard(_errorMessage!),
+                    ],
+                    if (summary != null) ...[
+                      const SizedBox(height: 16),
+                      _buildInfoCard(summary),
+                      const SizedBox(height: 16),
+                      _buildSummarySection(summary),
+                      const SizedBox(height: 16),
+                      _buildFinancePanels(summary),
+                    ],
+                    if (summary == null &&
+                        !_isBusy &&
+                        _errorMessage == null) ...[
+                      const SizedBox(height: 16),
+                      _buildEmptyState(),
+                    ],
+                    const SizedBox(height: 16),
+                    _buildVouchersSection(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildFilterCard() {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _stations.isEmpty
-            ? const Text(
-                'لا توجد محطات متاحة لهذا المستخدم حاليًا.',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'اختيار المحطة',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedStationId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'المحطة',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _stations
-                        .map(
-                          (station) => DropdownMenuItem<String>(
-                            value: station.id,
-                            child: Text(
-                              station.stationName,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _isLoadingStations
-                        ? null
-                        : (value) async {
-                            if (value == null || value == _selectedStationId) {
-                              return;
-                            }
-                            setState(() {
-                              _selectedStationId = value;
-                            });
-                            await _loadTreasuryData();
-                          },
-                  ),
-                ],
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
+      child: _stations.isEmpty
+          ? const Text(
+              'لا توجد محطات متاحة لهذا المستخدم حاليًا.',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
               ),
-      ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'اختيار المحطة',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'اختر المحطة لعرض الرصيد النقدي، الشبكة، وسجلات سندات الصرف المرتبطة بها.',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  value: _selectedStationId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'المحطة',
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.92),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: AppColors.appBarWaterBright.withValues(
+                          alpha: 0.10,
+                        ),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(
+                        color: AppColors.appBarWaterBright,
+                        width: 1.4,
+                      ),
+                    ),
+                  ),
+                  items: _stations
+                      .map(
+                        (station) => DropdownMenuItem<String>(
+                          value: station.id,
+                          child: Text(
+                            station.stationName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _isLoadingStations
+                      ? null
+                      : (value) async {
+                          if (value == null || value == _selectedStationId) {
+                            return;
+                          }
+                          setState(() {
+                            _selectedStationId = value;
+                          });
+                          await _loadTreasuryData();
+                        },
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickDate(isStart: true),
+                        icon: const Icon(Icons.calendar_month_rounded),
+                        label: Text(
+                          'من: ${_formatFilterDate(_startDate, fallback: 'البداية')}',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickDate(isStart: false),
+                        icon: const Icon(Icons.event_available_rounded),
+                        label: Text(
+                          'إلى: ${_formatFilterDate(_endDate, fallback: 'الآن')}',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'الفترة الحالية: ${_currentPeriodLabel()}',
+                        style: const TextStyle(
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (_startDate != null || _endDate != null)
+                      TextButton(
+                        onPressed: _clearDateRange,
+                        child: const Text('مسح الفترة'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
   Widget _buildErrorCard(String message) {
-    return Container(
+    return AppSurfaceCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.errorRed.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.errorRed.withValues(alpha: 0.20),
-        ),
-      ),
+      color: AppColors.errorRed.withValues(alpha: 0.08),
+      border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.20)),
+      boxShadow: const [],
       child: Row(
         children: [
           const Icon(Icons.error_outline_rounded, color: AppColors.errorRed),
@@ -384,6 +566,40 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return const AppSurfaceCard(
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+      child: Column(
+        children: [
+          Icon(
+            Icons.account_balance_wallet_outlined,
+            size: 60,
+            color: Color(0xFF94A3B8),
+          ),
+          SizedBox(height: 14),
+          Text(
+            'اختر محطة لعرض تفاصيل الخزنة',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'عند اختيار المحطة ستظهر الأرصدة، تفصيل المبيعات، وسجلات سندات الصرف هنا.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoCard(StationTreasurySummary summary) {
     final stationName = _overview?.station.stationName ?? '';
     final stationCode = _overview?.station.stationCode ?? '';
@@ -392,37 +608,87 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
         : 'البيانات محسوبة من الجلسات المغلقة والمعتمدة';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F766E), Color(0xFF115E59)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
+          colors: [Color(0xFF0F766E), Color(0xFF115E59), Color(0xFF0F4C5C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F766E).withValues(alpha: 0.18),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            stationName.isEmpty ? 'خزنة المحطة' : stationName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          if (stationCode.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              stationCode,
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ],
-          const SizedBox(height: 10),
-          Text(
-            infoText,
-            style: const TextStyle(color: Colors.white),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stationName.isEmpty ? 'خزنة المحطة' : stationName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (stationCode.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        stationCode,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    Text(
+                      'الفترة: ${_currentPeriodLabel()}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      infoText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -482,49 +748,72 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final double tileWidth;
-        if (width >= 1100) {
-          tileWidth = (width - 24) / 4;
-        } else if (width >= 720) {
-          tileWidth = (width - 12) / 2;
-        } else {
-          tileWidth = width;
-        }
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'الملخص المالي',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'ملخص فوري لحركة النقدي، الشبكة، والمبالغ المحتسبة من الجلسات المعتمدة.',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final double tileWidth;
+              if (width >= 1100) {
+                tileWidth = (width - 24) / 4;
+              } else if (width >= 720) {
+                tileWidth = (width - 12) / 2;
+              } else {
+                tileWidth = width;
+              }
 
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: items
-              .map(
-                (item) => SizedBox(
-                  width: tileWidth,
-                  child: _buildMetricCard(item),
-                ),
-              )
-              .toList(),
-        );
-      },
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: items
+                    .map(
+                      (item) => SizedBox(
+                        width: tileWidth,
+                        child: _buildMetricCard(item),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildMetricCard(_TreasuryMetric metric) {
-    return Container(
+    return AppSurfaceCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      color: Colors.white.withValues(alpha: 0.78),
+      border: Border.all(color: metric.color.withValues(alpha: 0.12)),
+      boxShadow: [
+        BoxShadow(
+          color: metric.color.withValues(alpha: 0.08),
+          blurRadius: 22,
+          offset: const Offset(0, 14),
+        ),
+      ],
       child: Row(
         children: [
           Container(
@@ -568,51 +857,99 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
   }
 
   Widget _buildNetworkBreakdown(StationTreasurySummary summary) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'تفصيل مبيعات الشبكة',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'تفصيل مبيعات الشبكة',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildBreakdownChip(
-                  label: 'بطاقات',
-                  value: summary.cardSales,
-                  color: AppColors.infoBlue,
-                ),
-                _buildBreakdownChip(
-                  label: 'مدى',
-                  value: summary.madaSales,
-                  color: const Color(0xFF2563EB),
-                ),
-                _buildBreakdownChip(
-                  label: 'أخرى',
-                  value: summary.otherSales,
-                  color: const Color(0xFF7C3AED),
-                ),
-              ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'توزيع مبيعات الدفع غير النقدي حسب القنوات المختلفة.',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+              height: 1.5,
             ),
-            const SizedBox(height: 12),
-            const Text(
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildBreakdownChip(
+                label: 'بطاقات',
+                value: summary.cardSales,
+                color: AppColors.infoBlue,
+              ),
+              _buildBreakdownChip(
+                label: 'مدى',
+                value: summary.madaSales,
+                color: const Color(0xFF2563EB),
+              ),
+              _buildBreakdownChip(
+                label: 'أخرى',
+                value: summary.otherSales,
+                color: const Color(0xFF7C3AED),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            ),
+            child: const Text(
               'ملاحظة: أي مصروف أو سند صرف يتم خصمه من الرصيد النقدي فقط، بينما رصيد الشبكة يبقى مبنيًا على عمليات الدفع غير النقدي.',
               style: TextStyle(
                 color: Color(0xFF475569),
                 height: 1.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildFinancePanels(StationTreasurySummary summary) {
+    final showVoucher = _canCreateVoucher && _selectedStationId != null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!showVoucher || constraints.maxWidth < 980) {
+          return Column(
+            children: [
+              _buildNetworkBreakdown(summary),
+              if (showVoucher) ...[
+                const SizedBox(height: 16),
+                _buildVoucherForm(summary),
+              ],
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildNetworkBreakdown(summary)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildVoucherForm(summary)),
+          ],
+        );
+      },
     );
   }
 
@@ -626,13 +963,11 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
       ),
       child: Text(
         '$label: ${_moneyFormat.format(value)}',
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -640,197 +975,217 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
   Widget _buildVoucherForm(StationTreasurySummary? summary) {
     final availableCash = summary?.cashBalance ?? 0;
 
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'إصدار سند صرف',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'إصدار سند صرف',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF0F172A),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'المتاح حاليًا في الخزنة النقدية: ${_moneyFormat.format(availableCash)}',
-                style: const TextStyle(
-                  color: Color(0xFF475569),
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'المتاح حاليًا في الخزنة النقدية: ${_moneyFormat.format(availableCash)}',
+              style: const TextStyle(
+                color: Color(0xFF475569),
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _recipientController,
-                decoration: const InputDecoration(
-                  labelText: 'اسم المستلم',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'اسم المستلم مطلوب';
-                  }
-                  return null;
-                },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _recipientController,
+              decoration: _inputDecoration(
+                'اسم المستلم',
+                Icons.person_outline_rounded,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'المبلغ',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final amount = double.tryParse(value?.trim() ?? '');
-                  if (amount == null || amount <= 0) {
-                    return 'أدخل مبلغًا صحيحًا';
-                  }
-                  if (summary != null && amount > summary.cashBalance) {
-                    return 'المبلغ أكبر من الرصيد النقدي الحالي';
-                  }
-                  return null;
-                },
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'اسم المستلم مطلوب';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _notesController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'ملاحظات',
-                  border: OutlineInputBorder(),
+              decoration: _inputDecoration('المبلغ', Icons.payments_outlined),
+              validator: (value) {
+                final amount = double.tryParse(value?.trim() ?? '');
+                if (amount == null || amount <= 0) {
+                  return 'أدخل مبلغًا صحيحًا';
+                }
+                if (summary != null && amount > summary.cashBalance) {
+                  return 'المبلغ أكبر من الرصيد النقدي الحالي';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _notesController,
+              maxLines: 3,
+              decoration: _inputDecoration('ملاحظات', Icons.notes_rounded),
+            ),
+            const SizedBox(height: 18),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: FilledButton.icon(
+                onPressed: _isSubmittingVoucher ? null : _submitVoucher,
+                icon: const Icon(Icons.receipt_long_rounded),
+                label: Text(
+                  _isSubmittingVoucher ? 'جارٍ الحفظ...' : 'حفظ سند الصرف',
                 ),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: FilledButton.icon(
-                  onPressed: _isSubmittingVoucher ? null : _submitVoucher,
-                  icon: const Icon(Icons.receipt_long_rounded),
-                  label: Text(
-                    _isSubmittingVoucher ? 'جارٍ الحفظ...' : 'حفظ سند الصرف',
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildVouchersSection() {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'سجلات سندات الصرف',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                Text(
-                  '${_vouchers.length} سجل',
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_vouchers.isEmpty)
-              const Text(
-                'لا توجد سندات صرف مسجلة لهذه المحطة حتى الآن.',
-                style: TextStyle(color: Color(0xFF64748B)),
-              )
-            else
-              ..._vouchers.map(_buildVoucherCard),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVoucherCard(StationTreasuryVoucherRecord voucher) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-      ),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
-                  voucher.recipientName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                  'سجلات سندات الصرف',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
                     color: Color(0xFF0F172A),
                   ),
                 ),
               ),
               Text(
-                _moneyFormat.format(voucher.amount),
+                '${_vouchers.length} سجل',
                 style: const TextStyle(
-                  color: AppColors.errorRed,
-                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              _buildVoucherMeta('رقم السند', voucher.voucherNumber),
-              _buildVoucherMeta(
-                'الرصيد قبل',
-                _moneyFormat.format(voucher.cashBalanceBefore),
-              ),
-              _buildVoucherMeta(
-                'الرصيد بعد',
-                _moneyFormat.format(voucher.cashBalanceAfter),
-              ),
-              if (voucher.createdByName.trim().isNotEmpty)
-                _buildVoucherMeta('أُنشئ بواسطة', voucher.createdByName),
-              if (voucher.createdAt != null)
-                _buildVoucherMeta(
-                  'التاريخ',
-                  _dateFormat.format(voucher.createdAt!),
-                ),
-            ],
-          ),
-          if (voucher.notes.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              voucher.notes,
-              style: const TextStyle(
-                color: Color(0xFF475569),
-                height: 1.5,
-              ),
+          const SizedBox(height: 6),
+          const Text(
+            'جميع سندات الصرف المسجلة للمحطة المختارة مع الرصيد قبل وبعد الصرف.',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+              height: 1.5,
             ),
-          ],
+          ),
+          const SizedBox(height: 18),
+          if (_vouchers.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 22),
+                child: Text(
+                  'لا توجد سندات صرف مسجلة لهذه المحطة حتى الآن.',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            )
+          else
+            ..._vouchers.map(_buildVoucherCard),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVoucherCard(StationTreasuryVoucherRecord voucher) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AppSurfaceCard(
+        padding: const EdgeInsets.all(16),
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: const [],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    voucher.recipientName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+                Text(
+                  _moneyFormat.format(voucher.amount),
+                  style: const TextStyle(
+                    color: AppColors.errorRed,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                _buildVoucherMeta('رقم السند', voucher.voucherNumber),
+                _buildVoucherMeta(
+                  'الرصيد قبل',
+                  _moneyFormat.format(voucher.cashBalanceBefore),
+                ),
+                _buildVoucherMeta(
+                  'الرصيد بعد',
+                  _moneyFormat.format(voucher.cashBalanceAfter),
+                ),
+                if (voucher.createdByName.trim().isNotEmpty)
+                  _buildVoucherMeta('أُنشئ بواسطة', voucher.createdByName),
+                if (voucher.createdAt != null)
+                  _buildVoucherMeta(
+                    'التاريخ',
+                    _dateFormat.format(voucher.createdAt!),
+                  ),
+              ],
+            ),
+            if (voucher.notes.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                voucher.notes,
+                style: const TextStyle(color: Color(0xFF475569), height: 1.5),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -841,12 +1196,39 @@ class _StationTreasuryScreenState extends State<StationTreasuryScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Text(
         '$label: $value',
         style: const TextStyle(
           color: Color(0xFF334155),
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.92),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: AppColors.appBarWaterBright.withValues(alpha: 0.10),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(
+          color: AppColors.appBarWaterBright,
+          width: 1.4,
         ),
       ),
     );

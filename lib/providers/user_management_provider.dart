@@ -69,6 +69,29 @@ class UserManagementProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final initialBody = await _requestUsersPage(
+        page: 1,
+        search: search,
+        limit: 0,
+      );
+      final initialPagination =
+          initialBody['pagination'] as Map<String, dynamic>? ?? {};
+      final initialPages = initialPagination['pages'] is int
+          ? initialPagination['pages'] as int
+          : int.tryParse(initialPagination['pages']?.toString() ?? '') ?? 1;
+
+      if (initialPages <= 1) {
+        final fetched = (initialBody['users'] as List<dynamic>? ?? [])
+            .map((user) => User.fromJson(user))
+            .toList();
+        _users
+          ..clear()
+          ..addAll(fetched);
+        _currentPage = 1;
+        _hasMore = false;
+        return;
+      }
+
       final collected = <User>[];
       final seenIds = <String>{};
       var page = 1;

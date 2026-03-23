@@ -280,7 +280,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         type == 'task_message' ||
         type == 'task_completed' ||
         type == 'task_approved' ||
-        type == 'task_rejected';
+        type == 'task_rejected' ||
+        type == 'task_extension_requested' ||
+        type == 'task_extension_approved' ||
+        type == 'task_extension_rejected' ||
+        type == 'task_penalty_applied';
   }
 
   String? _extractTaskId(NotificationModel notification) {

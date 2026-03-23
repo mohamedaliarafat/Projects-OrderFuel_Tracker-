@@ -161,6 +161,99 @@ class TaskReport {
   }
 }
 
+class TaskOverduePenalty {
+  final bool enabled;
+  final double amount;
+  final String currency;
+  final String status;
+  final DateTime? configuredAt;
+  final DateTime? appliedAt;
+  final String? appliedByName;
+  final String voucherNumber;
+  final String voucherPath;
+  final String notes;
+
+  const TaskOverduePenalty({
+    required this.enabled,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    this.configuredAt,
+    this.appliedAt,
+    this.appliedByName,
+    this.voucherNumber = '',
+    this.voucherPath = '',
+    this.notes = '',
+  });
+
+  bool get isConfigured => status == 'configured' && enabled && amount > 0;
+  bool get isApplied => status == 'applied';
+
+  factory TaskOverduePenalty.fromJson(Map<String, dynamic> json) {
+    return TaskOverduePenalty(
+      enabled: json['enabled'] == true,
+      amount: double.tryParse(json['amount']?.toString() ?? '0') ?? 0,
+      currency: json['currency']?.toString() ?? 'SAR',
+      status: json['status']?.toString() ?? 'none',
+      configuredAt: json['configuredAt'] != null
+          ? DateTime.tryParse(json['configuredAt'].toString())
+          : null,
+      appliedAt: json['appliedAt'] != null
+          ? DateTime.tryParse(json['appliedAt'].toString())
+          : null,
+      appliedByName: json['appliedByName']?.toString(),
+      voucherNumber: json['voucherNumber']?.toString() ?? '',
+      voucherPath: json['voucherPath']?.toString() ?? '',
+      notes: json['notes']?.toString() ?? '',
+    );
+  }
+}
+
+class TaskExtensionRequest {
+  final String status;
+  final String? requestedByName;
+  final DateTime? requestedAt;
+  final int requestedSeconds;
+  final String requestedReason;
+  final String? decidedByName;
+  final DateTime? decidedAt;
+  final String decisionReason;
+
+  const TaskExtensionRequest({
+    required this.status,
+    this.requestedByName,
+    this.requestedAt,
+    this.requestedSeconds = 0,
+    this.requestedReason = '',
+    this.decidedByName,
+    this.decidedAt,
+    this.decisionReason = '',
+  });
+
+  bool get isPending => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get isRejected => status == 'rejected';
+  bool get hasRequest => status != 'none';
+
+  factory TaskExtensionRequest.fromJson(Map<String, dynamic> json) {
+    return TaskExtensionRequest(
+      status: json['status']?.toString() ?? 'none',
+      requestedByName: json['requestedByName']?.toString(),
+      requestedAt: json['requestedAt'] != null
+          ? DateTime.tryParse(json['requestedAt'].toString())
+          : null,
+      requestedSeconds:
+          int.tryParse(json['requestedSeconds']?.toString() ?? '0') ?? 0,
+      requestedReason: json['requestedReason']?.toString() ?? '',
+      decidedByName: json['decidedByName']?.toString(),
+      decidedAt: json['decidedAt'] != null
+          ? DateTime.tryParse(json['decidedAt'].toString())
+          : null,
+      decisionReason: json['decisionReason']?.toString() ?? '',
+    );
+  }
+}
+
 class TaskTargetLocation {
   final String? address;
   final double? latitude;
@@ -229,13 +322,18 @@ class TaskModel {
   final String assignedToName;
   final String createdBy;
   final String createdByName;
+  final int countdownDurationSeconds;
   final DateTime? assignedAt;
   final DateTime? acceptedAt;
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime? dueDate;
+  final String? statusBeforeOverdue;
+  final DateTime? overdueNotifiedAt;
   final TaskTargetLocation? location;
   final TaskReport? report;
+  final TaskOverduePenalty? overduePenalty;
+  final TaskExtensionRequest? extensionRequest;
   final List<TaskAttachment> attachments;
   final List<TaskMessage> messages;
   final List<TaskParticipant> participants;
@@ -252,13 +350,18 @@ class TaskModel {
     required this.assignedToName,
     required this.createdBy,
     required this.createdByName,
+    this.countdownDurationSeconds = 0,
     this.assignedAt,
     this.acceptedAt,
     this.startedAt,
     this.completedAt,
     this.dueDate,
+    this.statusBeforeOverdue,
+    this.overdueNotifiedAt,
     this.location,
     this.report,
+    this.overduePenalty,
+    this.extensionRequest,
     this.attachments = const [],
     this.messages = const [],
     this.participants = const [],
@@ -277,6 +380,9 @@ class TaskModel {
       assignedToName: json['assignedToName']?.toString() ?? '',
       createdBy: json['createdBy']?.toString() ?? '',
       createdByName: json['createdByName']?.toString() ?? '',
+      countdownDurationSeconds:
+          int.tryParse(json['countdownDurationSeconds']?.toString() ?? '0') ??
+          0,
       assignedAt: json['assignedAt'] != null
           ? DateTime.tryParse(json['assignedAt'].toString())
           : null,
@@ -292,6 +398,10 @@ class TaskModel {
       dueDate: json['dueDate'] != null
           ? DateTime.tryParse(json['dueDate'].toString())
           : null,
+      statusBeforeOverdue: json['statusBeforeOverdue']?.toString(),
+      overdueNotifiedAt: json['overdueNotifiedAt'] != null
+          ? DateTime.tryParse(json['overdueNotifiedAt'].toString())
+          : null,
       location: json['location'] is Map<String, dynamic>
           ? TaskTargetLocation.fromJson(
               Map<String, dynamic>.from(json['location']),
@@ -299,6 +409,16 @@ class TaskModel {
           : null,
       report: json['report'] is Map<String, dynamic>
           ? TaskReport.fromJson(Map<String, dynamic>.from(json['report']))
+          : null,
+      overduePenalty: json['overduePenalty'] is Map<String, dynamic>
+          ? TaskOverduePenalty.fromJson(
+              Map<String, dynamic>.from(json['overduePenalty']),
+            )
+          : null,
+      extensionRequest: json['extensionRequest'] is Map<String, dynamic>
+          ? TaskExtensionRequest.fromJson(
+              Map<String, dynamic>.from(json['extensionRequest']),
+            )
           : null,
       attachments: (json['attachments'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
@@ -314,5 +434,31 @@ class TaskModel {
           .toList(),
       trackingConsent: json['trackingConsent'] == true,
     );
+  }
+
+  bool get isDone => status == 'completed' || status == 'approved';
+
+  bool get hasDeadline => dueDate != null;
+
+  bool get isDeadlineExpired {
+    if (dueDate == null || isDone) return false;
+    return dueDate!.isBefore(DateTime.now());
+  }
+
+  Duration? get deadlineRemaining =>
+      dueDate == null ? null : dueDate!.difference(DateTime.now());
+
+  List<String> get workerNames {
+    final values = <String>[];
+    if (assignedToName.trim().isNotEmpty) {
+      values.add(assignedToName.trim());
+    }
+    for (final participant in participants) {
+      final name = participant.name.trim();
+      if (name.isNotEmpty && !values.contains(name)) {
+        values.add(name);
+      }
+    }
+    return values;
   }
 }

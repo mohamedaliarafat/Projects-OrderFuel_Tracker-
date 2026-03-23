@@ -2181,6 +2181,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     }
 
     final returnByFuel = _returnsByFuel();
+    final supplyByFuel = _currentSupplyByFuel();
     final double returnAmount = _totalReturnAmount();
 
     final netRequired = theoreticalAmount - expensesTotal - returnAmount;
@@ -2199,8 +2200,11 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     );
     final stockBefore = Map<String, double>.from(adjustedBase);
     final stockAfter = _addFuelMaps(
-      _calculateStockAfterSales(adjustedBase, _soldLitersByFuel),
-      _normalizeFuelMap(returnByFuel),
+      _addFuelMaps(
+        _calculateStockAfterSales(adjustedBase, _soldLitersByFuel),
+        _normalizeFuelMap(returnByFuel),
+      ),
+      _normalizeFuelMap(supplyByFuel),
     );
 
     setState(() {
@@ -2476,6 +2480,26 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     return 0;
   }
 
+  double _extractCurrentLiveStockBalance(Map<String, dynamic> item) {
+    const keys = [
+      'currentBalance',
+      'inventoryReferenceBalance',
+      'availableStock',
+      'balance',
+      'actualBalance',
+      'calculatedBalance',
+      'quantity',
+      'remaining',
+    ];
+    for (final key in keys) {
+      final value = item[key];
+      if (value != null) {
+        return _toDouble(value);
+      }
+    }
+    return 0;
+  }
+
   Map<String, double> _buildBaseStockFromCurrentStock(
     List<Map<String, dynamic>> items,
   ) {
@@ -2488,6 +2512,44 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       result[key] = (result[key] ?? 0) + balance;
     }
     return result;
+  }
+
+  Map<String, double> _currentSupplyByFuel() {
+    final result = <String, double>{};
+    final fuelType = _selectedFuelType == null
+        ? ''
+        : _normalizeFuelType(_selectedFuelType!);
+    final quantity = double.tryParse(_fuelQuantityController.text) ?? 0;
+
+    if (fuelType.isEmpty || quantity <= 0) {
+      return result;
+    }
+
+    result[fuelType] = quantity;
+    return result;
+  }
+
+  Map<String, double> _buildLiveStockFromCurrentStock(
+    List<Map<String, dynamic>> items,
+  ) {
+    final result = <String, double>{};
+    for (final item in items) {
+      final fuelType = item['fuelType']?.toString() ?? '';
+      final key = _normalizeFuelType(fuelType);
+      if (key.isEmpty) continue;
+      final balance = _extractCurrentLiveStockBalance(item);
+      result[key] = (result[key] ?? 0) + balance;
+    }
+    return result;
+  }
+
+  bool _hasNonZeroFuelMap(Map<String, double> values) {
+    for (final value in values.values) {
+      if (value.abs() > 0.0001) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Map<String, double> _calculatePriorSalesByFuel(
@@ -2566,9 +2628,6 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     String stationId,
     DateTime sessionDate,
   ) async {
-    String _formatDate(DateTime date) =>
-        date.toIso8601String().split('T').first;
-
     try {
       await provider.fetchInventories(
         filters: {'stationId': stationId, 'endDate': _formatDate(sessionDate)},
@@ -2630,7 +2689,17 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     );
 
     try {
-      await stationProvider.fetchCurrentStock(session.stationId);
+      await stationProvider.fetchSessions(
+        filters: {
+          'stationId': session.stationId,
+          'endDate': _formatDate(session.sessionDate),
+          'limit': 0,
+        },
+      );
+      await stationProvider.fetchCurrentStock(
+        session.stationId,
+        asOfDate: session.openingTime,
+      );
 
       Map<String, double> baseStock = _buildBaseStockFromCurrentStock(
         stationProvider.currentStock,
@@ -2677,34 +2746,68 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       final normalizedPriorSales = _normalizeFuelMap(priorSales);
       final normalizedPriorReturns = _normalizeFuelMap(priorReturns);
       final normalizedPriorSupplies = _normalizeFuelMap(priorSupplies);
-      final adjustedBase = _addFuelMaps(
-        _addFuelMaps(
-          _subtractFuelMaps(normalizedBase, normalizedPriorSales),
-          normalizedPriorSupplies,
-        ),
-        normalizedPriorReturns,
-      );
+      Map<String, double> effectiveBase = normalizedBase;
+      Map<String, double> effectivePriorSales = normalizedPriorSales;
+      Map<String, double> effectivePriorReturns = normalizedPriorReturns;
+      Map<String, double> effectivePriorSupplies = normalizedPriorSupplies;
+
+      Map<String, double> adjustedBase = stationProvider.currentStock.isNotEmpty
+          ? Map<String, double>.from(effectiveBase)
+          : _addFuelMaps(
+              _addFuelMaps(
+                _subtractFuelMaps(effectiveBase, effectivePriorSales),
+                effectivePriorSupplies,
+              ),
+              effectivePriorReturns,
+            );
+
+      if (stationProvider.currentStock.isNotEmpty) {
+        effectivePriorSales = {};
+        effectivePriorReturns = {};
+        effectivePriorSupplies = {};
+      }
+
+      if (
+        !_hasNonZeroFuelMap(adjustedBase) &&
+        stationProvider.currentStock.isNotEmpty
+      ) {
+        final liveStock = _normalizeFuelMap(
+          _buildLiveStockFromCurrentStock(stationProvider.currentStock),
+        );
+        if (_hasNonZeroFuelMap(liveStock)) {
+          effectiveBase = liveStock;
+          effectivePriorSales = {};
+          effectivePriorReturns = {};
+          effectivePriorSupplies = {};
+          adjustedBase = Map<String, double>.from(liveStock);
+        }
+      }
+
       final returnByFuel = _normalizeFuelMap(_returnsByFuel());
+      final supplyByFuel = _normalizeFuelMap(_currentSupplyByFuel());
       final stockBefore = Map<String, double>.from(adjustedBase);
       final stockAfter = _addFuelMaps(
-        _calculateStockAfterSales(adjustedBase, _soldLitersByFuel),
-        returnByFuel,
+        _addFuelMaps(
+          _calculateStockAfterSales(adjustedBase, _soldLitersByFuel),
+          returnByFuel,
+        ),
+        supplyByFuel,
       );
 
       if (!mounted) return;
       setState(() {
         _baseStockByFuel
           ..clear()
-          ..addAll(normalizedBase);
+          ..addAll(effectiveBase);
         _priorSalesByFuel
           ..clear()
-          ..addAll(normalizedPriorSales);
+          ..addAll(effectivePriorSales);
         _priorReturnsByFuel
           ..clear()
-          ..addAll(normalizedPriorReturns);
+          ..addAll(effectivePriorReturns);
         _priorSuppliesByFuel
           ..clear()
-          ..addAll(normalizedPriorSupplies);
+          ..addAll(effectivePriorSupplies);
         _stockBeforeSalesByFuel = stockBefore;
         _stockAfterSalesByFuel = stockAfter;
         _isStockLoading = false;
@@ -2846,6 +2949,10 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       source.minute,
       source.second,
     );
+  }
+
+  String _formatDate(DateTime value) {
+    return value.toIso8601String().split('T').first;
   }
 
   String _formatDateOnly(DateTime value) {
@@ -4180,13 +4287,15 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
                   );
                   final compactSold = _compactFuelMap(_soldLitersByFuel);
                   final compactReturns = _compactFuelMap(_returnsByFuel());
+                  final compactSupplies = _compactFuelMap(_currentSupplyByFuel());
                   final beforeStock = compactBefore[compactKey];
                   final afterStock = _stockAfterSalesByFuel[stockKey];
                   final computedAfter = beforeStock == null
                       ? null
                       : beforeStock -
                             (compactSold[compactKey] ?? 0) +
-                            (compactReturns[compactKey] ?? 0);
+                            (compactReturns[compactKey] ?? 0) +
+                            (compactSupplies[compactKey] ?? 0);
                   final beforeText = _isStockLoading
                       ? '...'
                       : (beforeStock == null
@@ -5571,14 +5680,17 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     final after = _stockAfterSalesByFuel;
     final sold = _normalizeFuelMap(_soldLitersByFuel);
     final returns = _normalizeFuelMap(_returnsByFuel());
+    final supplies = _normalizeFuelMap(_currentSupplyByFuel());
     final compactBefore = _compactFuelMap(before);
     final compactSold = _compactFuelMap(sold);
     final compactReturns = _compactFuelMap(returns);
+    final compactSupplies = _compactFuelMap(supplies);
     final allFuelTypes = <String>{
       ...before.keys,
       ...after.keys,
       ...sold.keys,
       ...returns.keys,
+      ...supplies.keys,
     }.toList()..sort();
 
     if (allFuelTypes.isEmpty) {
@@ -5612,7 +5724,8 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       final afterValue =
           beforeValue -
           (compactSold[compactKey] ?? 0) +
-          (compactReturns[compactKey] ?? 0);
+          (compactReturns[compactKey] ?? 0) +
+          (compactSupplies[compactKey] ?? 0);
       final soldValue = sold[fuelType] ?? 0;
 
       return DataRow(

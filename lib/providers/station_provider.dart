@@ -92,14 +92,20 @@ class StationProvider with ChangeNotifier {
     }).toList();
   }
 
-  Future<void> fetchCurrentStock(String stationId) async {
+  Future<void> fetchCurrentStock(String stationId, {DateTime? asOfDate}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      final queryParameters = <String, String>{};
+      if (asOfDate != null) {
+        queryParameters['asOfDate'] = asOfDate.toIso8601String();
+      }
+
       final response = await http.get(
-        Uri.parse('${ApiEndpoints.baseUrl}/stations/$stationId/current-stock'),
+        Uri.parse('${ApiEndpoints.baseUrl}/stations/$stationId/current-stock')
+            .replace(queryParameters: queryParameters),
         headers: ApiService.headers,
       );
 

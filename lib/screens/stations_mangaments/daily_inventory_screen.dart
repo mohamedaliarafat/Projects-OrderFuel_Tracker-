@@ -193,6 +193,20 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     return double.tryParse(value?.toString() ?? '0') ?? 0;
   }
 
+  DateTime _buildInventoryRecordDate() {
+    final now = DateTime.now();
+    return DateTime(
+      _inventoryDate.year,
+      _inventoryDate.month,
+      _inventoryDate.day,
+      now.hour,
+      now.minute,
+      now.second,
+      now.millisecond,
+      now.microsecond,
+    );
+  }
+
   void _applyBackendStockSnapshot(List<Map<String, dynamic>> currentStock) {
     final snapshotByFuel = <String, Map<String, dynamic>>{};
 
@@ -585,6 +599,8 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     final provider = Provider.of<StationProvider>(context, listen: false);
     String? errorMessage;
 
+    final inventoryRecordDate = _buildInventoryRecordDate();
+
     for (final entry in entriesToSubmit) {
       entry.recalculate();
 
@@ -594,7 +610,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
         stationName: _selectedStation?.stationName ?? '',
 
         // ✅ التاريخ + الوقت (يسمح بتكرار نفس اليوم)
-        inventoryDate: DateTime.now(),
+        inventoryDate: inventoryRecordDate,
 
         arabicDate: _getArabicDate(),
         fuelType: entry.fuelType,
@@ -1181,7 +1197,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'إجمالي الرصيد السابق',
+                          'إجمالي المخزون الحالي',
                           style: TextStyle(
                             fontSize: 14,
                             color: AppColors.mediumGray,
@@ -1198,7 +1214,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
                           ),
                         ),
                         Text(
-                          'يشمل ${DateFormat('yyyy/MM/dd').format(_inventoryDate)} وما قبله',
+                          'تاريخ التوريد المحدد: ${DateFormat('yyyy/MM/dd').format(_inventoryDate)}',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.mediumGray,

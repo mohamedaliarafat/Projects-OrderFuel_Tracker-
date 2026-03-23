@@ -839,8 +839,8 @@ class AppStrings {
 }
 
 class ApiEndpoints {
-  // static const String baseUrl = 'https://system-albuhairaalarabia.cloud/api';
-  static const String baseUrl = 'http://192.168.8.196:6030/api';
+  static const String baseUrl = 'https://system-albuhairaalarabia.cloud/api';
+  // static const String baseUrl = 'http://192.168.8.196:6030/api';
   static const String login = '/auth/login';
   static const String register = '/auth/register';
   static const String profile = '/auth/profile';
@@ -922,6 +922,13 @@ class ApiEndpoints {
   static String taskComplete(String id) => '/tasks/$id/complete';
   static String taskApprove(String id) => '/tasks/$id/approve';
   static String taskReject(String id) => '/tasks/$id/reject';
+  static String taskExtend(String id) => '/tasks/$id/extend';
+  static String taskPenaltyApply(String id) => '/tasks/$id/penalty/apply';
+  static String taskExtensionRequest(String id) => '/tasks/$id/extension-request';
+  static String taskExtensionApprove(String id) =>
+      '/tasks/$id/extension-request/approve';
+  static String taskExtensionReject(String id) =>
+      '/tasks/$id/extension-request/reject';
   static String taskReportPdf(String id) => '/tasks/$id/report/pdf';
   static String taskReportUpdate(String id) => '/tasks/$id/report';
   static String taskAttachments(String id) => '/tasks/$id/attachments';

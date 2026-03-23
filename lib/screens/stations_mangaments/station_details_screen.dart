@@ -1,13 +1,21 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/utils/file_saver.dart';
 import 'package:order_tracker/widgets/stations/fuel_price_card.dart';
 import 'package:order_tracker/widgets/stations/pump_card.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 
 class StationDetailsScreen extends StatefulWidget {
   final String stationId;
@@ -24,6 +32,7 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
   TabController? _tabController;
   final ScrollController _pumpsScrollController = ScrollController();
   final ScrollController _fuelPricesScrollController = ScrollController();
+  final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
 
   bool isWeb(BuildContext context) => MediaQuery.of(context).size.width >= 1100;
 
@@ -41,10 +50,12 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
   }
 
   Future<void> _loadStationDetails() async {
-    await Provider.of<StationProvider>(
-      context,
-      listen: false,
-    ).fetchStationById(widget.stationId);
+    final provider = Provider.of<StationProvider>(context, listen: false);
+    await provider.fetchStationById(
+      widget.stationId,
+      inventoryDate: _selectedDate,
+    );
+    await provider.fetchCurrentStock(widget.stationId);
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -59,6 +70,8 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
       setState(() {
         _selectedDate = picked;
       });
+      if (!mounted) return;
+      await _loadStationDetails();
     }
   }
 
@@ -80,6 +93,263 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
     }
   }
 
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '0') ?? 0;
+  }
+
+  List<_StationFuelStockRow> _buildFuelStockRows(
+    Station station,
+    List<Map<String, dynamic>> currentStock,
+  ) {
+    final rowsByFuel = <String, Map<String, dynamic>>{};
+
+    for (final row in currentStock) {
+      final fuelType = row['fuelType']?.toString().trim() ?? '';
+      if (fuelType.isEmpty) continue;
+      rowsByFuel[fuelType] = row;
+    }
+
+    final orderedFuelTypes = <String>[
+      ...station.fuelTypes,
+      ...rowsByFuel.keys.where((fuelType) => !station.fuelTypes.contains(fuelType)),
+    ];
+
+    return orderedFuelTypes.map((fuelType) {
+      final row = rowsByFuel[fuelType];
+      final actualStock = _toDouble(
+        row?['inventoryReferenceBalance'] ?? row?['currentBalance'],
+      );
+      final sales = _toDouble(row?['salesSinceInventory']);
+      final remainingStock = _toDouble(row?['currentBalance']);
+      final capacity = _toDouble(row?['capacity']);
+
+      return _StationFuelStockRow(
+        fuelType: fuelType,
+        actualStock: actualStock,
+        sales: sales,
+        remainingStock: remainingStock,
+        capacity: capacity,
+      );
+    }).toList();
+  }
+
+  String _formatLiters(double value) => '${value.toStringAsFixed(2)} لتر';
+
+  String _sanitizeFilePart(String value) {
+    return value.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+  }
+
+  Future<void> _printStockReport(
+    Station station,
+    List<_StationFuelStockRow> rows,
+  ) async {
+    final bytes = await _buildStockPdf(station, rows);
+    await Printing.layoutPdf(onLayout: (_) => bytes);
+  }
+
+  Future<void> _exportStockPdf(
+    Station station,
+    List<_StationFuelStockRow> rows,
+  ) async {
+    final bytes = await _buildStockPdf(station, rows);
+    final fileStamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final stationName = _sanitizeFilePart(station.stationName);
+    await saveAndLaunchFile(bytes, 'مخزون_${stationName}_$fileStamp.pdf');
+  }
+
+  Future<void> _exportStockExcel(
+    Station station,
+    List<_StationFuelStockRow> rows,
+  ) async {
+    final bytes = await _buildStockExcel(station, rows);
+    final fileStamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final stationName = _sanitizeFilePart(station.stationName);
+    await saveAndLaunchFile(
+      bytes,
+      'مخزون_${stationName}_$fileStamp.xlsx',
+    );
+  }
+
+  Future<Uint8List> _buildStockPdf(
+    Station station,
+    List<_StationFuelStockRow> rows,
+  ) async {
+    final arabicFontRegular = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Cairo-Regular.ttf'),
+    );
+    final arabicFontBold = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Cairo-Bold.ttf'),
+    );
+
+    final theme = pw.ThemeData.withFont(
+      base: arabicFontRegular,
+      bold: arabicFontBold,
+      fontFallback: [arabicFontRegular],
+    );
+
+    final totalActual = rows.fold<double>(
+      0,
+      (sum, row) => sum + row.actualStock,
+    );
+    final totalSales = rows.fold<double>(0, (sum, row) => sum + row.sales);
+    final totalRemaining = rows.fold<double>(
+      0,
+      (sum, row) => sum + row.remainingStock,
+    );
+
+    final pdf = pw.Document(theme: theme);
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        textDirection: pw.TextDirection.rtl,
+        build: (context) => [
+          pw.Text(
+            'تقرير مخزون المحطة',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text('المحطة: ${station.stationName}'),
+          pw.Text('تاريخ التصدير: ${_dateFormat.format(DateTime.now())}'),
+          pw.SizedBox(height: 12),
+          pw.Table.fromTextArray(
+            headers: const [
+              'الوقود',
+              'المخزون الفعلي',
+              'المبيعات',
+              'المتبقي بعد المبيعات',
+              'سعة الخزان',
+            ],
+            data: rows
+                .map(
+                  (row) => [
+                    row.fuelType,
+                    row.actualStock.toStringAsFixed(2),
+                    row.sales.toStringAsFixed(2),
+                    row.remainingStock.toStringAsFixed(2),
+                    row.capacity.toStringAsFixed(2),
+                  ],
+                )
+                .toList(),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 10,
+            ),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            cellAlignment: pw.Alignment.center,
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+            children: [
+              pw.Text('إجمالي المخزون الفعلي: ${totalActual.toStringAsFixed(2)} لتر'),
+              pw.Text('إجمالي المبيعات: ${totalSales.toStringAsFixed(2)} لتر'),
+              pw.Text('إجمالي المتبقي: ${totalRemaining.toStringAsFixed(2)} لتر'),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<Uint8List> _buildStockExcel(
+    Station station,
+    List<_StationFuelStockRow> rows,
+  ) async {
+    final workbook = xlsio.Workbook();
+    final sheet = workbook.worksheets[0];
+    sheet.name = 'مخزون المحطة';
+    sheet.pageSetup.orientation = xlsio.ExcelPageOrientation.landscape;
+
+    final titleStyle = workbook.styles.add('stationStockTitle');
+    titleStyle.bold = true;
+    titleStyle.fontSize = 14;
+    titleStyle.hAlign = xlsio.HAlignType.center;
+    titleStyle.vAlign = xlsio.VAlignType.center;
+
+    final headerStyle = workbook.styles.add('stationStockHeader');
+    headerStyle.bold = true;
+    headerStyle.hAlign = xlsio.HAlignType.center;
+    headerStyle.vAlign = xlsio.VAlignType.center;
+    headerStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+
+    final dataStyle = workbook.styles.add('stationStockData');
+    dataStyle.hAlign = xlsio.HAlignType.center;
+    dataStyle.vAlign = xlsio.VAlignType.center;
+    dataStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+
+    sheet.getRangeByName('A1:E1').merge();
+    sheet.getRangeByName('A1').setText('تقرير مخزون المحطة - ${station.stationName}');
+    sheet.getRangeByName('A1').cellStyle = titleStyle;
+    sheet.getRangeByName('A2:E2').merge();
+    sheet.getRangeByName('A2').setText(
+      'تاريخ التصدير: ${_dateFormat.format(DateTime.now())}',
+    );
+
+    const headers = [
+      'الوقود',
+      'المخزون الفعلي',
+      'المبيعات',
+      'المتبقي بعد المبيعات',
+      'سعة الخزان',
+    ];
+
+    for (int i = 0; i < headers.length; i++) {
+      final cell = sheet.getRangeByIndex(3, i + 1);
+      cell.setText(headers[i]);
+      cell.cellStyle = headerStyle;
+    }
+
+    for (int i = 0; i < rows.length; i++) {
+      final rowIndex = i + 4;
+      final row = rows[i];
+      final values = [
+        row.fuelType,
+        row.actualStock.toStringAsFixed(2),
+        row.sales.toStringAsFixed(2),
+        row.remainingStock.toStringAsFixed(2),
+        row.capacity.toStringAsFixed(2),
+      ];
+
+      for (int col = 0; col < values.length; col++) {
+        final cell = sheet.getRangeByIndex(rowIndex, col + 1);
+        cell.setText(values[col]);
+        cell.cellStyle = dataStyle;
+      }
+    }
+
+    final totalRowIndex = rows.length + 5;
+    final totalActual = rows.fold<double>(
+      0,
+      (sum, row) => sum + row.actualStock,
+    );
+    final totalSales = rows.fold<double>(0, (sum, row) => sum + row.sales);
+    final totalRemaining = rows.fold<double>(
+      0,
+      (sum, row) => sum + row.remainingStock,
+    );
+
+    sheet.getRangeByIndex(totalRowIndex, 1).setText('الإجمالي');
+    sheet.getRangeByIndex(totalRowIndex, 2).setText(totalActual.toStringAsFixed(2));
+    sheet.getRangeByIndex(totalRowIndex, 3).setText(totalSales.toStringAsFixed(2));
+    sheet.getRangeByIndex(
+      totalRowIndex,
+      4,
+    ).setText(totalRemaining.toStringAsFixed(2));
+
+    for (int col = 1; col <= 5; col++) {
+      sheet.getRangeByIndex(totalRowIndex, col).cellStyle = headerStyle;
+      sheet.autoFitColumn(col);
+    }
+
+    final bytes = workbook.saveAsStream();
+    workbook.dispose();
+    return Uint8List.fromList(bytes);
+  }
+
   @override
   Widget build(BuildContext context) {
     final stationProvider = Provider.of<StationProvider>(context);
@@ -87,6 +357,9 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
     final isOwner = authProvider.role == 'owner';
     final station = stationProvider.selectedStation;
     final sessions = stationProvider.sessions;
+    final stockRows = station == null
+        ? const <_StationFuelStockRow>[]
+        : _buildFuelStockRows(station, stationProvider.currentStock);
 
     final web = isWeb(context);
 
@@ -208,6 +481,59 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
                   tooltip: 'اختيار التاريخ',
                   icon: const Icon(Icons.calendar_today),
                   onPressed: () => _selectDate(context),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: 'تصدير المخزون',
+                  icon: const Icon(Icons.download_outlined),
+                  onSelected: (value) async {
+                    if (stockRows.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('لا توجد بيانات مخزون للتصدير'),
+                          backgroundColor: AppColors.warningOrange,
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (value == 'print') {
+                      await _printStockReport(station, stockRows);
+                      return;
+                    }
+
+                    if (value == 'pdf') {
+                      await _exportStockPdf(station, stockRows);
+                      return;
+                    }
+
+                    await _exportStockExcel(station, stockRows);
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem<String>(
+                      value: 'print',
+                      child: ListTile(
+                        leading: Icon(Icons.print_outlined),
+                        title: Text('طباعة'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'pdf',
+                      child: ListTile(
+                        leading: Icon(Icons.picture_as_pdf_outlined),
+                        title: Text('PDF'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'excel',
+                      child: ListTile(
+                        leading: Icon(Icons.table_view_outlined),
+                        title: Text('Excel'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
                 ),
               ],
               bottom: TabBar(
@@ -493,43 +819,14 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
             ),
     );
 
+    final stockRows = _buildFuelStockRows(
+      station,
+      context.watch<StationProvider>().currentStock,
+    );
+
     final statistics = sectionCard(
-      title: 'إحصائيات اليوم',
-      child: SizedBox(
-        height: web ? 190 : 230,
-        child: SfCircularChart(
-          legend: Legend(
-            isVisible: true,
-            position: LegendPosition.bottom,
-            textStyle: TextStyle(fontFamily: 'Cairo', fontSize: web ? 11 : 12),
-          ),
-          series: <CircularSeries>[
-            DoughnutSeries<Map<String, dynamic>, String>(
-              dataSource: const [
-                {
-                  'type': 'بنزين 91',
-                  'value': 45,
-                  'color': AppColors.primaryBlue,
-                },
-                {'type': 'بنزين 95', 'value': 30, 'color': AppColors.infoBlue},
-                {'type': 'ديزل', 'value': 20, 'color': AppColors.warningOrange},
-                {'type': 'كيروسين', 'value': 5, 'color': AppColors.mediumGray},
-              ],
-              xValueMapper: (data, _) => data['type'],
-              yValueMapper: (data, _) => data['value'],
-              pointColorMapper: (data, _) => data['color'],
-              dataLabelSettings: DataLabelSettings(
-                isVisible: true,
-                labelPosition: ChartDataLabelPosition.outside,
-                textStyle: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: web ? 10 : 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      title: 'ملخص مخزون المحطة',
+      child: _buildStockSummaryContent(stockRows, web, tablet),
     );
 
     return SingleChildScrollView(
@@ -582,6 +879,184 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStockSummaryContent(
+    List<_StationFuelStockRow> rows,
+    bool web,
+    bool tablet,
+  ) {
+    if (rows.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Text(
+          'لا توجد بيانات مخزون حالية لهذه المحطة',
+          style: TextStyle(color: AppColors.mediumGray),
+        ),
+      );
+    }
+
+    final totalActual = rows.fold<double>(
+      0,
+      (sum, row) => sum + row.actualStock,
+    );
+    final totalSales = rows.fold<double>(0, (sum, row) => sum + row.sales);
+    final totalRemaining = rows.fold<double>(
+      0,
+      (sum, row) => sum + row.remainingStock,
+    );
+
+    final chartColors = <Color>[
+      AppColors.primaryBlue,
+      AppColors.infoBlue,
+      AppColors.warningOrange,
+      AppColors.successGreen,
+      AppColors.mediumGray,
+    ];
+
+    final chartData = rows.asMap().entries.map((entry) {
+      final row = entry.value;
+      return <String, dynamic>{
+        'fuelType': row.fuelType,
+        'value': row.remainingStock,
+        'color': chartColors[entry.key % chartColors.length],
+      };
+    }).toList();
+
+    final metrics = Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _buildStockMetricCard(
+          label: 'إجمالي المخزون الفعلي',
+          value: _formatLiters(totalActual),
+          color: AppColors.primaryBlue,
+        ),
+        _buildStockMetricCard(
+          label: 'إجمالي المبيعات',
+          value: _formatLiters(totalSales),
+          color: AppColors.warningOrange,
+        ),
+        _buildStockMetricCard(
+          label: 'إجمالي المتبقي',
+          value: _formatLiters(totalRemaining),
+          color: AppColors.successGreen,
+        ),
+      ],
+    );
+
+    final chart = SizedBox(
+      height: web ? 220 : 260,
+      child: SfCircularChart(
+        legend: Legend(
+          isVisible: true,
+          position: LegendPosition.bottom,
+          textStyle: TextStyle(fontFamily: 'Cairo', fontSize: web ? 11 : 12),
+        ),
+        series: <CircularSeries>[
+          DoughnutSeries<Map<String, dynamic>, String>(
+            dataSource: chartData,
+            xValueMapper: (data, _) => data['fuelType'] as String,
+            yValueMapper: (data, _) => data['value'] as double,
+            pointColorMapper: (data, _) => data['color'] as Color,
+            dataLabelSettings: DataLabelSettings(
+              isVisible: true,
+              labelPosition: ChartDataLabelPosition.outside,
+              textStyle: TextStyle(fontFamily: 'Cairo', fontSize: web ? 10 : 12),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final table = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        headingRowColor: WidgetStatePropertyAll(
+          AppColors.primaryBlue.withOpacity(0.08),
+        ),
+        columns: const [
+          DataColumn(label: Text('الوقود')),
+          DataColumn(label: Text('المخزون الفعلي')),
+          DataColumn(label: Text('المبيعات')),
+          DataColumn(label: Text('المتبقي')),
+          DataColumn(label: Text('السعة')),
+        ],
+        rows: rows
+            .map(
+              (row) => DataRow(
+                cells: [
+                  DataCell(Text(row.fuelType)),
+                  DataCell(Text(_formatLiters(row.actualStock))),
+                  DataCell(Text(_formatLiters(row.sales))),
+                  DataCell(Text(_formatLiters(row.remainingStock))),
+                  DataCell(Text(_formatLiters(row.capacity))),
+                ],
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        metrics,
+        const SizedBox(height: 16),
+        if (web || tablet)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: chart),
+              const SizedBox(width: 16),
+              Expanded(child: table),
+            ],
+          )
+        else ...[
+          chart,
+          const SizedBox(height: 16),
+          table,
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStockMetricCard({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.mediumGray,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1920,6 +2395,22 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
 }
 
 // نموذج بيانات اللي المؤقت
+class _StationFuelStockRow {
+  final String fuelType;
+  final double actualStock;
+  final double sales;
+  final double remainingStock;
+  final double capacity;
+
+  const _StationFuelStockRow({
+    required this.fuelType,
+    required this.actualStock,
+    required this.sales,
+    required this.remainingStock,
+    required this.capacity,
+  });
+}
+
 class NozzleData {
   String position;
   String fuelType;

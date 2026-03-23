@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -19,6 +18,8 @@ import 'package:order_tracker/screens/tasks/task_route_screen.dart';
 import 'package:order_tracker/screens/tasks/task_tracking_map_screen.dart';
 import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
@@ -48,11 +49,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   String? _recordingFileName;
   Timer? _trackingTimer;
   Timer? _refreshTimer;
+  Timer? _deadlineTicker;
   List<TaskTrackingPoint> _trackingPoints = [];
   Timer? _chatTimer;
   bool _loadingMessages = true;
   bool _sendingMessage = false;
-  bool _chatOpen = false;
   bool _markingRead = false;
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _reportSummaryController =
@@ -74,6 +75,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _trackingTimer?.cancel();
     _refreshTimer?.cancel();
     _chatTimer?.cancel();
+    _deadlineTicker?.cancel();
     _recorder.dispose();
     _messageController.dispose();
     _reportSummaryController.dispose();
@@ -100,9 +102,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         _reportNotesController.text = task.report!.completedNotes!;
       }
     }
+    _syncTaskUiState();
+    await _loadMessages();
+  }
+
+  void _syncTaskUiState() {
     _setupTrackingTimers();
     _setupChatTimer();
-    await _loadMessages();
+    _setupDeadlineTicker();
+  }
+
+  void _applyTaskUpdate(TaskModel updated) {
+    if (!mounted) return;
+    setState(() => _task = updated);
+    _syncTaskUiState();
   }
 
   void _setupTrackingTimers() {
@@ -112,7 +125,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     final auth = context.read<AuthProvider>();
     final isOwner = auth.user?.role == 'owner';
-    final isAssigned = _task!.assignedTo == auth.user?.id;
+    final isPrimaryAssignee = _task!.assignedTo == auth.user?.id;
 
     if (isOwner && _task!.trackingConsent) {
       _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
@@ -121,13 +134,38 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       _loadTrackingPoints();
     }
 
-    if (isAssigned &&
+    if (isPrimaryAssignee &&
         _task!.trackingConsent &&
         (_task!.status == 'accepted' || _task!.status == 'in_progress')) {
       _trackingTimer = Timer.periodic(const Duration(seconds: 20), (_) {
         _sendLocationPoint();
       });
     }
+  }
+
+  void _setupDeadlineTicker() {
+    _deadlineTicker?.cancel();
+    final task = _task;
+    if (task == null || task.dueDate == null || task.isDone) return;
+    _deadlineTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  bool _isTaskWorker(String? userId) {
+    final task = _task;
+    final normalizedUserId = userId?.trim() ?? '';
+    if (task == null || normalizedUserId.isEmpty) return false;
+    if (task.assignedTo == normalizedUserId) return true;
+    return task.participants.any((participant) {
+      return participant.userId == normalizedUserId;
+    });
+  }
+
+  bool _isTaskOverdue(TaskModel task) {
+    return task.status == 'overdue' || task.isDeadlineExpired;
   }
 
   void _setupChatTimer() {
@@ -185,7 +223,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     String search,
     Set<String> selectedIds,
   ) async {
-    final query = StringBuffer('/users?limit=200');
+    final query = StringBuffer('/users?limit=0');
     final trimmed = search.trim();
     if (trimmed.isNotEmpty) {
       query.write('&search=${Uri.encodeQueryComponent(trimmed)}');
@@ -317,12 +355,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       users.map((user) => user.id).toList(),
     );
     if (!mounted) return;
-    setState(() {
-      _participantsSaving = false;
-      if (updated != null) {
-        _task = updated;
-      }
-    });
+    setState(() => _participantsSaving = false);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
+    }
   }
 
   Future<void> _removeParticipant(String userId) async {
@@ -331,12 +367,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final provider = context.read<TaskProvider>();
     final updated = await provider.removeTaskParticipant(_task!.id, userId);
     if (!mounted) return;
-    setState(() {
-      _participantsSaving = false;
-      if (updated != null) {
-        _task = updated;
-      }
-    });
+    setState(() => _participantsSaving = false);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
+    }
   }
 
   void _scrollToBottom({bool force = false}) {
@@ -508,12 +542,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       notes: notes.isEmpty ? null : notes,
     );
     if (!mounted) return;
-    setState(() {
-      _savingReport = false;
-      if (updated != null) {
-        _task = updated;
-      }
-    });
+    setState(() => _savingReport = false);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
+    }
   }
 
   Future<void> _loadTrackingPoints() async {
@@ -539,7 +571,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
 
       final provider = context.read<TaskProvider>();
@@ -561,15 +595,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final updated = await provider.updateTrackingConsent(_task!.id, consent);
     if (!mounted) return;
     if (updated != null) {
-      setState(() => _task = updated);
-      _setupTrackingTimers();
+      _applyTaskUpdate(updated);
     }
   }
 
   Future<void> _startTask() async {
     final provider = context.read<TaskProvider>();
     final updated = await provider.startTask(widget.taskId);
-    if (updated != null && mounted) setState(() => _task = updated);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
+    }
   }
 
   Future<void> _completeTask() async {
@@ -613,13 +648,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       summary: summaryController.text.trim(),
       notes: notesController.text.trim(),
     );
-    if (updated != null && mounted) setState(() => _task = updated);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
+    }
   }
 
   Future<void> _approveTask() async {
     final provider = context.read<TaskProvider>();
     final updated = await provider.approveTask(widget.taskId);
-    if (updated != null && mounted) setState(() => _task = updated);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
+    }
   }
 
   Future<void> _rejectTask() async {
@@ -651,17 +690,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       widget.taskId,
       reasonController.text.trim(),
     );
-    if (updated != null && mounted) setState(() => _task = updated);
-  }
-
-  Future<void> _openPdf() async {
-    if (_task?.report?.pdfPath == null || _task!.report!.pdfPath.isEmpty)
-      return;
-    final pdfPath = _task!.report!.pdfPath;
-    final url = _resolveFileUrl(pdfPath);
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (updated != null) {
+      _applyTaskUpdate(updated);
     }
   }
 
@@ -830,7 +860,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         : (location?.latitude != null && location?.longitude != null)
         ? '${location!.latitude}, ${location.longitude}'
         : '-';
-    final summary = task.report?.summary?.trim().isNotEmpty == true
+    final summary = task.report?.summary.trim().isNotEmpty == true
         ? task.report!.summary
         : '-';
     final notes = task.report?.completedNotes?.trim().isNotEmpty == true
@@ -914,13 +944,535 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return DateFormat('yyyy/MM/dd HH:mm').format(date.toLocal());
   }
 
-  Future<void> _uploadAttachment() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: kIsWeb,
+  String _formatCountdown(Duration duration) {
+    final absolute = duration.isNegative ? duration.abs() : duration;
+    final days = absolute.inDays;
+    final hours = absolute.inHours.remainder(24).toString().padLeft(2, '0');
+    final minutes = absolute.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = absolute.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return days > 0
+        ? '$days يوم $hours:$minutes:$seconds'
+        : '$hours:$minutes:$seconds';
+  }
+
+  String _formatDurationSeconds(int totalSeconds) {
+    if (totalSeconds <= 0) return '0 ثانية';
+    return _formatCountdown(Duration(seconds: totalSeconds));
+  }
+
+  void _showSnackBarMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  InputDecoration _surfaceFieldDecoration({
+    required String label,
+    String? hintText,
+    IconData? icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hintText,
+      prefixIcon: icon == null ? null : Icon(icon),
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.92),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: AppColors.appBarWaterBright.withValues(alpha: 0.10),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(
+          color: AppColors.appBarWaterBright,
+          width: 1.4,
+        ),
+      ),
     );
-    if (result == null) return;
-    await _sendMessageAttachmentsFromPicker(result);
+  }
+
+  Widget _buildSectionTitle(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: color),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDurationTextField(
+    TextEditingController controller,
+    String label,
+  ) {
+    return SizedBox(
+      width: 82,
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
+  Future<_TaskDurationActionResult?> _showDurationDialog({
+    required String title,
+    required String confirmLabel,
+    String reasonLabel = 'السبب',
+    String? helperText,
+    bool requireReason = false,
+  }) async {
+    final daysController = TextEditingController(text: '0');
+    final hoursController = TextEditingController(text: '0');
+    final minutesController = TextEditingController(text: '0');
+    final secondsController = TextEditingController(text: '0');
+    final reasonController = TextEditingController();
+
+    try {
+      return await showDialog<_TaskDurationActionResult>(
+        context: context,
+        builder: (context) {
+          String? errorText;
+
+          int parseValue(TextEditingController controller) {
+            final parsed = int.tryParse(controller.text.trim()) ?? 0;
+            return parsed < 0 ? 0 : parsed;
+          }
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(title),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (helperText != null && helperText.isNotEmpty) ...[
+                        Text(
+                          helperText,
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildDurationTextField(daysController, 'أيام'),
+                          _buildDurationTextField(hoursController, 'ساعات'),
+                          _buildDurationTextField(minutesController, 'دقائق'),
+                          _buildDurationTextField(secondsController, 'ثواني'),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: reasonController,
+                        minLines: 2,
+                        maxLines: 4,
+                        decoration: InputDecoration(labelText: reasonLabel),
+                      ),
+                      if (errorText != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          errorText!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final days = parseValue(daysController);
+                      final hours = parseValue(hoursController);
+                      final minutes = parseValue(minutesController);
+                      final seconds = parseValue(secondsController);
+                      final totalSeconds =
+                          (days * 24 * 60 * 60) +
+                          (hours * 60 * 60) +
+                          (minutes * 60) +
+                          seconds;
+                      final reason = reasonController.text.trim();
+
+                      if (totalSeconds <= 0) {
+                        setDialogState(() {
+                          errorText =
+                              'حدد مدة صالحة بالأيام أو الساعات أو الدقائق أو الثواني';
+                        });
+                        return;
+                      }
+                      if (requireReason && reason.isEmpty) {
+                        setDialogState(() {
+                          errorText = 'سبب الإجراء مطلوب';
+                        });
+                        return;
+                      }
+
+                      Navigator.pop(
+                        context,
+                        _TaskDurationActionResult(
+                          days: days,
+                          hours: hours,
+                          minutes: minutes,
+                          seconds: seconds,
+                          reason: reason,
+                        ),
+                      );
+                    },
+                    child: Text(confirmLabel),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      daysController.dispose();
+      hoursController.dispose();
+      minutesController.dispose();
+      secondsController.dispose();
+      reasonController.dispose();
+    }
+  }
+
+  Future<String?> _showReasonDialog({
+    required String title,
+    required String label,
+    required String confirmLabel,
+    bool allowEmpty = true,
+  }) async {
+    final controller = TextEditingController();
+
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (context) {
+          String? errorText;
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(title),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: label,
+                        errorText: errorText,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final value = controller.text.trim();
+                      if (!allowEmpty && value.isEmpty) {
+                        setDialogState(() {
+                          errorText = 'هذا الحقل مطلوب';
+                        });
+                        return;
+                      }
+                      Navigator.pop(context, value);
+                    },
+                    child: Text(confirmLabel),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<_TaskPenaltyActionResult?> _showPenaltyDialog() async {
+    final task = _task;
+    if (task == null) return null;
+
+    final amountController = TextEditingController(
+      text: task.overduePenalty?.amount.toStringAsFixed(2) ?? '',
+    );
+    final notesController = TextEditingController(
+      text: task.overduePenalty?.notes ?? '',
+    );
+
+    try {
+      return await showDialog<_TaskPenaltyActionResult>(
+        context: context,
+        builder: (context) {
+          String? errorText;
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: const Text('اعتماد استقطاع'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: amountController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'مبلغ الاستقطاع بالريال السعودي',
+                          suffixText: 'SAR',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: notesController,
+                        minLines: 2,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          labelText: 'ملاحظات السند',
+                        ),
+                      ),
+                      if (errorText != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          errorText!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final amount =
+                          double.tryParse(amountController.text.trim()) ?? 0;
+                      if (amount <= 0) {
+                        setDialogState(() {
+                          errorText = 'أدخل مبلغًا صحيحًا أكبر من صفر';
+                        });
+                        return;
+                      }
+                      Navigator.pop(
+                        context,
+                        _TaskPenaltyActionResult(
+                          amount: amount,
+                          notes: notesController.text.trim(),
+                        ),
+                      );
+                    },
+                    child: const Text('اعتماد الاستقطاع'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      amountController.dispose();
+      notesController.dispose();
+    }
+  }
+
+  Future<void> _requestExtension() async {
+    final task = _task;
+    if (task == null) return;
+    final input = await _showDurationDialog(
+      title: 'طلب تمديد المهمة',
+      confirmLabel: 'إرسال الطلب',
+      reasonLabel: 'سبب طلب التمديد',
+      helperText: 'حدد المدة المطلوبة ثم أرسل الطلب إلى المالك للموافقة.',
+      requireReason: true,
+    );
+    if (input == null) return;
+
+    final updated = await context.read<TaskProvider>().requestTaskExtension(
+      task.id,
+      days: input.days,
+      hours: input.hours,
+      minutes: input.minutes,
+      seconds: input.seconds,
+      reason: input.reason,
+    );
+
+    if (updated == null) {
+      _showSnackBarMessage('تعذر إرسال طلب التمديد');
+      return;
+    }
+
+    _applyTaskUpdate(updated);
+    _showSnackBarMessage('تم إرسال طلب التمديد');
+  }
+
+  Future<void> _extendDeadlineDirectly() async {
+    final task = _task;
+    if (task == null) return;
+    final input = await _showDurationDialog(
+      title: 'تمديد مهلة المهمة',
+      confirmLabel: 'تمديد',
+      reasonLabel: 'سبب التمديد',
+      helperText:
+          'سيتم إضافة المدة الجديدة على المهلة الحالية أو من وقت الانتهاء.',
+    );
+    if (input == null) return;
+
+    final updated = await context.read<TaskProvider>().extendTaskDeadline(
+      task.id,
+      days: input.days,
+      hours: input.hours,
+      minutes: input.minutes,
+      seconds: input.seconds,
+      reason: input.reason,
+    );
+
+    if (updated == null) {
+      _showSnackBarMessage('تعذر تمديد مهلة المهمة');
+      return;
+    }
+
+    _applyTaskUpdate(updated);
+    _showSnackBarMessage('تم تمديد مهلة المهمة');
+  }
+
+  Future<void> _approveExtensionRequest() async {
+    final reason = await _showReasonDialog(
+      title: 'اعتماد طلب التمديد',
+      label: 'ملاحظة الاعتماد',
+      confirmLabel: 'اعتماد',
+    );
+    if (reason == null) return;
+
+    final updated = await context
+        .read<TaskProvider>()
+        .approveTaskExtensionRequest(widget.taskId, reason: reason);
+
+    if (updated == null) {
+      _showSnackBarMessage('تعذر اعتماد طلب التمديد');
+      return;
+    }
+
+    _applyTaskUpdate(updated);
+    _showSnackBarMessage('تم اعتماد طلب التمديد');
+  }
+
+  Future<void> _rejectExtensionRequest() async {
+    final reason = await _showReasonDialog(
+      title: 'رفض طلب التمديد',
+      label: 'سبب الرفض',
+      confirmLabel: 'رفض',
+      allowEmpty: false,
+    );
+    if (reason == null) return;
+
+    final updated = await context
+        .read<TaskProvider>()
+        .rejectTaskExtensionRequest(widget.taskId, reason);
+
+    if (updated == null) {
+      _showSnackBarMessage('تعذر رفض طلب التمديد');
+      return;
+    }
+
+    _applyTaskUpdate(updated);
+    _showSnackBarMessage('تم رفض طلب التمديد');
+  }
+
+  Future<void> _applyPenalty() async {
+    final task = _task;
+    if (task == null) return;
+    final input = await _showPenaltyDialog();
+    if (input == null) return;
+
+    final updated = await context.read<TaskProvider>().applyTaskPenalty(
+      task.id,
+      amount: input.amount,
+      notes: input.notes,
+    );
+
+    if (updated == null) {
+      _showSnackBarMessage('تعذر اعتماد الاستقطاع');
+      return;
+    }
+
+    _applyTaskUpdate(updated);
+    _showSnackBarMessage('تم إنشاء سند الاستقطاع وإرسال الإشعارات');
+  }
+
+  Future<void> _openPenaltyVoucher() async {
+    final voucherPath = _task?.overduePenalty?.voucherPath ?? '';
+    if (voucherPath.isEmpty) return;
+    final url = _resolveFileUrl(voucherPath);
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      _showSnackBarMessage('تعذر فتح سند الاستقطاع');
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -1014,11 +1566,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final isOwner = auth.user?.role == 'owner';
-    final isAssigned = _task?.assignedTo == auth.user?.id;
+    final currentUserId = auth.user?.id;
+    final isWorker = _isTaskWorker(currentUserId);
+    final isPrimaryAssignee = _task?.assignedTo == currentUserId;
 
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        centerTitle: true,
         title: const Text('تفاصيل المهمة'),
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
         actions: [
           Builder(
             builder: (context) => IconButton(
@@ -1031,16 +1598,51 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
       endDrawer: _buildChatDrawer(),
       onEndDrawerChanged: (isOpen) {
-        setState(() => _chatOpen = isOpen);
         if (isOpen) {
           _markMessagesRead();
         }
       },
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _task == null
-          ? const Center(child: Text('لا توجد مهمة'))
-          : _buildDetailsView(isOwner, isAssigned),
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          if (_loading)
+            const Center(
+              child: AppSurfaceCard(
+                padding: EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 14),
+                    Text(
+                      'جارٍ تحميل تفاصيل المهمة...',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_task == null)
+            const Center(
+              child: AppSurfaceCard(
+                padding: EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                child: Text(
+                  'لا توجد مهمة',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            )
+          else
+            _buildDetailsView(isOwner, isWorker, isPrimaryAssignee),
+        ],
+      ),
     );
   }
 
@@ -1049,94 +1651,144 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final drawerWidth = screenWidth * 0.85;
     return Drawer(
       width: drawerWidth > 360 ? 360 : drawerWidth,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-              child: Row(
-                children: [
-                  const Icon(Icons.chat_bubble_outline),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'محادثة المهمة',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF8FAFF), Color(0xFFF1F5FF), Color(0xFFF6FAFE)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                decoration: BoxDecoration(
+                  gradient: AppColors.appBarGradient,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.12),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.close),
-                    tooltip: 'إغلاق',
-                  ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'محادثة المهمة',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      tooltip: 'إغلاق',
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            Expanded(child: _buildChatMessages()),
-            const Divider(height: 1),
-            _buildChatComposer(),
-          ],
+              Expanded(child: _buildChatMessages()),
+              _buildChatComposer(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDetailsView(bool isOwner, bool isAssigned) {
+  Widget _buildDetailsView(
+    bool isOwner,
+    bool isWorker,
+    bool isPrimaryAssignee,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final contentWidth = constraints.maxWidth > 1000
-            ? 1000.0
+        final contentWidth = constraints.maxWidth > 1240
+            ? 1240.0
             : constraints.maxWidth;
         final horizontalPadding = constraints.maxWidth > 900 ? 24.0 : 16.0;
         return Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: contentWidth),
             child: ListView(
+              physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.fromLTRB(
                 horizontalPadding,
-                16,
+                20,
                 horizontalPadding,
-                24,
+                120,
               ),
               children: [
                 _buildInfoCard(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                _buildDeadlineCard(isOwner: isOwner, isWorker: isWorker),
+                const SizedBox(height: 16),
                 _buildParticipantsCard(isOwner),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Scaffold.of(context).openEndDrawer(),
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('فتح المحادثة'),
+                const SizedBox(height: 16),
+                AppSurfaceCard(
+                  padding: const EdgeInsets.all(16),
+                  color: const Color(0xFFF8FAFC),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'المحادثة الخاصة بالمهمة متاحة من الزر الجانبي ويمكن فتحها من هنا أيضًا.',
+                          style: TextStyle(
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w600,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => Scaffold.of(context).openEndDrawer(),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('فتح المحادثة'),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _buildTaskAttachmentsCard(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _buildTaskReportCard(),
-                const SizedBox(height: 12),
                 if (_task!.report?.pdfPath.isNotEmpty == true)
-                  // ElevatedButton.icon(
-                  //   onPressed: _openPdf,
-                  //   icon: const Icon(Icons.picture_as_pdf),
-                  //   label: const Text('عرض ملف PDF'),
-                  // ),
-                  const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  onPressed: _exportTaskPdf,
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('تصدير PDF (عربي)'),
+                  const SizedBox(height: 16),
+                AppSurfaceCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.icon(
+                      onPressed: _exportTaskPdf,
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('تصدير PDF (عربي)'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                if (isAssigned) _buildEmployeeActions(),
+                const SizedBox(height: 16),
+                if (isWorker) _buildEmployeeActions(),
                 if (isOwner) _buildOwnerActions(),
-                const SizedBox(height: 12),
-                _buildTrackingSection(isOwner, isAssigned),
+                const SizedBox(height: 16),
+                _buildTrackingSection(isOwner, isPrimaryAssignee),
               ],
             ),
           ),
@@ -1173,88 +1825,98 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => _pickAndSendChatFiles(
-                    FileType.image,
-                    messageType: 'image',
-                  ),
-                  icon: const Icon(Icons.image),
-                  tooltip: 'صورة',
-                ),
-                IconButton(
-                  onPressed: () => _pickAndSendChatFiles(
-                    FileType.video,
-                    messageType: 'video',
-                  ),
-                  icon: const Icon(Icons.videocam),
-                  tooltip: 'فيديو',
-                ),
-                IconButton(
-                  onPressed: () => _pickAndSendChatFiles(FileType.any),
-                  icon: const Icon(Icons.attach_file),
-                  tooltip: 'ملف',
-                ),
-                IconButton(
-                  onPressed: _toggleRecording,
-                  icon: Icon(_isRecording ? Icons.stop_circle : Icons.mic),
-                  tooltip: _isRecording ? 'إيقاف التسجيل' : 'تسجيل صوت',
-                ),
-                if (_isRecording)
-                  const Expanded(
-                    child: Text(
-                      'جاري التسجيل...',
-                      style: TextStyle(color: Colors.red, fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
+        child: AppSurfaceCard(
+          padding: const EdgeInsets.all(12),
+          borderRadius: const BorderRadius.all(Radius.circular(20)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => _pickAndSendChatFiles(
+                      FileType.image,
+                      messageType: 'image',
                     ),
+                    icon: const Icon(Icons.image),
+                    tooltip: 'صورة',
                   ),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    minLines: 1,
-                    maxLines: 1,
-                    textInputAction: TextInputAction.send,
-                    decoration: InputDecoration(
-                      hintText: 'اكتب رسالة...',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                  IconButton(
+                    onPressed: () => _pickAndSendChatFiles(
+                      FileType.video,
+                      messageType: 'video',
+                    ),
+                    icon: const Icon(Icons.videocam),
+                    tooltip: 'فيديو',
+                  ),
+                  IconButton(
+                    onPressed: () => _pickAndSendChatFiles(FileType.any),
+                    icon: const Icon(Icons.attach_file),
+                    tooltip: 'ملف',
+                  ),
+                  IconButton(
+                    onPressed: _toggleRecording,
+                    icon: Icon(_isRecording ? Icons.stop_circle : Icons.mic),
+                    tooltip: _isRecording ? 'إيقاف التسجيل' : 'تسجيل صوت',
+                  ),
+                  if (_isRecording)
+                    const Expanded(
+                      child: Text(
+                        'جاري التسجيل...',
+                        style: TextStyle(color: Colors.red, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    onSubmitted: (_) => _sendTextMessage(),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      minLines: 1,
+                      maxLines: 1,
+                      textInputAction: TextInputAction.send,
+                      decoration: _surfaceFieldDecoration(
+                        label: 'رسالة',
+                        hintText: 'اكتب رسالة...',
+                        icon: Icons.chat_bubble_outline,
+                      ),
+                      onSubmitted: (_) => _sendTextMessage(),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _sendingMessage ? null : _sendTextMessage,
-                  icon: _sendingMessage
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _sendingMessage ? null : _sendTextMessage,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(54, 54),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _sendingMessage
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMessageBubble(TaskMessage message, bool isMe) {
-    final bubbleColor = isMe ? Colors.blue.shade50 : Colors.grey.shade200;
+    final bubbleColor = isMe
+        ? AppColors.primaryBlue.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.90);
     final alignment = isMe ? Alignment.centerRight : Alignment.centerLeft;
     final borderRadius = BorderRadius.only(
       topLeft: const Radius.circular(14),
@@ -1273,10 +1935,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         constraints: const BoxConstraints(maxWidth: 320),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: bubbleColor,
             borderRadius: borderRadius,
+            border: Border.all(
+              color: (isMe ? AppColors.primaryBlue : Colors.black).withValues(
+                alpha: isMe ? 0.10 : 0.05,
+              ),
+            ),
           ),
           child: Column(
             crossAxisAlignment: isMe
@@ -1329,59 +1996,58 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildTaskAttachmentsCard() {
     final attachments = _task?.attachments ?? [];
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'مرفقات المهمة',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _pickAndUploadTaskAttachments(
-                    FileType.image,
-                    attachmentType: 'image',
-                  ),
-                  icon: const Icon(Icons.image),
-                  label: const Text('إضافة صور'),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'مرفقات المهمة',
+            'إدارة الصور والفيديوهات والملفات المرتبطة بسير تنفيذ المهمة.',
+            Icons.attach_file_rounded,
+            const Color(0xFF7C3AED),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _pickAndUploadTaskAttachments(
+                  FileType.image,
+                  attachmentType: 'image',
                 ),
-                OutlinedButton.icon(
-                  onPressed: () => _pickAndUploadTaskAttachments(
-                    FileType.video,
-                    attachmentType: 'video',
-                  ),
-                  icon: const Icon(Icons.videocam),
-                  label: const Text('إضافة فيديو'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _pickAndUploadTaskAttachments(
-                    FileType.any,
-                    attachmentType: 'file',
-                  ),
-                  icon: const Icon(Icons.attach_file),
-                  label: const Text('إضافة ملف'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (attachments.isEmpty)
-              const Text('لا توجد مرفقات بعد')
-            else
-              Column(
-                children: attachments
-                    .map((attachment) => _buildTaskAttachmentItem(attachment))
-                    .toList(),
+                icon: const Icon(Icons.image),
+                label: const Text('إضافة صور'),
               ),
-          ],
-        ),
+              OutlinedButton.icon(
+                onPressed: () => _pickAndUploadTaskAttachments(
+                  FileType.video,
+                  attachmentType: 'video',
+                ),
+                icon: const Icon(Icons.videocam),
+                label: const Text('إضافة فيديو'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _pickAndUploadTaskAttachments(
+                  FileType.any,
+                  attachmentType: 'file',
+                ),
+                icon: const Icon(Icons.attach_file),
+                label: const Text('إضافة ملف'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (attachments.isEmpty)
+            const Text('لا توجد مرفقات بعد')
+          else
+            Column(
+              children: attachments
+                  .map((attachment) => _buildTaskAttachmentItem(attachment))
+                  .toList(),
+            ),
+        ],
       ),
     );
   }
@@ -1469,54 +2135,71 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return Icons.audiotrack;
     }
     if (name.endsWith('.pdf')) return Icons.picture_as_pdf;
-    if (name.endsWith('.doc') || name.endsWith('.docx'))
+    if (name.endsWith('.doc') || name.endsWith('.docx')) {
       return Icons.description;
+    }
     return Icons.insert_drive_file;
   }
 
   Widget _buildTaskReportCard() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'تقرير التنفيذ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'تقرير التنفيذ',
+            'حدّث ملخص التنفيذ والملاحظات النهائية المرتبطة بإغلاق المهمة.',
+            Icons.summarize_outlined,
+            AppColors.successGreen,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _reportSummaryController,
+            minLines: 2,
+            maxLines: 3,
+            decoration: _surfaceFieldDecoration(
+              label: 'ملخص التنفيذ',
+              icon: Icons.notes_rounded,
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _reportSummaryController,
-              minLines: 2,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'ملخص التنفيذ'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _reportNotesController,
+            minLines: 2,
+            maxLines: 4,
+            decoration: _surfaceFieldDecoration(
+              label: 'ملاحظات إضافية',
+              icon: Icons.edit_note_rounded,
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _reportNotesController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'ملاحظات إضافية'),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: _savingReport ? null : _saveTaskReport,
-                icon: _savingReport
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save),
-                label: const Text('حفظ التقرير'),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _savingReport ? null : _saveTaskReport,
+              icon: _savingReport
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: const Text('حفظ التقرير'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1575,57 +2258,460 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildDeadlineCard({required bool isOwner, required bool isWorker}) {
     final task = _task!;
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              task.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    final remaining = task.deadlineRemaining;
+    final penalty = task.overduePenalty;
+    final extensionRequest = task.extensionRequest;
+    final isOverdue = _isTaskOverdue(task);
+    final isClosed = task.isDone;
+
+    final statusText = task.dueDate == null
+        ? 'بدون مهلة'
+        : isClosed
+        ? 'تم إغلاق المهمة'
+        : isOverdue
+        ? 'متأخرة منذ ${_formatCountdown(remaining ?? Duration.zero)}'
+        : 'متبقي ${_formatCountdown(remaining ?? Duration.zero)}';
+
+    final statusColor = task.dueDate == null
+        ? Colors.grey.shade700
+        : isClosed
+        ? AppColors.successGreen
+        : isOverdue
+        ? AppColors.errorRed
+        : AppColors.primaryBlue;
+
+    final actionButtons = <Widget>[];
+    final hasPendingExtension = extensionRequest?.isPending == true;
+    final canRequestExtension =
+        isWorker && task.hasDeadline && !isClosed && !hasPendingExtension;
+    final canDirectExtend = isOwner && task.hasDeadline && !isClosed;
+    final canApplyPenalty =
+        isOwner &&
+        penalty?.enabled == true &&
+        isOverdue &&
+        !(penalty?.isApplied ?? false);
+    final canOpenVoucher = (penalty?.voucherPath ?? '').isNotEmpty;
+
+    if (canRequestExtension) {
+      actionButtons.add(
+        OutlinedButton.icon(
+          onPressed: _requestExtension,
+          icon: const Icon(Icons.schedule_send_outlined),
+          label: const Text('طلب تمديد'),
+        ),
+      );
+    }
+
+    if (canDirectExtend) {
+      actionButtons.add(
+        ElevatedButton.icon(
+          onPressed: _extendDeadlineDirectly,
+          icon: const Icon(Icons.timer_outlined),
+          label: const Text('تمديد المهلة'),
+        ),
+      );
+    }
+
+    if (isOwner && hasPendingExtension) {
+      actionButtons.add(
+        ElevatedButton.icon(
+          onPressed: _approveExtensionRequest,
+          icon: const Icon(Icons.check_circle_outline),
+          label: const Text('اعتماد التمديد'),
+        ),
+      );
+      actionButtons.add(
+        OutlinedButton.icon(
+          onPressed: _rejectExtensionRequest,
+          icon: const Icon(Icons.cancel_outlined),
+          label: const Text('رفض التمديد'),
+        ),
+      );
+    }
+
+    if (canApplyPenalty) {
+      actionButtons.add(
+        ElevatedButton.icon(
+          onPressed: _applyPenalty,
+          icon: const Icon(Icons.money_off_csred_outlined),
+          label: const Text('اعتماد الاستقطاع'),
+        ),
+      );
+    }
+
+    if (canOpenVoucher) {
+      actionButtons.add(
+        OutlinedButton.icon(
+          onPressed: _openPenaltyVoucher,
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: const Text('فتح سند الاستقطاع'),
+        ),
+      );
+    }
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'المهلة والاستقطاع',
+            'تفاصيل العدّ التنازلي، الاستقطاعات المحتملة، وحالة طلبات التمديد.',
+            Icons.timer_rounded,
+            statusColor,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: statusColor.withValues(alpha: 0.16)),
             ),
-            const SizedBox(height: 6),
-            Text('رقم المهمة: ${task.taskCode}'),
-            Text('الحاله: ${_statusLabel(task.status)}'),
-            Text(
-              'القسم: ${task.department.isEmpty ? 'غير محدد' : task.department}',
+            child: Text(
+              statusText,
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.w800),
             ),
-            Text('الموظف: ${task.assignedToName}'),
-            if (task.description.isNotEmpty) Text('الوصف: ${task.description}'),
-            if (task.dueDate != null)
-              Text(
-                'الاستحقاق: ${task.dueDate!.toLocal().toString().split(' ').first}',
-              ),
-            if (task.location?.latitude != null &&
-                task.location?.longitude != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.directions),
-                    label: const Text('الاتجاه إلى الموقع'),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TaskRouteScreen(
-                            latitude: task.location!.latitude!,
-                            longitude: task.location!.longitude!,
-                            address: task.location?.address,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+          ),
+          const SizedBox(height: 14),
+          _buildDeadlineInfoRow(
+            icon: Icons.event_available_outlined,
+            label: 'آخر موعد',
+            value: _formatDate(task.dueDate),
+          ),
+          if (task.countdownDurationSeconds > 0) ...[
+            const SizedBox(height: 8),
+            _buildDeadlineInfoRow(
+              icon: Icons.timelapse_outlined,
+              label: 'المدة الأصلية',
+              value: _formatDurationSeconds(task.countdownDurationSeconds),
+            ),
+          ],
+          if (task.overdueNotifiedAt != null) ...[
+            const SizedBox(height: 8),
+            _buildDeadlineInfoRow(
+              icon: Icons.notification_important_outlined,
+              label: 'إشعار انتهاء المهلة',
+              value: _formatDate(task.overdueNotifiedAt),
+            ),
+          ],
+          if ((task.statusBeforeOverdue ?? '').trim().isNotEmpty &&
+              task.status == 'overdue') ...[
+            const SizedBox(height: 8),
+            _buildDeadlineInfoRow(
+              icon: Icons.history_toggle_off,
+              label: 'قبل انتهاء المهلة',
+              value: _statusLabel(task.statusBeforeOverdue!),
+            ),
+          ],
+          if (penalty != null && penalty.enabled) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color:
+                    (penalty.isApplied
+                            ? AppColors.errorRed
+                            : AppColors.warningOrange)
+                        .withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color:
+                      (penalty.isApplied
+                              ? AppColors.errorRed
+                              : AppColors.warningOrange)
+                          .withValues(alpha: 0.3),
                 ),
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    penalty.isApplied
+                        ? 'تم اعتماد الاستقطاع'
+                        : 'استقطاع جاهز عند انتهاء المهلة',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'القيمة: ${penalty.amount.toStringAsFixed(2)} ${penalty.currency}',
+                  ),
+                  if (penalty.appliedAt != null)
+                    Text('تاريخ الاعتماد: ${_formatDate(penalty.appliedAt)}'),
+                  if ((penalty.appliedByName ?? '').trim().isNotEmpty)
+                    Text('اعتمد بواسطة: ${penalty.appliedByName}'),
+                  if (penalty.voucherNumber.trim().isNotEmpty)
+                    Text('رقم السند: ${penalty.voucherNumber}'),
+                  if (penalty.notes.trim().isNotEmpty)
+                    Text('ملاحظات: ${penalty.notes}'),
+                ],
+              ),
+            ),
           ],
+          if (extensionRequest != null && extensionRequest.hasRequest) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color:
+                    (extensionRequest.isRejected
+                            ? AppColors.errorRed
+                            : extensionRequest.isApproved
+                            ? AppColors.successGreen
+                            : AppColors.infoBlue)
+                        .withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color:
+                      (extensionRequest.isRejected
+                              ? AppColors.errorRed
+                              : extensionRequest.isApproved
+                              ? AppColors.successGreen
+                              : AppColors.infoBlue)
+                          .withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    extensionRequest.isPending
+                        ? 'طلب تمديد بانتظار المالك'
+                        : extensionRequest.isApproved
+                        ? 'تم اعتماد التمديد'
+                        : 'تم رفض طلب التمديد',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  if ((extensionRequest.requestedByName ?? '')
+                      .trim()
+                      .isNotEmpty)
+                    Text('مقدم الطلب: ${extensionRequest.requestedByName}'),
+                  if (extensionRequest.requestedAt != null)
+                    Text(
+                      'تاريخ الطلب: ${_formatDate(extensionRequest.requestedAt)}',
+                    ),
+                  Text(
+                    'المدة المطلوبة: ${_formatDurationSeconds(extensionRequest.requestedSeconds)}',
+                  ),
+                  if (extensionRequest.requestedReason.trim().isNotEmpty)
+                    Text('سبب الطلب: ${extensionRequest.requestedReason}'),
+                  if ((extensionRequest.decidedByName ?? '').trim().isNotEmpty)
+                    Text('القرار بواسطة: ${extensionRequest.decidedByName}'),
+                  if (extensionRequest.decidedAt != null)
+                    Text(
+                      'تاريخ القرار: ${_formatDate(extensionRequest.decidedAt)}',
+                    ),
+                  if (extensionRequest.decisionReason.trim().isNotEmpty)
+                    Text('ملاحظة القرار: ${extensionRequest.decisionReason}'),
+                ],
+              ),
+            ),
+          ],
+          if (actionButtons.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: actionButtons),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeadlineInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey.shade700),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: DefaultTextStyle.of(context).style,
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                TextSpan(text: value.isEmpty ? '-' : value),
+              ],
+            ),
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildInfoPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    final task = _task!;
+    final workers = task.workerNames;
+    final isOverdue = _isTaskOverdue(task);
+    final statusColor = isOverdue
+        ? AppColors.errorRed
+        : task.isDone
+        ? AppColors.successGreen
+        : AppColors.primaryBlue;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1D4ED8), Color(0xFF22C1C3)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: 0.16),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _buildInfoPill('رقم ${task.taskCode}'),
+                        _buildInfoPill(_statusLabel(task.status)),
+                        _buildInfoPill(
+                          task.department.isEmpty
+                              ? 'بدون قسم'
+                              : task.department,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.assignment_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'المكلفون: ${workers.isEmpty ? task.assignedToName : workers.join('، ')}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              height: 1.5,
+            ),
+          ),
+          if (task.description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              task.description,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                height: 1.6,
+              ),
+            ),
+          ],
+          if (task.dueDate != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'الاستحقاق: ${_formatDate(task.dueDate)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (task.location?.latitude != null &&
+              task.location?.longitude != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.directions_rounded),
+                  label: const Text('الاتجاه إلى الموقع'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.35),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TaskRouteScreen(
+                          latitude: task.location!.latitude!,
+                          longitude: task.location!.longitude!,
+                          address: task.location?.address,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1665,46 +2751,42 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
     }
 
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.group, size: 18),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'مشاركو المحادثة',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'أطراف المهمة',
+            'المالك، المسؤول، وباقي المشاركين في التنفيذ أو المتابعة.',
+            Icons.group_rounded,
+            AppColors.primaryBlue,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Spacer(),
+              if (_participantsSaving)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                if (_participantsSaving)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                if (isOwner)
-                  TextButton.icon(
-                    onPressed: _participantsSaving
-                        ? null
-                        : _openParticipantsDialog,
-                    icon: const Icon(Icons.person_add_alt),
-                    label: const Text('إضافة'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (chips.isEmpty)
-              const Text('لا يوجد مشاركون حالياً')
-            else
-              Wrap(spacing: 8, runSpacing: 6, children: chips),
-          ],
-        ),
+              if (isOwner)
+                TextButton.icon(
+                  onPressed: _participantsSaving
+                      ? null
+                      : _openParticipantsDialog,
+                  icon: const Icon(Icons.person_add_alt),
+                  label: const Text('إضافة'),
+                ),
+            ],
+          ),
+          if (chips.isEmpty)
+            const Text('لا يوجد مشاركون حالياً')
+          else
+            Wrap(spacing: 8, runSpacing: 6, children: chips),
+        ],
       ),
     );
   }
@@ -1719,7 +2801,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           onPressed: () async {
             final provider = context.read<TaskProvider>();
             final updated = await provider.acceptTaskByCode(task.taskCode);
-            if (updated != null && mounted) setState(() => _task = updated);
+            if (updated != null) {
+              _applyTaskUpdate(updated);
+            }
           },
           child: const Text('استلام المهمة'),
         ),
@@ -1745,92 +2829,102 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     if (actions.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'إجراءات الموظف',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Wrap(spacing: 8, children: actions),
-      ],
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'إجراءات الموظف',
+            'الاستلام، بدء التنفيذ، وإنهاء المهمة حسب حالتها الحالية.',
+            Icons.engineering_outlined,
+            AppColors.primaryBlue,
+          ),
+          const SizedBox(height: 14),
+          Wrap(spacing: 8, runSpacing: 8, children: actions),
+        ],
+      ),
     );
   }
 
   Widget _buildOwnerActions() {
     final task = _task!;
     if (task.status != 'completed') return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'إجراءات المالك',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            ElevatedButton(
-              onPressed: _approveTask,
-              child: const Text('اعتماد'),
-            ),
-            OutlinedButton(onPressed: _rejectTask, child: const Text('رفض')),
-          ],
-        ),
-      ],
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'إجراءات المالك',
+            'يمكن اعتماد المهمة أو رفضها بعد مراجعة تقرير التنفيذ والمرفقات.',
+            Icons.verified_user_outlined,
+            AppColors.successGreen,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton(
+                onPressed: _approveTask,
+                child: const Text('اعتماد'),
+              ),
+              OutlinedButton(onPressed: _rejectTask, child: const Text('رفض')),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTrackingSection(bool isOwner, bool isAssigned) {
     if (_task == null) return const SizedBox.shrink();
 
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'التتبع الحي',
-              style: TextStyle(fontWeight: FontWeight.bold),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            'التتبع الحي',
+            'متابعة موقع المنفذ عند تفعيل التتبع أثناء تنفيذ المهمة.',
+            Icons.location_searching_rounded,
+            AppColors.infoBlue,
+          ),
+          const SizedBox(height: 14),
+          if (isAssigned)
+            SwitchListTile(
+              value: _task!.trackingConsent,
+              onChanged: _toggleTracking,
+              title: const Text('موافقة على التتبع أثناء المهمة'),
+              subtitle: const Text('يمكن إيقاف التتبع في أي وقت'),
             ),
+          if (isOwner && _trackingPoints.isNotEmpty) ...[
+            _buildMapPreview(_trackingPoints.first),
             const SizedBox(height: 8),
-            if (isAssigned)
-              SwitchListTile(
-                value: _task!.trackingConsent,
-                onChanged: _toggleTracking,
-                title: const Text('موافقة على التتبع أثناء المهمة'),
-                subtitle: const Text('يمكن إيقاف التتبع في أي وقت'),
-              ),
-            if (isOwner && _trackingPoints.isNotEmpty) ...[
-              _buildMapPreview(_trackingPoints.first),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('عرض الخريطة كاملة'),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TaskTrackingMapScreen(
-                          taskId: _task!.id,
-                          initialPoints: _trackingPoints,
-                        ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('عرض الخريطة كاملة'),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TaskTrackingMapScreen(
+                        taskId: _task!.id,
+                        initialPoints: _trackingPoints,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
-            ],
-            if (isOwner && _trackingPoints.isEmpty)
-              const Text('لا توجد نقاط تتبع حالياً'),
+            ),
           ],
-        ),
+          if (isOwner && _trackingPoints.isEmpty)
+            const Text('لا توجد نقاط تتبع حالياً'),
+        ],
       ),
     );
   }
@@ -2059,4 +3153,27 @@ class _RecordSettings {
   final String extension;
 
   const _RecordSettings(this.config, this.extension);
+}
+
+class _TaskDurationActionResult {
+  final int days;
+  final int hours;
+  final int minutes;
+  final int seconds;
+  final String reason;
+
+  const _TaskDurationActionResult({
+    required this.days,
+    required this.hours,
+    required this.minutes,
+    required this.seconds,
+    required this.reason,
+  });
+}
+
+class _TaskPenaltyActionResult {
+  final double amount;
+  final String notes;
+
+  const _TaskPenaltyActionResult({required this.amount, required this.notes});
 }

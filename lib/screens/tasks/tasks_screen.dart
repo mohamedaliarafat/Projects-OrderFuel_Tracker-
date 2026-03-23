@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:order_tracker/models/task_model.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
@@ -6,10 +8,13 @@ import 'package:order_tracker/screens/tasks/task_detail_screen.dart';
 import 'package:order_tracker/screens/tasks/task_form_screen.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:provider/provider.dart';
 
 class TasksScreen extends StatefulWidget {
   final String? initialTaskCode;
+
   const TasksScreen({super.key, this.initialTaskCode});
 
   @override
@@ -19,18 +24,35 @@ class TasksScreen extends StatefulWidget {
 class _TasksScreenState extends State<TasksScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
+  Timer? _ticker;
+  Timer? _pollingTimer;
+
   String _statusFilter = 'all';
   bool _isLoading = false;
   bool _handledInitialCode = false;
-  static const double _maxContentWidth = 1200;
 
   @override
   void initState() {
     super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadTasks();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadTasks();
       await _handleInitialTaskCode();
     });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _pollingTimer?.cancel();
+    _searchController.dispose();
+    _codeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTasks() async {
@@ -60,14 +82,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
     final provider = context.read<TaskProvider>();
     final task = await provider.lookupTaskByCode(code);
-    if (!mounted) return;
-
-    if (task == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لم يتم العثور على المهمة لهذا الرقم')),
-      );
-      return;
-    }
+    if (!mounted || task == null) return;
 
     Navigator.push(
       context,
@@ -91,644 +106,45 @@ class _TasksScreenState extends State<TasksScreen> {
     }
 
     _codeController.clear();
-    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: task.id)),
     ).then((_) => _loadTasks());
   }
 
-  Future<void> _acceptAssignedTaskFromCard(TaskModel task) async {
-    final provider = context.read<TaskProvider>();
-    final controller = TextEditingController();
-    TaskModel? acceptedTask;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        var isSubmitting = false;
-        String? errorText;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('تأكيد استلام المهمة'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('أدخل رقم المهمة للتحقق قبل البدء'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    decoration: InputDecoration(
-                      labelText: 'رقم المهمة',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      errorText: errorText,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () => Navigator.pop(context, false),
-                  child: const Text('إلغاء'),
-                ),
-                ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          final code = controller.text.trim();
-                          if (code.isEmpty) {
-                            setState(() => errorText = 'رقم المهمة مطلوب');
-                            return;
-                          }
-                          setState(() {
-                            isSubmitting = true;
-                            errorText = null;
-                          });
-                          final result = await provider.acceptTaskByCode(code);
-                          if (result == null) {
-                            setState(() {
-                              isSubmitting = false;
-                              errorText = 'رقم المهمة غير صحيح';
-                            });
-                            return;
-                          }
-                          acceptedTask = result;
-                          if (context.mounted) {
-                            Navigator.pop(context, true);
-                          }
-                        },
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('تحقق'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    controller.dispose();
-
-    if (confirmed == true && acceptedTask != null && mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TaskDetailScreen(taskId: acceptedTask!.id),
-        ),
-      ).then((_) => _loadTasks());
-    }
+  bool _isOverdue(TaskModel task) {
+    return task.status == 'overdue' || task.isDeadlineExpired;
   }
 
-  void _setStatusFilter(String status) {
-    setState(() => _statusFilter = status);
-    _loadTasks();
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'غير محدد';
+    final local = date.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${local.year}/${two(local.month)}/${two(local.day)} ${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final provider = context.watch<TaskProvider>();
-    final isOwner = auth.user?.role == 'owner';
-    final tasks = isOwner ? provider.tasks : provider.myTasks;
-    final width = MediaQuery.of(context).size.width;
-    final horizontalPadding = width >= 900 ? 24.0 : 16.0;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('المهام'),
-        actions: [
-          IconButton(
-            tooltip: 'الإشعارات',
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.notifications);
-            },
-          ),
-          if (isOwner)
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TaskFormScreen()),
-                );
-                _loadTasks();
-              },
-            ),
-          IconButton(
-            tooltip: 'تسجيل الخروج',
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final authProvider = context.read<AuthProvider>();
-              await authProvider.logout();
-              if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.login,
-                (_) => false,
-              );
-            },
-          ),
-        ],
-      ),
-
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFF7F7F9), Color(0xFFF1F2F4)],
-          ),
-        ),
-        child: RefreshIndicator(
-          onRefresh: _loadTasks,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final contentWidth = constraints.maxWidth > _maxContentWidth
-                  ? _maxContentWidth
-                  : constraints.maxWidth;
-              return Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: contentWidth),
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalPadding,
-                      16,
-                      horizontalPadding,
-                      24,
-                    ),
-                    children: [
-                      _buildHeader(tasks),
-                      const SizedBox(height: 12),
-                      _buildDashboardCards(tasks, isOwner, contentWidth),
-                      const SizedBox(height: 12),
-                      if (!isOwner) _buildCodeEntryCard(),
-                      _buildFilters(),
-                      const SizedBox(height: 12),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        child: _buildTaskList(tasks, isOwner: isOwner),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
+  String _formatDuration(Duration? duration) {
+    if (duration == null) return 'بدون مهلة';
+    final absolute = duration.isNegative ? duration.abs() : duration;
+    final days = absolute.inDays;
+    final hours = absolute.inHours.remainder(24).toString().padLeft(2, '0');
+    final minutes = absolute.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = absolute.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return days > 0
+        ? '$days يوم $hours:$minutes:$seconds'
+        : '$hours:$minutes:$seconds';
   }
 
-  Widget _buildHeader(List<TaskModel> tasks) {
-    final total = tasks.length;
-    final completedCount = tasks.where((t) => t.status == 'completed').length;
-    final activeCount = tasks.where((t) {
-      return t.status == 'assigned' ||
-          t.status == 'accepted' ||
-          t.status == 'in_progress';
-    }).length;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: AppColors.silverGradient,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.silverDark.withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: Colors.white.withOpacity(0.6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '\u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0647\u0627\u0645',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '\u062a\u0627\u0628\u0639 \u0627\u0644\u0645\u0647\u0627\u0645 \u0648\u062d\u0627\u0644\u0627\u062a\u0647\u0627 \u0645\u0646 \u0646\u0641\u0633 \u0627\u0644\u0648\u0627\u062c\u0647\u0629',
-            style: TextStyle(color: AppColors.mediumGray),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildStatChip(
-                label: '\u0625\u062c\u0645\u0627\u0644\u064a',
-                value: '$total',
-                icon: Icons.list_alt,
-                color: AppColors.primaryBlue,
-              ),
-              _buildStatChip(
-                label: '\u0646\u0634\u0637\u0629',
-                value: '$activeCount',
-                icon: Icons.timelapse,
-                color: AppColors.warningOrange,
-              ),
-              _buildStatChip(
-                label: '\u0645\u0643\u062a\u0645\u0644\u0629',
-                value: '$completedCount',
-                icon: Icons.check_circle,
-                color: AppColors.successGreen,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  String _countdownText(TaskModel task) {
+    final remaining = task.deadlineRemaining;
+    if (remaining == null) return 'بدون مهلة';
+    if (remaining.isNegative) return 'متأخرة منذ ${_formatDuration(remaining)}';
+    return 'متبقي ${_formatDuration(remaining)}';
   }
 
-  Widget _buildStatChip({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.75),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '$label: $value',
-            style: TextStyle(fontWeight: FontWeight.w600, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDashboardCards(
-    List<TaskModel> tasks,
-    bool isOwner,
-    double maxWidth,
-  ) {
-    final total = tasks.length;
-    final completedCount = tasks.where((t) => t.status == 'completed').length;
-
-    final cards = <Widget>[
-      _buildDashboardCard(
-        title: '\u0633\u062c\u0644 \u0627\u0644\u0645\u0647\u0627\u0645',
-        subtitle: '$total \u0645\u0647\u0645\u0629',
-        icon: Icons.list_alt,
-        color: AppColors.primaryBlue,
-        onTap: () => _setStatusFilter('all'),
-      ),
-      if (isOwner)
-        _buildDashboardCard(
-          title: '\u0645\u0647\u0645\u0629 \u062c\u062f\u064a\u062f\u0629',
-          subtitle: '\u0625\u0646\u0634\u0627\u0621 \u0645\u0647\u0645\u0629',
-          icon: Icons.add_task,
-          color: AppColors.successGreen,
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TaskFormScreen()),
-            );
-            _loadTasks();
-          },
-        ),
-      _buildDashboardCard(
-        title:
-            '\u0627\u0644\u0645\u0647\u0627\u0645 \u0627\u0644\u0645\u0646\u062a\u0647\u064a\u0629',
-        subtitle: '$completedCount \u0645\u0647\u0645\u0629',
-        icon: Icons.done_all,
-        color: AppColors.warningOrange,
-        onTap: () => _setStatusFilter('completed'),
-      ),
-    ];
-
-    final baseColumns = maxWidth >= 1000
-        ? 3
-        : maxWidth >= 680
-        ? 2
-        : 1;
-    final columns = baseColumns > cards.length ? cards.length : baseColumns;
-    final cardWidth =
-        (maxWidth - ((columns - 1) * 12)) / (columns == 0 ? 1 : columns);
-
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: cards.asMap().entries.map((entry) {
-        final index = entry.key;
-        final child = entry.value;
-        return SizedBox(
-          width: cardWidth,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: Duration(milliseconds: 320 + (index * 80)),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, widget) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 12 * (1 - value)),
-                  child: widget,
-                ),
-              );
-            },
-            child: child,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDashboardCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [color.withOpacity(0.12), color.withOpacity(0.04)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.22)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.12),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.18),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 12, color: AppColors.mediumGray),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilters() {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText:
-                    '\u0628\u062d\u062b (\u0639\u0646\u0648\u0627\u0646 \u0623\u0648 \u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629)',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _loadTasks,
-                ),
-              ),
-              onSubmitted: (_) => _loadTasks(),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _statusFilter,
-              decoration: const InputDecoration(
-                labelText: '\u0627\u0644\u062d\u0627\u0644\u0629',
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'all',
-                  child: Text('\u0627\u0644\u0643\u0644'),
-                ),
-                DropdownMenuItem(
-                  value: 'assigned',
-                  child: Text(
-                    '\u062a\u0645 \u0627\u0644\u0625\u0633\u0646\u0627\u062f',
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'accepted',
-                  child: Text(
-                    '\u062a\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645',
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'in_progress',
-                  child: Text(
-                    '\u0642\u064a\u062f \u0627\u0644\u062a\u0646\u0641\u064a\u0630',
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'completed',
-                  child: Text('\u0645\u0643\u062a\u0645\u0644\u0629'),
-                ),
-                DropdownMenuItem(
-                  value: 'approved',
-                  child: Text('\u0645\u0639\u062a\u0645\u062f\u0629'),
-                ),
-                DropdownMenuItem(
-                  value: 'rejected',
-                  child: Text('\u0645\u0631\u0641\u0648\u0636\u0629'),
-                ),
-                DropdownMenuItem(
-                  value: 'overdue',
-                  child: Text('\u0645\u062a\u0623\u062e\u0631\u0629'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => _statusFilter = value);
-                _loadTasks();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCodeEntryCard() {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '\u0627\u0633\u062a\u0644\u0627\u0645 \u0645\u0647\u0645\u0629 \u0639\u0628\u0631 \u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _codeController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: const InputDecoration(
-                labelText:
-                    '\u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629 (6 \u0623\u0631\u0642\u0627\u0645)',
-                prefixIcon: Icon(Icons.lock_outline),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: _acceptByCode,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text(
-                '\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0645\u0647\u0645\u0629',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTaskList(List<TaskModel> tasks, {required bool isOwner}) {
-    if (_isLoading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-    if (tasks.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Text(
-            '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0647\u0627\u0645',
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      key: ValueKey(
-        '${_statusFilter}_${tasks.length}_${_searchController.text}',
-      ),
-      children: tasks.asMap().entries.map((entry) {
-        return _buildAnimatedTaskCard(entry.value, entry.key, isOwner);
-      }).toList(),
-    );
-  }
-
-  Widget _buildAnimatedTaskCard(TaskModel task, int index, bool isOwner) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 260 + (index * 40)),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 14 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-      child: _buildTaskCard(task, isOwner),
-    );
-  }
-
-  Widget _buildMetaItem(IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppColors.mediumGray),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: AppColors.mediumGray)),
-      ],
-    );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'completed':
-      case 'approved':
-        return AppColors.successGreen;
-      case 'in_progress':
-        return AppColors.infoBlue;
-      case 'accepted':
-        return AppColors.primaryBlue;
-      case 'assigned':
-        return AppColors.warningOrange;
-      case 'rejected':
-        return AppColors.errorRed;
-      case 'overdue':
-        return AppColors.pendingYellow;
-      default:
-        return AppColors.mediumGray;
-    }
-  }
-
-  String _statusLabel(String status) {
-    switch (status) {
+  String _statusLabel(TaskModel task) {
+    if (_isOverdue(task)) return 'انتهت المهلة';
+    switch (task.status) {
       case 'assigned':
         return 'تم الإسناد';
       case 'accepted':
@@ -741,86 +157,1033 @@ class _TasksScreenState extends State<TasksScreen> {
         return 'معتمدة';
       case 'rejected':
         return 'مرفوضة';
-      case 'overdue':
-        return 'متأخرة';
       default:
-        return status;
+        return task.status;
     }
   }
 
-  Widget _buildTaskCard(TaskModel task, bool isOwner) {
-    final statusColor = _statusColor(task.status);
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          if (!isOwner && task.status == 'assigned') {
-            _acceptAssignedTaskFromCard(task);
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TaskDetailScreen(taskId: task.id),
-            ),
-          ).then((_) => _loadTasks());
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: statusColor.withOpacity(0.35)),
-                    ),
-                    child: Text(
-                      _statusLabel(task.status),
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                runSpacing: 6,
-                children: [
-                  _buildMetaItem(
-                    Icons.tag,
-                    '\u0631\u0642\u0645: ${task.taskCode}',
-                  ),
-                  if (task.assignedToName.isNotEmpty)
-                    _buildMetaItem(Icons.person, task.assignedToName),
-                ],
-              ),
-            ],
-          ),
+  Color _statusColor(TaskModel task) {
+    if (_isOverdue(task)) return AppColors.errorRed;
+    switch (task.status) {
+      case 'accepted':
+        return AppColors.primaryBlue;
+      case 'in_progress':
+        return AppColors.infoBlue;
+      case 'completed':
+      case 'approved':
+        return AppColors.successGreen;
+      case 'assigned':
+        return AppColors.warningOrange;
+      case 'rejected':
+        return AppColors.errorRed;
+      default:
+        return AppColors.mediumGray;
+    }
+  }
+
+  IconData _statusIcon(TaskModel task) {
+    if (_isOverdue(task)) return Icons.timer_off_rounded;
+    switch (task.status) {
+      case 'accepted':
+        return Icons.inventory_2_rounded;
+      case 'in_progress':
+        return Icons.autorenew_rounded;
+      case 'completed':
+      case 'approved':
+        return Icons.task_alt_rounded;
+      case 'assigned':
+        return Icons.assignment_ind_rounded;
+      case 'rejected':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  int _gridColumns(double width) {
+    if (width >= 1280) return 3;
+    if (width >= 780) return 2;
+    return 1;
+  }
+
+  void _openTaskDetails(TaskModel task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: task.id)),
+    ).then((_) => _loadTasks());
+  }
+
+  InputDecoration _fieldDecoration({
+    required String label,
+    required IconData icon,
+    String? hintText,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hintText,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.88),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: AppColors.appBarWaterBright.withValues(alpha: 0.10),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(
+          color: AppColors.appBarWaterBright,
+          width: 1.5,
         ),
       ),
     );
   }
+
+  Widget _buildTopSummary(List<TaskModel> tasks, bool isOwner) {
+    final overdueCount = tasks.where(_isOverdue).length;
+    final activeCount = tasks.where((task) => !task.isDone).length;
+    final doneCount = tasks.where((task) => task.isDone).length;
+    final extensionCount = tasks
+        .where((task) => task.extensionRequest?.isPending ?? false)
+        .length;
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0F172A), Color(0xFF1D4ED8), Color(0xFF22C1C3)],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1D4ED8).withValues(alpha: 0.16),
+                blurRadius: 28,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isOwner ? 'لوحة إدارة المهام' : 'لوحة مهامي اليومية',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isOwner
+                    ? 'متابعة سريعة للمهام المكلفة، الحالات الحرجة، وتمديدات المهلة من مكان واحد.'
+                    : 'كل المهام الموكلة لك مع العدّ التنازلي، التحديثات، وإمكانية الاستلام السريع من رقم المهمة.',
+                style: const TextStyle(
+                  color: Colors.white,
+                  height: 1.6,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 1120
+                ? 4
+                : (constraints.maxWidth >= 720 ? 2 : 1);
+            final width = columns == 1
+                ? constraints.maxWidth
+                : (constraints.maxWidth - ((columns - 1) * 12)) / columns;
+
+            final items = [
+              _SummaryTileData(
+                label: 'مهام نشطة',
+                value: '$activeCount',
+                icon: Icons.bolt_rounded,
+                color: AppColors.primaryBlue,
+              ),
+              _SummaryTileData(
+                label: 'مكتملة',
+                value: '$doneCount',
+                icon: Icons.task_alt_rounded,
+                color: AppColors.successGreen,
+              ),
+              _SummaryTileData(
+                label: 'متأخرة',
+                value: '$overdueCount',
+                icon: Icons.warning_amber_rounded,
+                color: AppColors.errorRed,
+              ),
+              _SummaryTileData(
+                label: 'تمديد معلق',
+                value: '$extensionCount',
+                icon: Icons.update_rounded,
+                color: AppColors.warningOrange,
+              ),
+            ];
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: items
+                  .map(
+                    (item) =>
+                        SizedBox(width: width, child: _buildSummaryTile(item)),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+        if (!isOwner) ...[const SizedBox(height: 16), _buildAcceptByCodeCard()],
+      ],
+    );
+  }
+
+  Widget _buildSummaryTile(_SummaryTileData item) {
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      border: Border.all(color: item.color.withValues(alpha: 0.12)),
+      color: Colors.white.withValues(alpha: 0.76),
+      boxShadow: [
+        BoxShadow(
+          color: item.color.withValues(alpha: 0.08),
+          blurRadius: 24,
+          offset: const Offset(0, 14),
+        ),
+      ],
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(item.icon, color: item.color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.value,
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAcceptByCodeCard() {
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontal = constraints.maxWidth >= 820;
+
+          final field = TextField(
+            controller: _codeController,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: _fieldDecoration(
+              label: 'استلام مهمة عبر رقم المهمة',
+              hintText: 'أدخل رقم المهمة المكوّن من 6 أرقام',
+              icon: Icons.pin_outlined,
+            ).copyWith(counterText: ''),
+            onSubmitted: (_) => _acceptByCode(),
+          );
+
+          final button = FilledButton.icon(
+            onPressed: _acceptByCode,
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('استلام المهمة'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'الاستلام السريع',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'إذا وصلك رقم مهمة مباشر يمكنك استلامها من هنا والدخول إلى تفاصيلها فورًا.',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (horizontal)
+                Row(
+                  children: [
+                    Expanded(child: field),
+                    const SizedBox(width: 12),
+                    button,
+                  ],
+                )
+              else ...[
+                field,
+                const SizedBox(height: 12),
+                SizedBox(width: double.infinity, child: button),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontal = constraints.maxWidth >= 980;
+
+          final searchField = TextField(
+            controller: _searchController,
+            decoration: _fieldDecoration(
+              label: 'بحث',
+              hintText: 'ابحث بالعنوان أو رقم المهمة أو اسم المسؤول',
+              icon: Icons.search_rounded,
+              suffixIcon: _searchController.text.trim().isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                        _loadTasks();
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _loadTasks(),
+          );
+
+          final statusField = DropdownButtonFormField<String>(
+            initialValue: _statusFilter,
+            decoration: _fieldDecoration(
+              label: 'الحالة',
+              hintText: 'اختر الحالة',
+              icon: Icons.tune_rounded,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('الكل')),
+              DropdownMenuItem(value: 'assigned', child: Text('تم الإسناد')),
+              DropdownMenuItem(value: 'accepted', child: Text('تم الاستلام')),
+              DropdownMenuItem(
+                value: 'in_progress',
+                child: Text('قيد التنفيذ'),
+              ),
+              DropdownMenuItem(value: 'completed', child: Text('مكتملة')),
+              DropdownMenuItem(value: 'approved', child: Text('معتمدة')),
+              DropdownMenuItem(value: 'rejected', child: Text('مرفوضة')),
+              DropdownMenuItem(value: 'overdue', child: Text('متأخرة')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _statusFilter = value);
+              _loadTasks();
+            },
+          );
+
+          final refreshButton = FilledButton(
+            onPressed: _loadTasks,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(58, 56),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Icon(Icons.refresh_rounded),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'تصفية المهام',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'ابحث بسرعة عن المهمة المطلوبة أو ركّز على حالة تنفيذ محددة.',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (horizontal)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: searchField),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 2, child: statusField),
+                    const SizedBox(width: 12),
+                    refreshButton,
+                  ],
+                )
+              else ...[
+                searchField,
+                const SizedBox(height: 12),
+                statusField,
+                const SizedBox(height: 12),
+                SizedBox(width: double.infinity, child: refreshButton),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(TaskModel task, bool isOwner) {
+    final statusColor = _statusColor(task);
+    final description = task.description.trim();
+    final workerNames = task.workerNames;
+    final hasDeadline = task.dueDate != null;
+    final penalty = task.overduePenalty;
+    final extensionPending = task.extensionRequest?.isPending ?? false;
+
+    return AppSurfaceCard(
+      onTap: () => _openTaskDetails(task),
+      padding: const EdgeInsets.all(18),
+      border: Border.all(color: statusColor.withValues(alpha: 0.12)),
+      color: Colors.white.withValues(alpha: 0.80),
+      boxShadow: [
+        BoxShadow(
+          color: statusColor.withValues(alpha: 0.08),
+          blurRadius: 24,
+          offset: const Offset(0, 14),
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      task.department.trim().isNotEmpty
+                          ? task.department
+                          : 'بدون قسم محدد',
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildStatusBadge(task),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildMetaChip(
+                icon: Icons.tag_rounded,
+                text: 'رقم ${task.taskCode}',
+                color: AppColors.primaryBlue,
+              ),
+              if (task.assignedToName.trim().isNotEmpty)
+                _buildMetaChip(
+                  icon: Icons.person_outline_rounded,
+                  text:
+                      '${isOwner ? 'المسؤول' : 'المكلّف'}: ${task.assignedToName}',
+                  color: AppColors.infoBlue,
+                ),
+              if (workerNames.length > 1)
+                _buildMetaChip(
+                  icon: Icons.groups_rounded,
+                  text: '${workerNames.length} مشاركين',
+                  color: const Color(0xFF7C3AED),
+                ),
+              if (task.attachments.isNotEmpty)
+                _buildMetaChip(
+                  icon: Icons.attach_file_rounded,
+                  text: '${task.attachments.length} مرفق',
+                  color: const Color(0xFF0F766E),
+                ),
+              if (task.messages.isNotEmpty)
+                _buildMetaChip(
+                  icon: Icons.forum_outlined,
+                  text: '${task.messages.length} رسالة',
+                  color: const Color(0xFF475569),
+                ),
+            ],
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+              ),
+              child: Text(
+                description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  height: 1.6,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+          if (hasDeadline) ...[
+            const SizedBox(height: 14),
+            _buildDeadlinePanel(task, statusColor),
+          ],
+          if (extensionPending || (penalty?.enabled ?? false)) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (extensionPending)
+                  _buildNoticeChip(
+                    icon: Icons.update_rounded,
+                    text: 'يوجد طلب تمديد بانتظار القرار',
+                    color: AppColors.warningOrange,
+                  ),
+                if (penalty?.enabled ?? false)
+                  _buildNoticeChip(
+                    icon: penalty!.isApplied
+                        ? Icons.verified_rounded
+                        : Icons.price_change_outlined,
+                    text: penalty.isApplied
+                        ? 'تم تطبيق استقطاع ${penalty.amount.toStringAsFixed(2)} ${penalty.currency}'
+                        : 'استقطاع مجهز ${penalty.amount.toStringAsFixed(2)} ${penalty.currency}',
+                    color: penalty.isApplied
+                        ? AppColors.successGreen
+                        : AppColors.errorRed,
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      _buildFooterMeta('الإسناد', _formatDate(task.assignedAt)),
+                      if (task.acceptedAt != null)
+                        _buildFooterMeta(
+                          'الاستلام',
+                          _formatDate(task.acceptedAt),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'عرض التفاصيل',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Icon(Icons.chevron_left_rounded, color: statusColor, size: 22),
+              ],
+            ),
+          ),
+          if (isOwner && extensionPending) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'يمكن اعتماد أو رفض التمديد من شاشة تفاصيل المهمة.',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(TaskModel task) {
+    final color = _statusColor(task);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_statusIcon(task), color: color, size: 18),
+          const SizedBox(width: 6),
+          Text(
+            _statusLabel(task),
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaChip({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 240),
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoticeChip({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17, color: color),
+          const SizedBox(width: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeadlinePanel(TaskModel task, Color statusColor) {
+    final isOverdue = _isOverdue(task);
+    final accent = isOverdue ? AppColors.errorRed : AppColors.primaryBlue;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              isOverdue ? Icons.timer_off_rounded : Icons.timer_outlined,
+              color: accent,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _countdownText(task),
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'الموعد النهائي: ${_formatDate(task.dueDate)}',
+                  style: TextStyle(
+                    color: statusColor == AppColors.mediumGray
+                        ? const Color(0xFF475569)
+                        : const Color(0xFF334155),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterMeta(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF334155),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTasksContent(
+    List<TaskModel> tasks,
+    bool isOwner,
+    String? errorMessage,
+  ) {
+    if (_isLoading) {
+      return const AppSurfaceCard(
+        padding: EdgeInsets.symmetric(vertical: 30),
+        child: Column(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 14),
+            Text(
+              'جارٍ تحميل المهام...',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (errorMessage != null && tasks.isEmpty) {
+      return AppSurfaceCard(
+        padding: const EdgeInsets.all(18),
+        color: AppColors.errorRed.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.18)),
+        boxShadow: const [],
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: AppColors.errorRed),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                errorMessage,
+                style: const TextStyle(
+                  color: Color(0xFF7F1D1D),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (tasks.isEmpty) {
+      return AppSurfaceCard(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 34),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.assignment_turned_in_outlined,
+              size: 62,
+              color: Color(0xFF94A3B8),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              isOwner ? 'لا توجد مهام حالياً' : 'لا توجد مهام مسندة لك حالياً',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'جرّب تعديل البحث أو الفلترة، أو أعد التحديث لاحقًا لعرض المهام الجديدة.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _gridColumns(constraints.maxWidth);
+        final spacing = 14.0;
+        final itemWidth = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: tasks
+              .map(
+                (task) => SizedBox(
+                  width: itemWidth,
+                  child: _buildTaskCard(task, isOwner),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final taskProvider = context.watch<TaskProvider>();
+    final isOwner = auth.user?.role == 'owner';
+    final tasks = isOwner ? taskProvider.tasks : taskProvider.myTasks;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 1100;
+    final isTablet = width >= 700;
+    final horizontalPadding = isDesktop ? 28.0 : (isTablet ? 20.0 : 16.0);
+
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        centerTitle: true,
+        title: const Text('المهام'),
+        flexibleSpace: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.notifications),
+          ),
+          if (isOwner)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TaskFormScreen()),
+                );
+                _loadTasks();
+              },
+            ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: RefreshIndicator(
+                onRefresh: _loadTasks,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    20,
+                    horizontalPadding,
+                    120,
+                  ),
+                  children: [
+                    _buildTopSummary(tasks, isOwner),
+                    const SizedBox(height: 16),
+                    _buildFilters(),
+                    if (taskProvider.error != null && tasks.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      AppSurfaceCard(
+                        padding: const EdgeInsets.all(14),
+                        color: AppColors.warningOrange.withValues(alpha: 0.10),
+                        border: Border.all(
+                          color: AppColors.warningOrange.withValues(
+                            alpha: 0.18,
+                          ),
+                        ),
+                        boxShadow: const [],
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              color: AppColors.warningOrange,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                taskProvider.error!,
+                                style: const TextStyle(
+                                  color: Color(0xFF7C2D12),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    _buildTasksContent(tasks, isOwner, taskProvider.error),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryTileData {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryTileData({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 }

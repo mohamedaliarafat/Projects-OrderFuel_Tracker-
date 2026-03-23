@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static String? _token;
 
-  // static const String _baseUrl = 'https://system-albuhairaalarabia.cloud/api';
-  static const String _baseUrl = 'http://192.168.8.196:6030/api';
+  static const String _baseUrl = 'https://system-albuhairaalarabia.cloud/api';
+  // static const String _baseUrl = 'http://192.168.8.196:6030/api';
   static const String _tokenKey = 'auth_token';
 
   static Map<String, String> get headers {

@@ -152,6 +152,93 @@ class TaskProvider with ChangeNotifier {
     return _patchTask(ApiEndpoints.taskReject(id), body: {'reason': reason});
   }
 
+  Future<TaskModel?> extendTaskDeadline(
+    String id, {
+    int days = 0,
+    int hours = 0,
+    int minutes = 0,
+    int seconds = 0,
+    String? reason,
+  }) async {
+    return _patchTask(
+      ApiEndpoints.taskExtend(id),
+      body: {
+        'days': days,
+        'hours': hours,
+        'minutes': minutes,
+        'seconds': seconds,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+  }
+
+  Future<TaskModel?> requestTaskExtension(
+    String id, {
+    int days = 0,
+    int hours = 0,
+    int minutes = 0,
+    int seconds = 0,
+    String? reason,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiEndpoints.baseUrl}${ApiEndpoints.taskExtensionRequest(id)}'),
+        headers: ApiService.headers,
+        body: json.encode({
+          'days': days,
+          'hours': hours,
+          'minutes': minutes,
+          'seconds': seconds,
+          if (reason != null && reason.trim().isNotEmpty)
+            'reason': reason.trim(),
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TaskModel.fromJson(Map<String, dynamic>.from(data['task']));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<TaskModel?> approveTaskExtensionRequest(
+    String id, {
+    String? reason,
+  }) async {
+    return _patchTask(
+      ApiEndpoints.taskExtensionApprove(id),
+      body: {
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+  }
+
+  Future<TaskModel?> rejectTaskExtensionRequest(
+    String id,
+    String reason,
+  ) async {
+    return _patchTask(
+      ApiEndpoints.taskExtensionReject(id),
+      body: {'reason': reason},
+    );
+  }
+
+  Future<TaskModel?> applyTaskPenalty(
+    String id, {
+    double? amount,
+    String currency = 'SAR',
+    String? notes,
+  }) async {
+    return _patchTask(
+      ApiEndpoints.taskPenaltyApply(id),
+      body: {
+        if (amount != null) 'amount': amount,
+        'currency': currency,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      },
+    );
+  }
+
   Future<TaskModel?> updateTrackingConsent(String id, bool consent) async {
     return _patchTask(
       ApiEndpoints.taskTrackingConsent(id),
