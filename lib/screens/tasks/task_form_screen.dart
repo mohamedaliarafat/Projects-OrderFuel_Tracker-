@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:order_tracker/models/models.dart';
+import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/task_provider.dart';
 import 'package:order_tracker/providers/user_management_provider.dart';
 import 'package:order_tracker/screens/tasks/task_location_picker_screen.dart';
@@ -1018,6 +1019,19 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final canCreateTasks =
+        context.watch<AuthProvider>().user?.hasPermission('tasks_create') ??
+        false;
+
+    if (!canCreateTasks) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('إضافة مهمة')),
+        body: const Center(
+          child: Text('لا تملك صلاحية إنشاء المهام.'),
+        ),
+      );
+    }
+
     return ChangeNotifierProvider.value(
       value: _userProvider,
       child: Scaffold(

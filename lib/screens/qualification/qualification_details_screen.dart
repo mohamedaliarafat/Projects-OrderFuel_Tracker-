@@ -10,6 +10,8 @@ import 'package:order_tracker/providers/qualification_provider.dart';
 import 'package:order_tracker/screens/qualification/qualification_form_screen.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 
 class QualificationStationDetailsScreen extends StatefulWidget {
   final QualificationStation? initialStation;
@@ -131,6 +133,70 @@ class _QualificationStationDetailsScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _surfaceSection({
+    required String title,
+    required Widget child,
+    Widget? trailing,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(18),
+  }) {
+    return AppSurfaceCard(
+      padding: padding,
+      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryBlue,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _metaChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -744,6 +810,334 @@ class _QualificationStationDetailsScreenState
     );
   }
 
+  Widget _modernHeaderSection(QualificationStation station) {
+    final statusColor = _statusColor(station.status);
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
+      borderRadius: const BorderRadius.all(Radius.circular(30)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(22),
+            decoration: const BoxDecoration(
+              gradient: AppColors.appBarGradient,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        station.name,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${station.city} • ${station.region}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.84),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (station.address.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          station.address,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.local_gas_station_rounded,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified_outlined, size: 16, color: statusColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            _statusLabel(station.status),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _metaChip(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'تاريخ الإنشاء: ${_formatDate(station.createdAt)}',
+                      color: AppColors.primaryBlue,
+                    ),
+                    if ((station.createdByName ?? '').isNotEmpty)
+                      _metaChip(
+                        icon: Icons.person_outline_rounded,
+                        label: 'تم بواسطة: ${station.createdByName}',
+                        color: AppColors.primaryBlue,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _infoChip(
+                      icon: Icons.place_outlined,
+                      label:
+                          '${station.location.lat.toStringAsFixed(5)}, ${station.location.lng.toStringAsFixed(5)}',
+                    ),
+                    if ((station.ownerPhone ?? '').trim().isNotEmpty)
+                      _infoChip(
+                        icon: Icons.phone_android,
+                        label: station.ownerPhone!.trim(),
+                      ),
+                    if ((station.ownerName ?? '').trim().isNotEmpty)
+                      _infoChip(
+                        icon: Icons.person_outline,
+                        label: station.ownerName!.trim(),
+                      ),
+                    if ((station.assignedTo?.name ?? '').trim().isNotEmpty)
+                      _infoChip(
+                        icon: Icons.badge_outlined,
+                        label: 'المسؤول: ${station.assignedTo!.name!}',
+                      ),
+                  ],
+                ),
+                if ((station.notes ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningOrange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: AppColors.warningOrange.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: _infoRow(
+                      label: 'ملاحظات',
+                      value: station.notes!.trim(),
+                      icon: Icons.sticky_note_2_outlined,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modernActionsSection(QualificationStation station) {
+    return _surfaceSection(
+      title: 'الإجراءات',
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          FilledButton.icon(
+            onPressed: () => _openStatusSelector(station),
+            icon: const Icon(Icons.sync_alt_rounded),
+            label: const Text('تغيير الحالة'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _openEditStation(station),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('تعديل البيانات'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _addAttachments(station),
+            icon: const Icon(Icons.attach_file),
+            label: const Text('إضافة مرفقات'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _openOnMap(station),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('عرض على الخريطة'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _openGoogleMaps(station),
+            icon: const Icon(Icons.directions),
+            label: const Text('الذهاب للمحطة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modernAttachmentsSection(QualificationStation station) {
+    if (station.attachments.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return _surfaceSection(
+      title: 'مرفقات المحطة',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: station.attachments.map((attachment) {
+          return ActionChip(
+            avatar: Icon(_attachmentIcon(attachment.type), size: 18),
+            label: Text(attachment.name),
+            onPressed: () => _openAttachment(attachment),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _modernHistoryCard(QualificationStatusChange change) {
+    final color = _statusColor(change.status);
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: const BorderRadius.all(Radius.circular(22)),
+      color: Colors.white.withValues(alpha: 0.92),
+      border: Border.all(color: color.withValues(alpha: 0.18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _statusBadge(change.status),
+              const Spacer(),
+              Text(
+                _formatDate(change.createdAt),
+                style: const TextStyle(
+                  color: AppColors.lightGray,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'سبب الإجراء: ${change.reason}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: AppColors.darkGray,
+            ),
+          ),
+          if ((change.assignedTo?.name ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _infoRow(
+              label: 'المسؤول',
+              value: change.assignedTo!.name!,
+              icon: Icons.person_outline,
+            ),
+          ],
+          if ((change.changedByName ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _infoRow(
+              label: 'تم بواسطة',
+              value: change.changedByName!,
+              icon: Icons.verified_user_outlined,
+            ),
+          ],
+          if (change.attachments.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: change.attachments.map((attachment) {
+                return ActionChip(
+                  avatar: Icon(_attachmentIcon(attachment.type), size: 18),
+                  label: Text(attachment.name),
+                  onPressed: () => _openAttachment(attachment),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _modernHistorySection(QualificationStation station) {
+    final history = List<QualificationStatusChange>.from(station.statusHistory)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return _surfaceSection(
+      title: 'سجل الإجراءات',
+      child: history.isEmpty
+          ? Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundGray.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Text(
+                'لا توجد إجراءات مسجلة بعد',
+                style: TextStyle(color: AppColors.mediumGray),
+              ),
+            )
+          : Column(
+              children: history
+                  .map(
+                    (change) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _modernHistoryCard(change),
+                    ),
+                  )
+                  .toList(),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<QualificationProvider>(
@@ -751,35 +1145,65 @@ class _QualificationStationDetailsScreenState
         final station = _resolveStation(provider);
 
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            flexibleSpace: Container(
+              decoration: const BoxDecoration(
+                gradient: AppColors.appBarGradient,
+              ),
+            ),
             title: const Text('تفاصيل التأهيل'),
             centerTitle: true,
           ),
           body: station == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const Stack(
+                  children: [
+                    AppSoftBackground(),
+                    Center(child: CircularProgressIndicator()),
+                  ],
+                )
               : Stack(
                   children: [
-                    ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        _headerSection(station),
-                        const SizedBox(height: 16),
-                        _actionsSection(station),
-                        const SizedBox(height: 16),
-                        _stationAttachmentsSection(station),
-                        if (station.attachments.isNotEmpty)
-                          const SizedBox(height: 16),
-                        _historySection(station),
-                        if (provider.error != null &&
-                            provider.error!.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            provider.error!,
-                            style: const TextStyle(color: AppColors.errorRed),
-                          ),
-                        ],
-                        const SizedBox(height: 32),
-                      ],
+                    const AppSoftBackground(),
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1440),
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            _modernHeaderSection(station),
+                            const SizedBox(height: 16),
+                            _modernActionsSection(station),
+                            if (station.attachments.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              _modernAttachmentsSection(station),
+                            ],
+                            const SizedBox(height: 16),
+                            _modernHistorySection(station),
+                            if (provider.error != null &&
+                                provider.error!.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              AppSurfaceCard(
+                                color: AppColors.errorRed.withValues(alpha: 0.08),
+                                border: Border.all(
+                                  color: AppColors.errorRed.withValues(alpha: 0.18),
+                                ),
+                                child: Text(
+                                  provider.error!,
+                                  style: const TextStyle(
+                                    color: AppColors.errorRed,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
                     ),
                     if (provider.isLoading)
                       Positioned.fill(

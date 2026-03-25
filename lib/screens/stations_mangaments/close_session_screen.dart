@@ -1951,6 +1951,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/station_provider.dart';
+import 'package:order_tracker/services/session_report_pdf_service.dart';
 import 'package:order_tracker/localization/app_localizations.dart' as loc;
 import 'package:order_tracker/utils/constants.dart' show AppColors;
 import 'package:order_tracker/widgets/custom_text_field.dart';
@@ -2334,6 +2335,29 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     normalized = normalized.replaceAll(RegExp(r'[\u200E\u200F]'), '');
     normalized = _arabicDigitsToWestern(normalized);
     normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final lower = normalized.toLowerCase();
+
+    if (lower.contains('الفرق') && lower.contains('91')) {
+      return 'بنزين 91';
+    }
+    if (lower.contains('الفرق') && lower.contains('95')) {
+      return 'بنزين 95';
+    }
+    if (lower.contains('بنزين') && lower.contains('91')) {
+      return 'بنزين 91';
+    }
+    if (lower.contains('بنزين') && lower.contains('95')) {
+      return 'بنزين 95';
+    }
+    if (lower.contains('ديزل') ||
+        lower.contains('سولار') ||
+        lower.contains('diesel')) {
+      return 'ديزل';
+    }
+    if (lower.contains('كيروسين') || lower.contains('kerosene')) {
+      return 'كيروسين';
+    }
+
     return normalized;
   }
 
@@ -2388,6 +2412,18 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       result[compactKey] = (result[compactKey] ?? 0) + value;
     });
     return result;
+  }
+
+  double _sumFuelMap(Map<String, double> input) {
+    return input.values.fold<double>(0, (sum, value) => sum + value);
+  }
+
+  double _totalStockBeforeSales() {
+    return _sumFuelMap(_compactFuelMap(_stockBeforeSalesByFuel));
+  }
+
+  double _totalStockAfterOperations() {
+    return _sumFuelMap(_compactFuelMap(_stockAfterSalesByFuel));
   }
 
   Map<String, double> _calculateStockAfterSales(
@@ -2463,9 +2499,10 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
 
   double _extractCurrentStockBalance(Map<String, dynamic> item) {
     const keys = [
+      'currentBalance',
+      'inventoryReferenceBalance',
       'balance',
       'availableStock',
-      'currentBalance',
       'actualBalance',
       'calculatedBalance',
       'quantity',
@@ -2689,17 +2726,16 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
     );
 
     try {
+      final stockReferenceDate = DateTime.now();
+
       await stationProvider.fetchSessions(
         filters: {
           'stationId': session.stationId,
-          'endDate': _formatDate(session.sessionDate),
+          'endDate': _formatDate(stockReferenceDate),
           'limit': 0,
         },
       );
-      await stationProvider.fetchCurrentStock(
-        session.stationId,
-        asOfDate: session.openingTime,
-      );
+      await stationProvider.fetchCurrentStock(session.stationId);
 
       Map<String, double> baseStock = _buildBaseStockFromCurrentStock(
         stationProvider.currentStock,
@@ -2710,19 +2746,19 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
         await stationProvider.fetchFuelBalanceReport(
           stationId: session.stationId,
           startDate: DateTime(2000),
-          endDate: session.sessionDate,
+          endDate: stockReferenceDate,
         );
 
         final rows = stationProvider.fuelBalanceReport
-            .where((row) => !row.date.isAfter(session.sessionDate))
+            .where((row) => !row.date.isAfter(stockReferenceDate))
             .toList();
 
-        baseStock = _buildBaseStockFromReport(rows, session.sessionDate);
+        baseStock = _buildBaseStockFromReport(rows, stockReferenceDate);
 
         final inventoryBaseStock = await _loadBaseStockFromInventoriesFallback(
           stationProvider,
           session.stationId,
-          session.sessionDate,
+          stockReferenceDate,
         );
         if (inventoryBaseStock.isNotEmpty) {
           baseStock.addAll(inventoryBaseStock);
@@ -3258,6 +3294,40 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
             backgroundColor: AppColors.successGreen,
           ),
         );
+
+        // =========================
+        // 📩 إرسال تقرير PDF للجلسة على البريد (نفس ملف التصدير)
+        // =========================
+        try {
+          await stationProvider.fetchSessionById(session.id);
+          final closedSession = stationProvider.selectedSession ?? session;
+
+          final pdfBytes = await SessionReportPdfService.buildSessionPdfBytes(
+            context: context,
+            session: closedSession,
+          );
+
+          final emailed = await stationProvider.emailSessionReportPdf(
+            sessionId: closedSession.id,
+            pdfBytes: pdfBytes,
+            fileName: 'session-${closedSession.sessionNumber}.pdf',
+          );
+
+          if (!emailed && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  stationProvider.error ??
+                      'تم إغلاق الجلسة ولكن فشل إرسال تقرير PDF على البريد',
+                ),
+                backgroundColor: AppColors.warningOrange,
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ Failed to email session PDF: $e');
+        }
+
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -5341,6 +5411,14 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
           title: 'الإجماليات',
           rows: [
             _buildSummaryRow(
+              'إجمالي المخزون قبل المبيعات',
+              '${_totalStockBeforeSales().toStringAsFixed(2)} لتر',
+            ),
+            _buildSummaryRow(
+              'إجمالي المخزون بعد المبيعات والتوريد',
+              '${_totalStockAfterOperations().toStringAsFixed(2)} لتر',
+            ),
+            _buildSummaryRow(
               'إجمالي اللترات',
               '${_totalLiters.toStringAsFixed(2)} لتر',
             ),
@@ -5718,7 +5796,7 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
       ];
     }
 
-    return allFuelTypes.map((fuelType) {
+    final rows = allFuelTypes.map((fuelType) {
       final compactKey = _compactFuelKey(fuelType);
       final beforeValue = compactBefore[compactKey] ?? 0;
       final afterValue =
@@ -5779,6 +5857,77 @@ class _CloseSessionScreenState extends State<CloseSessionScreen> {
         ],
       );
     }).toList();
+
+    final totalBefore = _sumFuelMap(compactBefore);
+    final totalAfter =
+        totalBefore -
+        _sumFuelMap(compactSold) +
+        _sumFuelMap(compactReturns) +
+        _sumFuelMap(compactSupplies);
+    final totalSold = _sumFuelMap(compactSold);
+
+    rows.add(
+      DataRow(
+        color: WidgetStatePropertyAll(
+          AppColors.primaryBlue.withOpacity(0.06),
+        ),
+        cells: [
+          DataCell(
+            SizedBox(
+              width: widths.pump,
+              child: const Center(
+                child: Text(
+                  'إجمالي المخزون',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+          _cell(const Text(''), widths.nozzle),
+          _cell(const Text(''), widths.fuel),
+          _cell(const Text(''), widths.side),
+          _cell(const Text(''), widths.open),
+          _cell(const Text(''), widths.close),
+          DataCell(
+            SizedBox(
+              width: widths.liter,
+              child: Center(
+                child: Text(
+                  totalSold.toStringAsFixed(2),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+          DataCell(
+            SizedBox(
+              width: widths.before,
+              child: Center(
+                child: Text(
+                  totalBefore.toStringAsFixed(2),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+          DataCell(
+            SizedBox(
+              width: widths.after,
+              child: Center(
+                child: Text(
+                  totalAfter.toStringAsFixed(2),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+          _cell(const Text(''), widths.amount),
+          _cell(const Text(''), widths.actions),
+        ],
+      ),
+    );
+
+    return rows;
   }
 
   DataRow _buildSupplyRow(

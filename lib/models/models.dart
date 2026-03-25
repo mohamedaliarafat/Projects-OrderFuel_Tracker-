@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:order_tracker/utils/access_control.dart';
 import 'package:order_tracker/utils/constants.dart';
 
 class User {
@@ -141,37 +142,23 @@ class User {
 
 extension UserPermissionHelpers on User {
   bool hasPermission(String key) {
-    if (role == 'owner' || role == 'admin') {
-      return true;
-    }
-
-    if (permissions.contains(key)) {
-      return true;
-    }
-
-    if (key.startsWith('orders_') && permissions.contains('orders_manage')) {
-      return true;
-    }
-
-    if (key.startsWith('customers_') &&
-        permissions.contains('customers_manage')) {
-      return true;
-    }
-
-    if (key.startsWith('drivers_') && permissions.contains('drivers_manage')) {
-      return true;
-    }
-
-    if (key.startsWith('suppliers_') &&
-        permissions.contains('suppliers_manage')) {
-      return true;
-    }
-
-    return false;
+    return roleHasPermission(
+      role: role,
+      assignedPermissions: permissions,
+      key: key,
+    );
   }
 
   bool hasAnyPermission(Iterable<String> keys) {
-    return keys.any(hasPermission);
+    return roleHasAnyPermission(
+      role: role,
+      assignedPermissions: permissions,
+      keys: keys,
+    );
+  }
+
+  List<String> get effectivePermissions {
+    return effectivePermissionsForRole(role, permissions).toList()..sort();
   }
 }
 
@@ -314,15 +301,27 @@ class Attachment {
   });
 
   factory Attachment.fromJson(Map<String, dynamic> json) {
+    final id = (json['_id'] ?? json['id'] ?? '').toString();
+    final filename = (json['filename'] ?? json['name'] ?? '').toString();
+    final path =
+        (json['path'] ??
+                json['url'] ??
+                json['downloadUrl'] ??
+                json['downloadURL'] ??
+                json['fileUrl'] ??
+                '')
+            .toString();
+    final uploadedAtRaw =
+        json['uploadedAt'] ?? json['createdAt'] ?? json['updatedAt'];
+    final uploadedAt = uploadedAtRaw == null
+        ? null
+        : DateTime.tryParse(uploadedAtRaw.toString());
+
     return Attachment(
-      id: json['_id'] ?? json['id'] ?? '',
-      filename: json['filename'],
-      path: json['path'],
-      uploadedAt: DateTime.parse(
-        json['uploadedAt'] ??
-            json['createdAt'] ??
-            DateTime.now().toIso8601String(),
-      ),
+      id: id,
+      filename: filename,
+      path: path,
+      uploadedAt: uploadedAt ?? DateTime.now(),
     );
   }
 

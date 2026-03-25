@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:order_tracker/models/models.dart';
 import 'package:order_tracker/models/task_model.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/task_provider.dart';
@@ -60,7 +61,8 @@ class _TasksScreenState extends State<TasksScreen> {
     setState(() => _isLoading = true);
     final auth = context.read<AuthProvider>();
     final provider = context.read<TaskProvider>();
-    final isOwner = auth.user?.role == 'owner';
+    final canViewAllTasks =
+        auth.user?.hasPermission('tasks_view_all') ?? false;
 
     final filters = <String, dynamic>{};
     if (_searchController.text.trim().isNotEmpty) {
@@ -70,7 +72,7 @@ class _TasksScreenState extends State<TasksScreen> {
       filters['status'] = _statusFilter;
     }
 
-    await provider.fetchTasks(mine: !isOwner, filters: filters);
+    await provider.fetchTasks(mine: !canViewAllTasks, filters: filters);
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -246,7 +248,7 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildTopSummary(List<TaskModel> tasks, bool isOwner) {
+  Widget _buildTopSummary(List<TaskModel> tasks, bool canViewAllTasks) {
     final overdueCount = tasks.where(_isOverdue).length;
     final activeCount = tasks.where((task) => !task.isDone).length;
     final doneCount = tasks.where((task) => task.isDone).length;
@@ -278,7 +280,7 @@ class _TasksScreenState extends State<TasksScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isOwner ? 'لوحة إدارة المهام' : 'لوحة مهامي اليومية',
+                canViewAllTasks ? 'لوحة إدارة المهام' : 'لوحة مهامي اليومية',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -287,7 +289,7 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                isOwner
+                canViewAllTasks
                     ? 'متابعة سريعة للمهام المكلفة، الحالات الحرجة، وتمديدات المهلة من مكان واحد.'
                     : 'كل المهام الموكلة لك مع العدّ التنازلي، التحديثات، وإمكانية الاستلام السريع من رقم المهمة.',
                 style: const TextStyle(
@@ -348,7 +350,10 @@ class _TasksScreenState extends State<TasksScreen> {
             );
           },
         ),
-        if (!isOwner) ...[const SizedBox(height: 16), _buildAcceptByCodeCard()],
+        if (!canViewAllTasks) ...[
+          const SizedBox(height: 16),
+          _buildAcceptByCodeCard(),
+        ],
       ],
     );
   }
@@ -594,7 +599,7 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildTaskCard(TaskModel task, bool isOwner) {
+  Widget _buildTaskCard(TaskModel task, bool canViewAllTasks) {
     final statusColor = _statusColor(task);
     final description = task.description.trim();
     final workerNames = task.workerNames;
@@ -663,7 +668,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 _buildMetaChip(
                   icon: Icons.person_outline_rounded,
                   text:
-                      '${isOwner ? 'المسؤول' : 'المكلّف'}: ${task.assignedToName}',
+                      '${canViewAllTasks ? 'المسؤول' : 'المكلّف'}: ${task.assignedToName}',
                   color: AppColors.infoBlue,
                 ),
               if (workerNames.length > 1)
@@ -776,7 +781,7 @@ class _TasksScreenState extends State<TasksScreen> {
               ],
             ),
           ),
-          if (isOwner && extensionPending) ...[
+          if (canViewAllTasks && extensionPending) ...[
             const SizedBox(height: 10),
             const Text(
               'يمكن اعتماد أو رفض التمديد من شاشة تفاصيل المهمة.',
@@ -958,7 +963,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Widget _buildTasksContent(
     List<TaskModel> tasks,
-    bool isOwner,
+    bool canViewAllTasks,
     String? errorMessage,
   ) {
     if (_isLoading) {
@@ -1016,7 +1021,9 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              isOwner ? 'لا توجد مهام حالياً' : 'لا توجد مهام مسندة لك حالياً',
+              canViewAllTasks
+                  ? 'لا توجد مهام حالياً'
+                  : 'لا توجد مهام مسندة لك حالياً',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -1053,7 +1060,7 @@ class _TasksScreenState extends State<TasksScreen> {
               .map(
                 (task) => SizedBox(
                   width: itemWidth,
-                  child: _buildTaskCard(task, isOwner),
+                  child: _buildTaskCard(task, canViewAllTasks),
                 ),
               )
               .toList(),
@@ -1066,12 +1073,28 @@ class _TasksScreenState extends State<TasksScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final taskProvider = context.watch<TaskProvider>();
-    final isOwner = auth.user?.role == 'owner';
-    final tasks = isOwner ? taskProvider.tasks : taskProvider.myTasks;
+    final canViewTasks =
+        auth.user?.hasAnyPermission(const ['tasks_view', 'tasks_view_all']) ??
+        false;
+    final canViewAllTasks =
+        auth.user?.hasPermission('tasks_view_all') ?? false;
+    final canCreateTasks =
+        auth.user?.hasAnyPermission(const ['tasks_create', 'tasks_edit']) ??
+        false;
+    final tasks = canViewAllTasks ? taskProvider.tasks : taskProvider.myTasks;
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= 1100;
     final isTablet = width >= 700;
     final horizontalPadding = isDesktop ? 28.0 : (isTablet ? 20.0 : 16.0);
+
+    if (!canViewTasks) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('المهام')),
+        body: const Center(
+          child: Text('لا تملك صلاحية عرض صفحة المهام.'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -1095,13 +1118,13 @@ class _TasksScreenState extends State<TasksScreen> {
             onPressed: () =>
                 Navigator.pushNamed(context, AppRoutes.notifications),
           ),
-          if (isOwner)
+          if (canCreateTasks)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () async {
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const TaskFormScreen()),
+                    MaterialPageRoute(builder: (_) => const TaskFormScreen()),
                 );
                 _loadTasks();
               },
@@ -1127,7 +1150,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     120,
                   ),
                   children: [
-                    _buildTopSummary(tasks, isOwner),
+                    _buildTopSummary(tasks, canViewAllTasks),
                     const SizedBox(height: 16),
                     _buildFilters(),
                     if (taskProvider.error != null && tasks.isNotEmpty) ...[
@@ -1162,7 +1185,11 @@ class _TasksScreenState extends State<TasksScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    _buildTasksContent(tasks, isOwner, taskProvider.error),
+                    _buildTasksContent(
+                      tasks,
+                      canViewAllTasks,
+                      taskProvider.error,
+                    ),
                   ],
                 ),
               ),

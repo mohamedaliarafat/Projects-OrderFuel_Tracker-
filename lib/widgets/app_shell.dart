@@ -4,7 +4,6 @@ import 'package:order_tracker/providers/chat_provider.dart';
 import 'package:order_tracker/utils/app_navigation.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
-import 'package:order_tracker/widgets/mo_assistant_overlay.dart';
 import 'package:provider/provider.dart';
 
 class NavigationLoadingObserver extends NavigatorObserver {
@@ -203,20 +202,6 @@ class _AppShellState extends State<AppShell>
           ),
         ),
         Positioned.fill(child: widget.child),
-        ValueListenableBuilder<String?>(
-          valueListenable: widget.observer.currentRouteName,
-          builder: (context, currentRouteName, _) {
-            if (!canShowChat) {
-              return const SizedBox.shrink();
-            }
-
-            final normalizedRoute = currentRouteName == null
-                ? null
-                : (Uri.tryParse(currentRouteName)?.path ?? currentRouteName);
-
-            return MoAssistantOverlay(currentRouteName: normalizedRoute);
-          },
-        ),
         ValueListenableBuilder<bool>(
           valueListenable: widget.observer.isLoading,
           builder: (context, loading, _) {

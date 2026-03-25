@@ -5,6 +5,8 @@ import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
@@ -491,24 +493,57 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
     final sessions = stationProvider.selectedInventorySessions;
 
     if (stationProvider.isLoading && inventory == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            AppSoftBackground(),
+            Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      );
     }
 
     if (inventory == null) {
       return Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          ),
           title: const Text(
             'تفاصيل المخزون',
             style: TextStyle(color: Colors.white),
           ),
         ),
-        body: const Center(child: Text('لا يوجد بيانات لهذا الجرد')),
+        body: Stack(
+          children: const [
+            AppSoftBackground(),
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: AppSurfaceCard(child: Text('لا يوجد بيانات لهذا الجرد')),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('تفاصيل المخزون'),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
+        title: const Text(
+          'تفاصيل المخزون',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           if (isOwner)
             IconButton(
@@ -526,11 +561,9 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text(
-                      '??\u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f',
-                    ),
+                    title: const Text('حذف الجرد'),
                     content: const Text(
-                      '?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f ?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f? ?? ?\u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f?? ?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f??.',
+                      'هل أنت متأكد من حذف هذا الجرد؟ لا يمكن التراجع عن هذا الإجراء.',
                     ),
                     actions: [
                       TextButton(
@@ -560,19 +593,14 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        '?? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f \u0625\u0644\u063a\u0627\u0621',
-                      ),
+                      content: Text('تم حذف الجرد بنجاح'),
                       backgroundColor: AppColors.successGreen,
                     ),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        stationProvider.error ??
-                            '??? \u062d\u0630\u0641 \u0627\u0644\u062c\u0631\u062f',
-                      ),
+                      content: Text(stationProvider.error ?? 'فشل حذف الجرد'),
                       backgroundColor: AppColors.errorRed,
                     ),
                   );
@@ -594,26 +622,40 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadInventoryDetails,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatusCard(inventory),
-              const SizedBox(height: 16),
-              _buildFuelSummaryCard(inventory),
-              const SizedBox(height: 16),
-              _buildBalanceCard(inventory),
-              const SizedBox(height: 16),
-              if (sessions.isNotEmpty) ...[_buildSessionsCard(sessions)],
-              if (inventory.notes != null && inventory.notes!.isNotEmpty)
-                _buildNotesCard(inventory.notes!),
-            ],
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          RefreshIndicator(
+            onRefresh: _loadInventoryDetails,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatusCard(inventory),
+                      const SizedBox(height: 16),
+                      _buildFuelSummaryCard(inventory),
+                      const SizedBox(height: 16),
+                      _buildBalanceCard(inventory),
+                      const SizedBox(height: 16),
+                      if (sessions.isNotEmpty) ...[
+                        _buildSessionsCard(sessions),
+                      ],
+                      if (inventory.notes != null &&
+                          inventory.notes!.isNotEmpty)
+                        _buildNotesCard(inventory.notes!),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -621,93 +663,92 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
   Widget _buildStatusCard(DailyInventory inventory) {
     final date = DateFormat('yyyy/MM/dd').format(inventory.inventoryDate);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    inventory.stationName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  inventory.stationName,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkGray,
                   ),
-                  const SizedBox(height: 6),
-                  Text('التاريخ: $date'),
-                  const SizedBox(height: 2),
-                  Text('نوع الوقود: ${inventory.fuelType}'),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text('عدد التريلات: ${inventory.tankerCount}'),
-                      const SizedBox(width: 16),
-                      Text('عدد المضخات: ${inventory.pumpCount}'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _statusColor(inventory.status).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _statusColor(inventory.status)),
-              ),
-              child: Text(
-                inventory.status,
-                style: TextStyle(
-                  color: _statusColor(inventory.status),
-                  fontWeight: FontWeight.bold,
                 ),
+                const SizedBox(height: 6),
+                Text('التاريخ: $date'),
+                const SizedBox(height: 2),
+                Text('نوع الوقود: ${inventory.fuelType}'),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    Text('عدد التريلات: ${inventory.tankerCount}'),
+                    Text('عدد المضخات: ${inventory.pumpCount}'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: _statusColor(inventory.status).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _statusColor(inventory.status)),
+            ),
+            child: Text(
+              inventory.status,
+              style: TextStyle(
+                color: _statusColor(inventory.status),
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildFuelSummaryCard(DailyInventory inventory) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'تفاصيل الوقود',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'تفاصيل الوقود',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryBlue,
             ),
-            const SizedBox(height: 16),
-            _buildKeyValue(
-              label: 'الرصيد السابق',
-              value: '${inventory.previousBalance.toStringAsFixed(2)} لتر',
-            ),
-            const SizedBox(height: 8),
-            _buildKeyValue(
-              label: 'الكمية المستلمة',
-              value: '${inventory.receivedQuantity.toStringAsFixed(2)} لتر',
-            ),
-            const SizedBox(height: 8),
-            _buildKeyValue(
-              label: 'المبيعات (لتر)',
-              value: '${inventory.totalSales.toStringAsFixed(2)} لتر',
-            ),
-            const SizedBox(height: 8),
-            _buildKeyValue(
-              label: 'الإيرادات',
-              value: '${inventory.totalRevenue.toStringAsFixed(2)} ريال',
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          _buildKeyValue(
+            label: 'الرصيد السابق',
+            value: '${inventory.previousBalance.toStringAsFixed(2)} لتر',
+          ),
+          const SizedBox(height: 8),
+          _buildKeyValue(
+            label: 'الكمية المستلمة',
+            value: '${inventory.receivedQuantity.toStringAsFixed(2)} لتر',
+          ),
+          const SizedBox(height: 8),
+          _buildKeyValue(
+            label: 'المبيعات (لتر)',
+            value: '${inventory.totalSales.toStringAsFixed(2)} لتر',
+          ),
+          const SizedBox(height: 8),
+          _buildKeyValue(
+            label: 'الإيرادات',
+            value: '${inventory.totalRevenue.toStringAsFixed(2)} ريال',
+          ),
+        ],
       ),
     );
   }
@@ -717,50 +758,49 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
         ? AppColors.successGreen
         : AppColors.errorRed;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'الرصيد والتفاوت',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'الرصيد والتفاوت',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryBlue,
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatTile(
-                    label: 'الرصيد المتوقع',
-                    value:
-                        '${inventory.calculatedBalance?.toStringAsFixed(2) ?? '---'} لتر',
-                    color: AppColors.infoBlue,
-                  ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatTile(
+                  label: 'الرصيد المتوقع',
+                  value:
+                      '${inventory.calculatedBalance?.toStringAsFixed(2) ?? '---'} لتر',
+                  color: AppColors.infoBlue,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatTile(
-                    label: 'الرصيد الفعلي',
-                    value:
-                        '${inventory.actualBalance?.toStringAsFixed(2) ?? '---'} لتر',
-                    color: AppColors.successGreen,
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatTile(
+                  label: 'الرصيد الفعلي',
+                  value:
+                      '${inventory.actualBalance?.toStringAsFixed(2) ?? '---'} لتر',
+                  color: AppColors.successGreen,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildStatTile(
-              label: 'الفرق',
-              value: '${inventory.difference?.toStringAsFixed(2) ?? '---'} لتر',
-              color: differenceColor,
-              helper:
-                  '( ${inventory.differencePercentage?.toStringAsFixed(1) ?? '---'}% )',
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildStatTile(
+            label: 'الفرق',
+            value: '${inventory.difference?.toStringAsFixed(2) ?? '---'} لتر',
+            color: differenceColor,
+            helper:
+                '( ${inventory.differencePercentage?.toStringAsFixed(1) ?? '---'}% )',
+          ),
+        ],
       ),
     );
   }
@@ -768,86 +808,84 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
   Widget _buildSessionsCard(List<PumpSession> sessions) {
     final isLargeScreen = MediaQuery.of(context).size.width > 768;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'جلسات اليوم',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'جلسات اليوم',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryBlue,
             ),
-            const SizedBox(height: 16),
-            Column(
-              children: sessions.map((session) {
-                final liters = session.totalLiters ?? session.totalSales ?? 0;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'الجلسة ${session.sessionNumber}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: isLargeScreen ? 16 : 14,
-                            ),
+          ),
+          const SizedBox(height: 16),
+          Column(
+            children: sessions.map((session) {
+              final liters = session.totalLiters ?? session.totalSales ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'الجلسة ${session.sessionNumber}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isLargeScreen ? 16 : 14,
                           ),
-                          Text(
-                            '${liters.toStringAsFixed(2)} لتر',
-                            style: TextStyle(
-                              color: AppColors.successGreen,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        ),
+                        Text(
+                          '${liters.toStringAsFixed(2)} لتر',
+                          style: const TextStyle(
+                            color: AppColors.successGreen,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 4,
-                        children: [
-                          Text('الوردية: ${session.shiftType}'),
-                          Text('الحالة: ${session.status}'),
-                          if (session.openingEmployeeName != null &&
-                              session.openingEmployeeName!.isNotEmpty)
-                            Text('الموظف: ${session.openingEmployeeName}'),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        Text('الوردية: ${session.shiftType}'),
+                        Text('الحالة: ${session.status}'),
+                        if (session.openingEmployeeName != null &&
+                            session.openingEmployeeName!.isNotEmpty)
+                          Text('الموظف: ${session.openingEmployeeName}'),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildNotesCard(String notes) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'ملاحظات',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ملاحظات',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryBlue,
             ),
-            const SizedBox(height: 12),
-            Text(notes),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Text(notes),
+        ],
       ),
     );
   }

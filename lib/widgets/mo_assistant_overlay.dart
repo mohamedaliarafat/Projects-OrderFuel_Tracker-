@@ -8,9 +8,14 @@ import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/mo_assistant_route_guide.dart';
 
 class MoAssistantOverlay extends StatefulWidget {
-  const MoAssistantOverlay({super.key, this.currentRouteName});
+  const MoAssistantOverlay({
+    super.key,
+    this.currentRouteName,
+    this.embedded = false,
+  });
 
   final String? currentRouteName;
+  final bool embedded;
 
   @override
   State<MoAssistantOverlay> createState() => _MoAssistantOverlayState();
@@ -743,6 +748,7 @@ class _MoAssistantOverlayState extends State<MoAssistantOverlay> {
     required double maxWidth,
     required double minHeight,
     required double maxHeight,
+    bool showResizeHandle = true,
   }) {
     return Material(
       key: const ValueKey<String>('mo_assistant_panel'),
@@ -796,18 +802,19 @@ class _MoAssistantOverlayState extends State<MoAssistantOverlay> {
                   ),
                 ),
               ),
-              Positioned(
-                top: 8,
-                left: 8,
-                child: _buildResizeHandle(
-                  currentWidth: width,
-                  currentHeight: height,
-                  minWidth: minWidth,
-                  maxWidth: maxWidth,
-                  minHeight: minHeight,
-                  maxHeight: maxHeight,
+              if (showResizeHandle)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: _buildResizeHandle(
+                    currentWidth: width,
+                    currentHeight: height,
+                    minWidth: minWidth,
+                    maxWidth: maxWidth,
+                    minHeight: minHeight,
+                    maxHeight: maxHeight,
+                  ),
                 ),
-              ),
               Column(
                 children: <Widget>[
                   _buildHeader(),
@@ -1113,6 +1120,38 @@ class _MoAssistantOverlayState extends State<MoAssistantOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.embedded) {
+      final media = MediaQuery.of(context);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final width =
+              (constraints.maxWidth.isFinite
+                      ? constraints.maxWidth
+                      : media.size.width)
+                  .toDouble();
+          final height =
+              (constraints.maxHeight.isFinite
+                      ? constraints.maxHeight
+                      : media.size.height)
+                  .toDouble();
+
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildPanel(
+              context,
+              width: width,
+              height: height,
+              minWidth: width,
+              maxWidth: width,
+              minHeight: height,
+              maxHeight: height,
+              showResizeHandle: false,
+            ),
+          );
+        },
+      );
+    }
+
     final media = MediaQuery.of(context);
     final size = media.size;
     final bottomInset = media.padding.bottom + media.viewInsets.bottom + 22;

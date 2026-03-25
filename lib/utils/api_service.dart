@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:order_tracker/utils/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static String? _token;
 
-  static const String _baseUrl = 'https://system-albuhairaalarabia.cloud/api';
-  // static const String _baseUrl = 'http://192.168.8.196:6030/api';
+  static String get _baseUrl => ApiConfig.baseUrl;
   static const String _tokenKey = 'auth_token';
 
   static Map<String, String> get headers {
@@ -20,17 +20,17 @@ class ApiService {
   }
 
   static Future<void> loadToken() async {
-    if (_token != null && _token!.isNotEmpty) return;
+    if (_token != null) return;
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(_tokenKey);
+    _token = prefs.getString(_tokenKey) ?? '';
   }
 
   static void primeToken(String? token) {
-    _token = token;
+    _token = token ?? '';
   }
 
   static Future<void> setToken(String? token) async {
-    _token = token;
+    _token = token ?? '';
     final prefs = await SharedPreferences.getInstance();
 
     if (token == null || token.isEmpty) {
@@ -41,13 +41,13 @@ class ApiService {
   }
 
   static Future<void> clearToken() async {
-    _token = null;
+    _token = '';
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
   }
 
   static Future<http.Response> get(String endpoint) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final response = await http.get(
       Uri.parse('$_baseUrl$endpoint'),
@@ -58,7 +58,7 @@ class ApiService {
   }
 
   static Future<http.Response> post(String endpoint, dynamic data) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final response = await http.post(
       Uri.parse('$_baseUrl$endpoint'),
@@ -70,7 +70,7 @@ class ApiService {
   }
 
   static Future<http.Response> put(String endpoint, dynamic data) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final response = await http.put(
       Uri.parse('$_baseUrl$endpoint'),
@@ -82,7 +82,7 @@ class ApiService {
   }
 
   static Future<http.Response> patch(String endpoint, dynamic data) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final response = await http.patch(
       Uri.parse('$_baseUrl$endpoint'),
@@ -94,7 +94,7 @@ class ApiService {
   }
 
   static Future<http.Response> delete(String endpoint) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final response = await http.delete(
       Uri.parse('$_baseUrl$endpoint'),
@@ -105,7 +105,7 @@ class ApiService {
   }
 
   static Future<http.Response> download(String endpoint) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final response = await http.get(
       Uri.parse('$_baseUrl$endpoint'),
@@ -155,7 +155,7 @@ class ApiService {
     String endpoint,
     dynamic data,
   ) async {
-    _ensureTokenLoaded();
+    await loadToken();
 
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -181,12 +181,6 @@ class ApiService {
     }
 
     throw Exception('API Error: ${response.statusCode} - ${response.body}');
-  }
-
-  static void _ensureTokenLoaded() {
-    if (_token == null) {
-      throw Exception('Auth token not initialized');
-    }
   }
 
   static http.Response _handleResponse(http.Response response) {

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/utils/role_route_policy.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/gradient_button.dart';
@@ -201,7 +202,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final pendingRoute = authProvider.consumePendingRoute();
-    if (pendingRoute != null && pendingRoute.trim().isNotEmpty) {
+    if (pendingRoute != null &&
+        pendingRoute.trim().isNotEmpty &&
+        isRouteAllowedForRole(
+          role: authProvider.role,
+          routeName: pendingRoute,
+        )) {
       Navigator.pushNamedAndRemoveUntil(context, pendingRoute, (_) => false);
       return;
     }

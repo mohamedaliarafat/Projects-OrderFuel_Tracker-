@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:order_tracker/utils/api_config.dart';
 
 class AppColors {
   static const Color primaryBlue = Color(0xFF1A2980);
@@ -839,8 +840,7 @@ class AppStrings {
 }
 
 class ApiEndpoints {
-  static const String baseUrl = 'https://system-albuhairaalarabia.cloud/api';
-  // static const String baseUrl = 'http://192.168.8.196:6030/api';
+  static String get baseUrl => ApiConfig.baseUrl;
   static const String login = '/auth/login';
   static const String register = '/auth/register';
   static const String profile = '/auth/profile';

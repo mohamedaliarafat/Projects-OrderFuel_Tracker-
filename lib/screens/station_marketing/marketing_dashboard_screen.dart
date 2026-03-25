@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 
 import 'package:order_tracker/providers/auth_provider.dart';
@@ -7,6 +7,8 @@ import 'package:order_tracker/providers/marketing_station_provider.dart';
 import 'package:order_tracker/providers/station_inspection_provider.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:order_tracker/widgets/chat_floating_button.dart';
 
 import 'marketing_models.dart';
@@ -250,7 +252,13 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
         final primaryFab = _buildFloatingActionButton();
 
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            flexibleSpace: Container(
+              decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+            ),
             leading: isWide
                 ? IconButton(
                     tooltip: _isSidebarExpanded
@@ -319,6 +327,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
           ),
           body: Stack(
             children: [
+              const AppSoftBackground(),
               Row(
                 children: [
                   if (isWide)
@@ -410,14 +419,25 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
     final showToggle = onToggle != null;
     final effectiveExpanded = showToggle ? isExpanded : true;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 240),
       curve: Curves.easeInOut,
       width: effectiveExpanded ? 260 : 80,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: AppColors.lightGray)),
+        color: Colors.white.withValues(alpha: 0.86),
+        border: Border(
+          left: isRtl ? BorderSide(color: AppColors.lightGray) : BorderSide.none,
+          right: isRtl ? BorderSide.none : BorderSide(color: AppColors.lightGray),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 30,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,23 +447,41 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
               horizontal: effectiveExpanded ? 20 : 12,
               vertical: 18,
             ),
+            decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: AppColors.primaryBlue.withOpacity(0.12),
-                  foregroundColor: AppColors.primaryBlue,
+                  backgroundColor: Colors.white.withValues(alpha: 0.18),
+                  foregroundColor: Colors.white,
                   child: const Icon(Icons.local_gas_station, size: 20),
                 ),
                 if (effectiveExpanded) ...[
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'تسويق المحطات',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'تسويق المحطات',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.78),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ] else
@@ -453,8 +491,9 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                     onPressed: onToggle,
                     icon: Icon(
                       effectiveExpanded
-                          ? Icons.chevron_left
-                          : Icons.chevron_right,
+                          ? (isRtl ? Icons.chevron_right : Icons.chevron_left)
+                          : (isRtl ? Icons.chevron_left : Icons.chevron_right),
+                      color: Colors.white,
                     ),
                   ),
               ],
@@ -548,23 +587,26 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     required bool isExpanded,
   }) {
     final isSelected = index == selectedIndex;
-    final color = isSelected ? AppColors.primaryBlue : AppColors.mediumGray;
+    final color = isSelected ? AppColors.primaryBlue : AppColors.darkGray;
+    final iconBg = isSelected
+        ? AppColors.primaryBlue.withValues(alpha: 0.14)
+        : AppColors.backgroundGray.withValues(alpha: 0.65);
     return InkWell(
       onTap: () => onSelected(index),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: isExpanded ? 12 : 8,
-          vertical: 10,
+          horizontal: isExpanded ? 12 : 10,
+          vertical: 9,
         ),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryBlue.withOpacity(0.08) : null,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? AppColors.primaryBlue.withValues(alpha: 0.10) : null,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
-                ? AppColors.primaryBlue.withOpacity(0.3)
-                : AppColors.lightGray,
+                ? AppColors.primaryBlue.withValues(alpha: 0.22)
+                : Colors.white.withValues(alpha: 0.0),
           ),
         ),
         child: Row(
@@ -572,7 +614,15 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
               ? MainAxisAlignment.start
               : MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 20),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
             if (isExpanded) ...[
               const SizedBox(width: 12),
               Expanded(
@@ -580,7 +630,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                   label,
                   style: TextStyle(
                     color: color,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   ),
                 ),
               ),
@@ -599,26 +649,44 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     required MarketingStationProvider provider,
     required StationInspectionProvider inspectionProvider,
   }) {
+    Widget child;
     switch (_selectedIndex) {
       case 0:
-        return _buildDashboardTab(isWide, stations);
+        child = _buildDashboardTab(isWide, stations);
+        break;
       case 1:
-        return _buildStationsTab(isWide, filteredStations, provider);
+        child = _buildStationsTab(isWide, filteredStations, provider);
+        break;
       case 2:
-        return _buildHandoverReportsTab(isWide, reportStations);
+        child = _buildHandoverReportsTab(isWide, reportStations);
+        break;
       case 3:
-        return _buildExpensesTab(isWide, stations, provider);
+        child = _buildExpensesTab(isWide, stations, provider);
+        break;
       case 4:
-        return _buildInspectionsTab(isWide, inspectionProvider);
+        child = _buildInspectionsTab(isWide, inspectionProvider);
+        break;
       case 5:
-        return _buildDashboardTab(isWide, stations);
+        child = _buildDashboardTab(isWide, stations);
+        break;
       case 6:
-        return _buildDashboardTab(isWide, stations);
+        child = _buildDashboardTab(isWide, stations);
+        break;
       case 7:
-        return _buildDashboardTab(isWide, stations);
+        child = _buildDashboardTab(isWide, stations);
+        break;
       default:
-        return _buildDashboardTab(isWide, stations);
+        child = _buildDashboardTab(isWide, stations);
     }
+
+    if (!isWide) return child;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1440),
+        child: child,
+      ),
+    );
   }
 
   Widget _buildDashboardTab(bool isWide, List<MarketingStation> stations) {
@@ -760,39 +828,36 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     required Widget child,
     double? width,
   }) {
-    return Container(
+    return SizedBox(
       width: width,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.lightGray),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      child: AppSurfaceCard(
+        padding: const EdgeInsets.all(18),
+        borderRadius: const BorderRadius.all(Radius.circular(26)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primaryBlue.withOpacity(0.12),
-                foregroundColor: AppColors.primaryBlue,
-                child: Icon(icon, size: 18),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Icon(icon, size: 18, color: AppColors.primaryBlue),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.darkGray,
+                    fontSize: 15,
                   ),
                 ),
               ),
@@ -801,6 +866,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
           const SizedBox(height: 12),
           child,
         ],
+      ),
       ),
     );
   }
@@ -988,19 +1054,21 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
 
   Widget _buildStationsTable(List<MarketingStation> stations) {
     if (stations.isEmpty) {
-      return Text(
-        'لا توجد محطات بعد',
-        style: TextStyle(color: AppColors.mediumGray),
+      return AppSurfaceCard(
+        borderRadius: const BorderRadius.all(Radius.circular(26)),
+        child: const Text(
+          'لا توجد محطات بعد',
+          style: TextStyle(
+            color: AppColors.mediumGray,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       );
     }
 
-    return Container(
+    return AppSurfaceCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.lightGray),
-      ),
+      borderRadius: const BorderRadius.all(Radius.circular(26)),
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SizedBox(
@@ -1014,9 +1082,18 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
                       headingRowColor: MaterialStateProperty.all(
-                        AppColors.backgroundGray,
+                        AppColors.backgroundGray.withValues(alpha: 0.70),
                       ),
                       columnSpacing: 24,
+                      dividerThickness: 0.6,
+                      headingTextStyle: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.darkGray,
+                      ),
+                      dataTextStyle: const TextStyle(
+                        color: AppColors.darkGray,
+                        fontWeight: FontWeight.w600,
+                      ),
                       columns: const [
                         DataColumn(label: Text('#')),
                         DataColumn(label: Text('المحطة')),
@@ -1128,49 +1205,69 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('سجل المحطات'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'ابحث باسم المحطة، المدينة، المستأجر...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            setState(() => _searchController.clear());
-                          },
-                        ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.lightGray),
-                  ),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              if (provider.error != null) ...[
+          padding: const EdgeInsets.all(16),
+          child: AppSurfaceCard(
+            borderRadius: const BorderRadius.all(Radius.circular(26)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('سجل المحطات'),
                 const SizedBox(height: 12),
-                Text(
-                  provider.error!,
-                  style: const TextStyle(color: Colors.red),
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'ابحث باسم المحطة، المدينة، المستأجر...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              setState(() => _searchController.clear());
+                            },
+                          ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.82),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.0),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.0),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.28),
+                      ),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
+                if (provider.error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    provider.error!,
+                    style: const TextStyle(
+                      color: AppColors.errorRed,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         Expanded(
           child: stations.isEmpty
               ? const Center(child: Text('لا توجد محطات للعرض'))
               : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemBuilder: (context, index) {
                     final station = stations[index];
                     final rating = _ratingForStation(station);
@@ -1197,42 +1294,59 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('سجل محاضر تسليم المحروقات'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'ابحث باسم المحطة أو رقم المحضر أو المرجع...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            setState(() => _searchController.clear());
-                          },
-                        ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.lightGray),
+          padding: const EdgeInsets.all(16),
+          child: AppSurfaceCard(
+            borderRadius: const BorderRadius.all(Radius.circular(26)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('سجل محاضر تسليم المحروقات'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'ابحث باسم المحطة أو رقم المحضر أو المرجع...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              setState(() => _searchController.clear());
+                            },
+                          ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.82),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.0),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.0),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.28),
+                      ),
+                    ),
                   ),
+                  onChanged: (_) => setState(() {}),
                 ),
-                onChanged: (_) => setState(() {}),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         Expanded(
           child: stations.isEmpty
               ? const Center(child: Text('لا توجد محاضر تسليم بعد'))
               : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemBuilder: (context, index) {
                     final station = stations[index];
                     final report = station.handoverReport!;
@@ -1430,45 +1544,62 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle(
-                '\u0645\u0639\u0627\u064a\u0646\u0627\u062a \u0627\u0644\u0645\u062d\u0637\u0627\u062a',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText:
-                      '\u0627\u0628\u062d\u062b \u0628\u0627\u0633\u0645 \u0627\u0644\u0645\u062d\u0637\u0629\u060c \u0627\u0644\u0645\u062f\u064a\u0646\u0629\u060c \u0627\u0644\u0645\u0646\u0637\u0642\u0629\u060c \u0627\u0644\u0645\u0627\u0644\u0643...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            setState(() => _searchController.clear());
-                          },
-                        ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.lightGray),
-                  ),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              if (inspectionProvider.error != null) ...[
+          padding: const EdgeInsets.all(16),
+          child: AppSurfaceCard(
+            borderRadius: const BorderRadius.all(Radius.circular(26)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('معاينات المحطات'),
                 const SizedBox(height: 12),
-                Text(
-                  inspectionProvider.error!,
-                  style: const TextStyle(color: Colors.red),
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'ابحث باسم المحطة، المدينة، المنطقة، المالك...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              setState(() => _searchController.clear());
+                            },
+                          ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.82),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.0),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.0),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.28),
+                      ),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
+                if (inspectionProvider.error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    inspectionProvider.error!,
+                    style: const TextStyle(
+                      color: AppColors.errorRed,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         Expanded(
@@ -1479,7 +1610,7 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemBuilder: (context, index) {
                     final inspection = filtered[index];
                     return _inspectionCard(
@@ -2593,9 +2724,31 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: AppColors.primaryBlue.withValues(alpha: 0.20),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: AppColors.primaryBlue.withValues(alpha: 0.35),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryBlue,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2632,40 +2785,56 @@ class _MarketingStationsScreenState extends State<MarketingStationsScreen> {
     required Color color,
     double? width,
   }) {
-    return Container(
+    return SizedBox(
       width: width,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            child: Icon(icon),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(color: AppColors.mediumGray)),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+      child: AppSurfaceCard(
+        padding: const EdgeInsets.all(16),
+        borderRadius: const BorderRadius.all(Radius.circular(26)),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color.withValues(alpha: 0.95),
+                    color.withValues(alpha: 0.55),
+                  ],
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
                 ),
-              ],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: Colors.white),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppColors.mediumGray,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

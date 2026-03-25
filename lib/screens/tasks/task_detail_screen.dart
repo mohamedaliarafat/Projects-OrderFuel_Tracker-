@@ -124,10 +124,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (_task == null) return;
 
     final auth = context.read<AuthProvider>();
-    final isOwner = auth.user?.role == 'owner';
+    final canViewAllTasks =
+        auth.user?.hasPermission('tasks_view_all') ?? false;
     final isPrimaryAssignee = _task!.assignedTo == auth.user?.id;
 
-    if (isOwner && _task!.trackingConsent) {
+    if (canViewAllTasks && _task!.trackingConsent) {
       _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
         _loadTrackingPoints();
       });
@@ -1565,7 +1566,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final isOwner = auth.user?.role == 'owner';
+    final canViewAllTasks =
+        auth.user?.hasPermission('tasks_view_all') ?? false;
+    final canApproveTask =
+        auth.user?.hasPermission('tasks_approve') ?? false;
+    final canExtendTask =
+        auth.user?.hasPermission('tasks_extend') ?? false;
+    final canApplyTaskPenalty =
+        auth.user?.hasPermission('tasks_penalty') ?? false;
+    final canManageParticipants =
+        auth.user?.hasPermission('tasks_manage_participants') ?? false;
     final currentUserId = auth.user?.id;
     final isWorker = _isTaskWorker(currentUserId);
     final isPrimaryAssignee = _task?.assignedTo == currentUserId;
@@ -1640,7 +1650,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             )
           else
-            _buildDetailsView(isOwner, isWorker, isPrimaryAssignee),
+            _buildDetailsView(
+              canViewAllTasks,
+              isWorker,
+              isPrimaryAssignee,
+              canApproveTask: canApproveTask,
+              canExtendTask: canExtendTask,
+              canApplyTaskPenalty: canApplyTaskPenalty,
+              canManageParticipants: canManageParticipants,
+            ),
         ],
       ),
     );
@@ -1704,10 +1722,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildDetailsView(
-    bool isOwner,
+    bool canViewAllTasks,
     bool isWorker,
-    bool isPrimaryAssignee,
-  ) {
+    bool isPrimaryAssignee, {
+    required bool canApproveTask,
+    required bool canExtendTask,
+    required bool canApplyTaskPenalty,
+    required bool canManageParticipants,
+  }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final contentWidth = constraints.maxWidth > 1240
@@ -1728,9 +1750,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               children: [
                 _buildInfoCard(),
                 const SizedBox(height: 16),
-                _buildDeadlineCard(isOwner: isOwner, isWorker: isWorker),
+                _buildDeadlineCard(
+                  canExtendTask: canExtendTask,
+                  canApproveTask: canApproveTask,
+                  canApplyTaskPenalty: canApplyTaskPenalty,
+                  isWorker: isWorker,
+                ),
                 const SizedBox(height: 16),
-                _buildParticipantsCard(isOwner),
+                _buildParticipantsCard(canManageParticipants),
                 const SizedBox(height: 16),
                 AppSurfaceCard(
                   padding: const EdgeInsets.all(16),
@@ -1786,9 +1813,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (isWorker) _buildEmployeeActions(),
-                if (isOwner) _buildOwnerActions(),
+                _buildOwnerActions(canApproveTask: canApproveTask),
                 const SizedBox(height: 16),
-                _buildTrackingSection(isOwner, isPrimaryAssignee),
+                _buildTrackingSection(canViewAllTasks, isPrimaryAssignee),
               ],
             ),
           ),
@@ -2258,7 +2285,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildDeadlineCard({required bool isOwner, required bool isWorker}) {
+  Widget _buildDeadlineCard({
+    required bool canExtendTask,
+    required bool canApproveTask,
+    required bool canApplyTaskPenalty,
+    required bool isWorker,
+  }) {
     final task = _task!;
     final remaining = task.deadlineRemaining;
     final penalty = task.overduePenalty;
@@ -2286,9 +2318,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final hasPendingExtension = extensionRequest?.isPending == true;
     final canRequestExtension =
         isWorker && task.hasDeadline && !isClosed && !hasPendingExtension;
-    final canDirectExtend = isOwner && task.hasDeadline && !isClosed;
+    final canDirectExtend = canExtendTask && task.hasDeadline && !isClosed;
     final canApplyPenalty =
-        isOwner &&
+        canApplyTaskPenalty &&
         penalty?.enabled == true &&
         isOverdue &&
         !(penalty?.isApplied ?? false);
@@ -2314,7 +2346,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
     }
 
-    if (isOwner && hasPendingExtension) {
+    if (canApproveTask && hasPendingExtension) {
       actionButtons.add(
         ElevatedButton.icon(
           onPressed: _approveExtensionRequest,
@@ -2716,7 +2748,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildParticipantsCard(bool isOwner) {
+  Widget _buildParticipantsCard(bool canManageParticipants) {
     final task = _task!;
     final chips = <Widget>[];
 
@@ -2744,7 +2776,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           label: Text(
             participant.name.isNotEmpty ? participant.name : participant.userId,
           ),
-          onDeleted: isOwner && !_participantsSaving
+          onDeleted: canManageParticipants && !_participantsSaving
               ? () => _removeParticipant(participant.userId)
               : null,
         ),
@@ -2772,7 +2804,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              if (isOwner)
+              if (canManageParticipants)
                 TextButton.icon(
                   onPressed: _participantsSaving
                       ? null
@@ -2847,9 +2879,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildOwnerActions() {
+  Widget _buildOwnerActions({required bool canApproveTask}) {
     final task = _task!;
-    if (task.status != 'completed') return const SizedBox.shrink();
+    if (!canApproveTask || task.status != 'completed') {
+      return const SizedBox.shrink();
+    }
     return AppSurfaceCard(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -2878,7 +2912,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildTrackingSection(bool isOwner, bool isAssigned) {
+  Widget _buildTrackingSection(bool canViewAllTasks, bool isAssigned) {
     if (_task == null) return const SizedBox.shrink();
 
     return AppSurfaceCard(
@@ -2900,7 +2934,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               title: const Text('موافقة على التتبع أثناء المهمة'),
               subtitle: const Text('يمكن إيقاف التتبع في أي وقت'),
             ),
-          if (isOwner && _trackingPoints.isNotEmpty) ...[
+          if (canViewAllTasks && _trackingPoints.isNotEmpty) ...[
             _buildMapPreview(_trackingPoints.first),
             const SizedBox(height: 8),
             Align(
@@ -2922,7 +2956,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ),
           ],
-          if (isOwner && _trackingPoints.isEmpty)
+          if (canViewAllTasks && _trackingPoints.isEmpty)
             const Text('لا توجد نقاط تتبع حالياً'),
         ],
       ),

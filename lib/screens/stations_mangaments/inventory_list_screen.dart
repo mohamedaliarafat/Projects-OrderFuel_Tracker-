@@ -5,6 +5,8 @@ import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:order_tracker/widgets/stations/inventory_filter_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -289,6 +291,9 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   @override
   void dispose() {
     _liveTimer?.cancel();
+    _searchController.dispose();
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
     super.dispose();
   }
 
@@ -599,16 +604,31 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     final stationProvider = Provider.of<StationProvider>(context);
     final inventories = stationProvider.inventories;
     final stations = stationProvider.stations;
+    final query = _searchController.text.trim().toLowerCase();
+
+    final filteredInventories = query.isEmpty
+        ? inventories
+        : inventories.where((inventory) {
+            final haystack =
+                '${inventory.stationName} ${inventory.fuelType} ${inventory.status} ${inventory.preparedByName ?? ''} ${inventory.approvedByName ?? ''}'
+                    .toLowerCase();
+            return haystack.contains(query);
+          }).toList();
 
     if (isMobile) {
       return _buildMobileLayout(
         context,
         stationProvider,
-        inventories,
+        filteredInventories,
         stations,
       );
     } else {
-      return _buildTableLayout(context, stationProvider, inventories, stations);
+      return _buildTableLayout(
+        context,
+        stationProvider,
+        filteredInventories,
+        stations,
+      );
     }
   }
 
@@ -619,7 +639,13 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     List<Station> stations,
   ) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: const Text(
           'الجرد اليومي',
           style: TextStyle(color: Colors.white),
@@ -640,174 +666,240 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Search and Filter Bar
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'بحث بالمحطة أو نوع الوقود...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12.0,
-                        vertical: 14.0,
-                      ),
-                    ),
-                    onChanged: (value) {
-                      // TODO: Implement search
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                IconButton(
-                  onPressed: () async {
-                    final filters = await showDialog<Map<String, dynamic>>(
-                      context: context,
-                      builder: (context) => InventoryFilterDialog(
-                        currentFilters: {
-                          'status': _filterStatus,
-                          'stationId': _filterStationId,
-                          'fuelType': _filterFuelType,
-                          'startDate': _filterStartDate,
-                          'endDate': _filterEndDate,
-                        },
-                        stations: stations,
-                      ),
-                    );
-
-                    if (filters != null) {
-                      _applyFilters(filters);
-                    }
-                  },
-                  icon: const Icon(Icons.filter_alt),
-                  tooltip: 'تصفية',
-                  iconSize: 22.0,
-                ),
-              ],
-            ),
-          ),
-          // Active Filters Chips
-          if (_hasActiveFilters())
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12.0,
-                vertical: 6.0,
-              ),
-              color: AppColors.backgroundGray,
-              child: Wrap(
-                spacing: 6.0,
-                runSpacing: 4.0,
+          const AppSoftBackground(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Column(
                 children: [
-                  if (_filterStatus != 'الكل')
-                    Chip(
-                      label: Text('الحالة: $_filterStatus'),
-                      onDeleted: () {
-                        setState(() {
-                          _filterStatus = 'الكل';
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterStationId != null)
-                    Chip(
-                      label: Text(
-                        'المحطة: ${stations.firstWhere((s) => s.id == _filterStationId).stationName}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onDeleted: () {
-                        setState(() {
-                          _filterStationId = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterFuelType != null)
-                    Chip(
-                      label: Text('نوع الوقود: $_filterFuelType'),
-                      onDeleted: () {
-                        setState(() {
-                          _filterFuelType = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterStartDate != null)
-                    Chip(
-                      label: Text(
-                        'من: ${DateFormat('yyyy/MM/dd').format(_filterStartDate!)}',
-                      ),
-                      onDeleted: () {
-                        setState(() {
-                          _filterStartDate = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterEndDate != null)
-                    Chip(
-                      label: Text(
-                        'إلى: ${DateFormat('yyyy/MM/dd').format(_filterEndDate!)}',
-                      ),
-                      onDeleted: () {
-                        setState(() {
-                          _filterEndDate = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                ],
-              ),
-            ),
-          // Inventory List
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadInventories,
-              child: stationProvider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : inventories.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  // Search and Filter Bar
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: AppSurfaceCard(
+                      borderRadius: const BorderRadius.all(Radius.circular(26)),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
                         children: [
-                          Icon(Icons.inventory, size: 80, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'لا توجد سجلات جرد',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: 'بحث بالمحطة أو نوع الوقود...',
+                                prefixIcon: const Icon(Icons.search),
+                                suffixIcon:
+                                    _searchController.text.trim().isEmpty
+                                    ? null
+                                    : IconButton(
+                                        tooltip: 'مسح',
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () {
+                                          setState(
+                                            () => _searchController.clear(),
+                                          );
+                                        },
+                                      ),
+                                filled: true,
+                                fillColor: Colors.white.withValues(alpha: 0.82),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.0),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.0),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: AppColors.primaryBlue.withValues(
+                                      alpha: 0.28,
+                                    ),
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () async {
+                              final filters =
+                                  await showDialog<Map<String, dynamic>>(
+                                    context: context,
+                                    builder: (context) => InventoryFilterDialog(
+                                      currentFilters: {
+                                        'status': _filterStatus,
+                                        'stationId': _filterStationId,
+                                        'fuelType': _filterFuelType,
+                                        'startDate': _filterStartDate,
+                                        'endDate': _filterEndDate,
+                                      },
+                                      stations: stations,
+                                    ),
+                                  );
+
+                              if (filters != null) {
+                                _applyFilters(filters);
+                              }
+                            },
+                            icon: const Icon(Icons.filter_alt),
+                            tooltip: 'تصفية',
+                            iconSize: 22,
                           ),
                         ],
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(12.0),
-                      itemCount: inventories.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        return _buildMobileInventoryCard(inventories[index]);
-                      },
                     ),
+                  ),
+                  // Active Filters Chips
+                  if (_hasActiveFilters())
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: AppSurfaceCard(
+                        padding: const EdgeInsets.all(12),
+                        child: Wrap(
+                          spacing: 6.0,
+                          runSpacing: 4.0,
+                          children: [
+                            if (_filterStatus != 'الكل')
+                              Chip(
+                                label: Text('الحالة: $_filterStatus'),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterStatus = 'الكل';
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterStationId != null)
+                              Chip(
+                                label: Text(
+                                  'المحطة: ${stations.firstWhere((s) => s.id == _filterStationId).stationName}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterStationId = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterFuelType != null)
+                              Chip(
+                                label: Text('نوع الوقود: $_filterFuelType'),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterFuelType = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterStartDate != null)
+                              Chip(
+                                label: Text(
+                                  'من: ${DateFormat('yyyy/MM/dd').format(_filterStartDate!)}',
+                                ),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterStartDate = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterEndDate != null)
+                              Chip(
+                                label: Text(
+                                  'إلى: ${DateFormat('yyyy/MM/dd').format(_filterEndDate!)}',
+                                ),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterEndDate = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Inventory List
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadInventories,
+                      child: stationProvider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : inventories.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: AppSurfaceCard(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(
+                                        Icons.inventory,
+                                        size: 56,
+                                        color: AppColors.mediumGray,
+                                      ),
+                                      SizedBox(height: 10),
+                                      Text(
+                                        'لا توجد سجلات جرد',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: AppColors.mediumGray,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.all(12.0),
+                              itemCount: inventories.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                return _buildMobileInventoryCard(
+                                  inventories[index],
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -866,159 +958,154 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         ? (differenceLive >= 0 ? AppColors.successGreen : AppColors.errorRed)
         : AppColors.mediumGray;
 
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/inventory/details',
-            arguments: inventory.id,
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return AppSurfaceCard(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/inventory/details',
+          arguments: inventory.id,
+        );
+      },
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(statusIcon, color: statusColor, size: 18.0),
-                  const SizedBox(width: 8.0),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Icon(statusIcon, color: statusColor, size: 18.0),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      inventory.stationName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15.0,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
                       children: [
                         Text(
-                          inventory.stationName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15.0,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Text(
-                              DateFormat(
-                                'yyyy/MM/dd',
-                              ).format(inventory.inventoryDate),
-                              style: TextStyle(
-                                color: AppColors.mediumGray,
-                                fontSize: 12.0,
-                              ),
-                            ),
-                            const SizedBox(width: 4.0),
-                            Container(
-                              width: 4,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: AppColors.mediumGray,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 4.0),
-                            Expanded(
-                              child: Text(
-                                inventory.fuelType,
-                                style: TextStyle(
-                                  color: AppColors.mediumGray,
-                                  fontSize: 12.0,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                      vertical: 4.0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: statusColor),
-                    ),
-                    child: Text(
-                      inventory.status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 11.0,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              // Summary
-              _buildMobileSummary(
-                inventory,
-                differenceColor,
-                liveSales,
-                calculatedLive,
-                differenceLive,
-              ),
-              // Actions
-              if (inventory.status == 'مسودة' && !_isOwnerStation)
-                Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    const Divider(height: 1),
-                    const SizedBox(height: 12),
-                    Column(
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            _approveInventory(inventory);
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('اعتماد الجرد'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.successGreen,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                          DateFormat(
+                            'yyyy/MM/dd',
+                          ).format(inventory.inventoryDate),
+                          style: TextStyle(
+                            color: AppColors.mediumGray,
+                            fontSize: 12.0,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/inventory/details',
-                              arguments: inventory.id,
-                            );
-                          },
-                          icon: const Icon(Icons.edit, size: 18),
-                          label: const Text('تعديل'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                        const SizedBox(width: 4.0),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.mediumGray,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4.0),
+                        Expanded(
+                          child: Text(
+                            inventory.fuelType,
+                            style: TextStyle(
+                              color: AppColors.mediumGray,
+                              fontSize: 12.0,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor),
+                ),
+                child: Text(
+                  inventory.status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11.0,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          // Summary
+          _buildMobileSummary(
+            inventory,
+            differenceColor,
+            liveSales,
+            calculatedLive,
+            differenceLive,
+          ),
+          // Actions
+          if (inventory.status == 'مسودة' && !_isOwnerStation)
+            Column(
+              children: [
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Column(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        _approveInventory(inventory);
+                      },
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('اعتماد الجرد'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.successGreen,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/inventory/details',
+                          arguments: inventory.id,
+                        );
+                      },
+                      icon: const Icon(Icons.edit, size: 18),
+                      label: const Text('تعديل'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -1206,7 +1293,13 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     List<Station> stations,
   ) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: const Text(
           'الجرد اليومي',
           style: TextStyle(color: Colors.white),
@@ -1227,353 +1320,487 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Search and Filter Bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'بحث بالمحطة أو نوع الوقود...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 16.0,
-                      ),
-                    ),
-                    onChanged: (value) {
-                      // TODO: Implement search
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12.0),
-                IconButton(
-                  onPressed: () async {
-                    final filters = await showDialog<Map<String, dynamic>>(
-                      context: context,
-                      builder: (context) => InventoryFilterDialog(
-                        currentFilters: {
-                          'status': _filterStatus,
-                          'stationId': _filterStationId,
-                          'fuelType': _filterFuelType,
-                          'startDate': _filterStartDate,
-                          'endDate': _filterEndDate,
-                        },
-                        stations: stations,
-                      ),
-                    );
-
-                    if (filters != null) {
-                      _applyFilters(filters);
-                    }
-                  },
-                  icon: const Icon(Icons.filter_alt),
-                  tooltip: 'تصفية',
-                  iconSize: 24.0,
-                ),
-              ],
-            ),
-          ),
-          // Active Filters Chips
-          if (_hasActiveFilters())
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              color: AppColors.backgroundGray,
-              child: Wrap(
-                spacing: 8.0,
-                runSpacing: 4.0,
+          const AppSoftBackground(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1400),
+              child: Column(
                 children: [
-                  if (_filterStatus != 'الكل')
-                    Chip(
-                      label: Text('الحالة: $_filterStatus'),
-                      onDeleted: () {
-                        setState(() {
-                          _filterStatus = 'الكل';
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterStationId != null)
-                    Chip(
-                      label: Text(
-                        'المحطة: ${stations.firstWhere((s) => s.id == _filterStationId).stationName}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onDeleted: () {
-                        setState(() {
-                          _filterStationId = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterFuelType != null)
-                    Chip(
-                      label: Text('نوع الوقود: $_filterFuelType'),
-                      onDeleted: () {
-                        setState(() {
-                          _filterFuelType = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterStartDate != null)
-                    Chip(
-                      label: Text(
-                        'من: ${DateFormat('yyyy/MM/dd').format(_filterStartDate!)}',
-                      ),
-                      onDeleted: () {
-                        setState(() {
-                          _filterStartDate = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  if (_filterEndDate != null)
-                    Chip(
-                      label: Text(
-                        'إلى: ${DateFormat('yyyy/MM/dd').format(_filterEndDate!)}',
-                      ),
-                      onDeleted: () {
-                        setState(() {
-                          _filterEndDate = null;
-                        });
-                        _loadInventories();
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                ],
-              ),
-            ),
-          // Table Header
-          Container(
-            height: 60,
-            color: AppColors.primaryBlue.withOpacity(0.1),
-            child: Scrollbar(
-              controller: _horizontalScrollController,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _horizontalScrollController,
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _tableColumns.map((column) {
-                    return Container(
-                      width: _columnWidths[column] ?? 150,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(
-                            color: AppColors.lightGray,
-                            width: 1,
-                          ),
-                          bottom: BorderSide(
-                            color: AppColors.lightGray,
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        column,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
-          // Table Body
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadInventories,
-              child: stationProvider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : inventories.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  // Search and Filter Bar
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: AppSurfaceCard(
+                      borderRadius: const BorderRadius.all(Radius.circular(26)),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
                         children: [
-                          Icon(Icons.inventory, size: 80, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'لا توجد سجلات جرد',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: 'بحث بالمحطة أو نوع الوقود...',
+                                prefixIcon: const Icon(Icons.search),
+                                suffixIcon:
+                                    _searchController.text.trim().isEmpty
+                                    ? null
+                                    : IconButton(
+                                        tooltip: 'مسح',
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () {
+                                          setState(
+                                            () => _searchController.clear(),
+                                          );
+                                        },
+                                      ),
+                                filled: true,
+                                fillColor: Colors.white.withValues(alpha: 0.82),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.0),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.0),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: AppColors.primaryBlue.withValues(
+                                      alpha: 0.28,
+                                    ),
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            onPressed: () async {
+                              final filters =
+                                  await showDialog<Map<String, dynamic>>(
+                                    context: context,
+                                    builder: (context) => InventoryFilterDialog(
+                                      currentFilters: {
+                                        'status': _filterStatus,
+                                        'stationId': _filterStationId,
+                                        'fuelType': _filterFuelType,
+                                        'startDate': _filterStartDate,
+                                        'endDate': _filterEndDate,
+                                      },
+                                      stations: stations,
+                                    ),
+                                  );
+
+                              if (filters != null) {
+                                _applyFilters(filters);
+                              }
+                            },
+                            icon: const Icon(Icons.filter_alt),
+                            tooltip: 'تصفية',
+                            iconSize: 24,
                           ),
                         ],
                       ),
-                    )
-                  : Scrollbar(
-                      controller: _verticalScrollController,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: _verticalScrollController,
-                        scrollDirection: Axis.vertical,
-                        child: Scrollbar(
-                          controller: _horizontalScrollController,
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
-                            controller: _horizontalScrollController,
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columns: _tableColumns.map((column) {
-                                return DataColumn(
-                                  label: Container(
-                                    width: _columnWidths[column] ?? 150,
-                                    child: Text(
-                                      column,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              rows: inventories.map((inventory) {
-                                return DataRow(
-                                  cells: _tableColumns.map((column) {
-                                    if (column == 'الإجراءات') {
-                                      return DataCell(
-                                        Container(
-                                          width: _columnWidths[column] ?? 180,
-                                          child: Row(
-                                            children: [
-                                              IconButton(
-                                                onPressed: () {
-                                                  Navigator.pushNamed(
-                                                    context,
-                                                    '/inventory/details',
-                                                    arguments: inventory.id,
-                                                  );
-                                                },
-                                                icon: const Icon(
-                                                  Icons.visibility,
-                                                ),
-                                                tooltip: 'عرض التفاصيل',
-                                                iconSize: 20,
-                                              ),
-                                              if (inventory.status == 'مسودة' &&
-                                                  !_isOwnerStation) ...[
-                                                IconButton(
-                                                  onPressed: () {
-                                                    _approveInventory(
-                                                      inventory,
-                                                    );
-                                                  },
-                                                  icon: const Icon(Icons.check),
-                                                  tooltip: 'اعتماد الجرد',
-                                                  iconSize: 20,
-                                                  color: AppColors.successGreen,
-                                                ),
-                                                IconButton(
-                                                  onPressed: () {
-                                                    Navigator.pushNamed(
-                                                      context,
-                                                      '/inventory/details',
-                                                      arguments: inventory.id,
-                                                    );
-                                                  },
-                                                  icon: const Icon(Icons.edit),
-                                                  tooltip: 'تعديل',
-                                                  iconSize: 20,
-                                                  color: AppColors.primaryBlue,
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    } else {
-                                      return DataCell(
-                                        Container(
-                                          width: _columnWidths[column] ?? 150,
-                                          child: Text(
-                                            _getColumnValue(inventory, column),
-                                            style: TextStyle(
-                                              color: _getColumnColor(
-                                                inventory,
-                                                column,
-                                              ),
-                                              fontSize: 13,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  }).toList(),
-                                  onSelectChanged: (selected) {
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/inventory/details',
-                                      arguments: inventory.id,
-                                    );
-                                  },
-                                );
-                              }).toList(),
-                              dividerThickness: 1,
-                              dataRowHeight: 60,
-                              headingRowHeight: 0,
-                              horizontalMargin: 0,
-                              columnSpacing: 0,
-                              showCheckboxColumn: false,
-                            ),
-                          ),
+                    ),
+                  ),
+                  // Active Filters Chips
+                  if (_hasActiveFilters())
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: AppSurfaceCard(
+                        padding: const EdgeInsets.all(12),
+                        child: Wrap(
+                          spacing: 8.0,
+                          runSpacing: 4.0,
+                          children: [
+                            if (_filterStatus != 'الكل')
+                              Chip(
+                                label: Text('الحالة: $_filterStatus'),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterStatus = 'الكل';
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterStationId != null)
+                              Chip(
+                                label: Text(
+                                  'المحطة: ${stations.firstWhere((s) => s.id == _filterStationId).stationName}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterStationId = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterFuelType != null)
+                              Chip(
+                                label: Text('نوع الوقود: $_filterFuelType'),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterFuelType = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterStartDate != null)
+                              Chip(
+                                label: Text(
+                                  'من: ${DateFormat('yyyy/MM/dd').format(_filterStartDate!)}',
+                                ),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterStartDate = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                            if (_filterEndDate != null)
+                              Chip(
+                                label: Text(
+                                  'إلى: ${DateFormat('yyyy/MM/dd').format(_filterEndDate!)}',
+                                ),
+                                onDeleted: () {
+                                  setState(() {
+                                    _filterEndDate = null;
+                                  });
+                                  _loadInventories();
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
-            ),
-          ),
-          // Table Footer with summary
-          Container(
-            height: 40,
-            color: AppColors.backgroundGray,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'إجمالي ${inventories.length} سجل',
-                    style: const TextStyle(color: AppColors.mediumGray),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: AppSurfaceCard(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          children: [
+                            // Table Header
+                            Container(
+                              height: 56,
+                              color: AppColors.primaryBlue.withValues(
+                                alpha: 0.06,
+                              ),
+                              child: Scrollbar(
+                                controller: _horizontalScrollController,
+                                thumbVisibility: true,
+                                child: SingleChildScrollView(
+                                  controller: _horizontalScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: _tableColumns.map((column) {
+                                      return Container(
+                                        width: _columnWidths[column] ?? 150,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: const BoxDecoration(
+                                          border: Border(
+                                            right: BorderSide(
+                                              color: AppColors.silverLight,
+                                              width: 1,
+                                            ),
+                                            bottom: BorderSide(
+                                              color: AppColors.silverLight,
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          column,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Table Body
+                            Expanded(
+                              child: RefreshIndicator(
+                                onRefresh: _loadInventories,
+                                child: stationProvider.isLoading
+                                    ? const Center(
+                                        child: CircularProgressIndicator(),
+                                      )
+                                    : inventories.isEmpty
+                                    ? Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: AppSurfaceCard(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(
+                                                  Icons.inventory,
+                                                  size: 56,
+                                                  color: AppColors.mediumGray,
+                                                ),
+                                                SizedBox(height: 10),
+                                                Text(
+                                                  'لا توجد سجلات جرد',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: AppColors.mediumGray,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Scrollbar(
+                                        controller: _verticalScrollController,
+                                        thumbVisibility: true,
+                                        child: SingleChildScrollView(
+                                          controller: _verticalScrollController,
+                                          scrollDirection: Axis.vertical,
+                                          child: Scrollbar(
+                                            controller:
+                                                _horizontalScrollController,
+                                            thumbVisibility: true,
+                                            child: SingleChildScrollView(
+                                              controller:
+                                                  _horizontalScrollController,
+                                              scrollDirection: Axis.horizontal,
+                                              child: DataTable(
+                                                columns: _tableColumns.map((
+                                                  column,
+                                                ) {
+                                                  return DataColumn(
+                                                    label: Container(
+                                                      width:
+                                                          _columnWidths[column] ??
+                                                          150,
+                                                      child: Text(
+                                                        column,
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                                rows: inventories.map((
+                                                  inventory,
+                                                ) {
+                                                  return DataRow(
+                                                    cells: _tableColumns.map((
+                                                      column,
+                                                    ) {
+                                                      if (column ==
+                                                          'الإجراءات') {
+                                                        return DataCell(
+                                                          SizedBox(
+                                                            width:
+                                                                _columnWidths[column] ??
+                                                                180,
+                                                            child: Row(
+                                                              children: [
+                                                                IconButton(
+                                                                  onPressed: () {
+                                                                    Navigator.pushNamed(
+                                                                      context,
+                                                                      '/inventory/details',
+                                                                      arguments:
+                                                                          inventory
+                                                                              .id,
+                                                                    );
+                                                                  },
+                                                                  icon: const Icon(
+                                                                    Icons
+                                                                        .visibility,
+                                                                  ),
+                                                                  tooltip:
+                                                                      'عرض التفاصيل',
+                                                                  iconSize: 20,
+                                                                ),
+                                                                if (inventory
+                                                                            .status ==
+                                                                        'مسودة' &&
+                                                                    !_isOwnerStation) ...[
+                                                                  IconButton(
+                                                                    onPressed: () {
+                                                                      _approveInventory(
+                                                                        inventory,
+                                                                      );
+                                                                    },
+                                                                    icon: const Icon(
+                                                                      Icons
+                                                                          .check,
+                                                                    ),
+                                                                    tooltip:
+                                                                        'اعتماد الجرد',
+                                                                    iconSize:
+                                                                        20,
+                                                                    color: AppColors
+                                                                        .successGreen,
+                                                                  ),
+                                                                  IconButton(
+                                                                    onPressed: () {
+                                                                      Navigator.pushNamed(
+                                                                        context,
+                                                                        '/inventory/details',
+                                                                        arguments:
+                                                                            inventory.id,
+                                                                      );
+                                                                    },
+                                                                    icon: const Icon(
+                                                                      Icons
+                                                                          .edit,
+                                                                    ),
+                                                                    tooltip:
+                                                                        'تعديل',
+                                                                    iconSize:
+                                                                        20,
+                                                                    color: AppColors
+                                                                        .primaryBlue,
+                                                                  ),
+                                                                ],
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                      return DataCell(
+                                                        SizedBox(
+                                                          width:
+                                                              _columnWidths[column] ??
+                                                              150,
+                                                          child: Text(
+                                                            _getColumnValue(
+                                                              inventory,
+                                                              column,
+                                                            ),
+                                                            style: TextStyle(
+                                                              color:
+                                                                  _getColumnColor(
+                                                                    inventory,
+                                                                    column,
+                                                                  ),
+                                                              fontSize: 13,
+                                                            ),
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                    onSelectChanged: (selected) {
+                                                      Navigator.pushNamed(
+                                                        context,
+                                                        '/inventory/details',
+                                                        arguments: inventory.id,
+                                                      );
+                                                    },
+                                                  );
+                                                }).toList(),
+                                                dividerThickness: 1,
+                                                dataRowHeight: 60,
+                                                headingRowHeight: 0,
+                                                horizontalMargin: 0,
+                                                columnSpacing: 0,
+                                                showCheckboxColumn: false,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+
+                            // Table Footer with summary
+                            Container(
+                              height: 40,
+                              color: AppColors.backgroundGray.withValues(
+                                alpha: 0.55,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Text(
+                                      'إجمالي ${inventories.length} سجل',
+                                      style: const TextStyle(
+                                        color: AppColors.mediumGray,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Text(
+                                      'آخر تحديث: ${DateFormat('HH:mm').format(DateTime.now())}',
+                                      style: const TextStyle(
+                                        color: AppColors.mediumGray,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'آخر تحديث: ${DateFormat('HH:mm').format(DateTime.now())}',
-                    style: const TextStyle(color: AppColors.mediumGray),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

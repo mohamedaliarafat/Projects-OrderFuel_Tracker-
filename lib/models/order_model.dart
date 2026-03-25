@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:intl/intl.dart';
@@ -334,6 +335,55 @@ class Order {
       );
     }
 
+    final parsedAttachments = <Attachment>[];
+    final rawAttachments = json['attachments'] ?? json['attachmentUrls'];
+    final attachmentItems = <dynamic>[];
+
+    if (rawAttachments is List) {
+      attachmentItems.addAll(rawAttachments);
+    } else if (rawAttachments is Map) {
+      attachmentItems.add(rawAttachments);
+    } else if (rawAttachments is String) {
+      final trimmed = rawAttachments.trim();
+      if (trimmed.isNotEmpty) {
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            final decoded = jsonDecode(trimmed);
+            if (decoded is List) {
+              attachmentItems.addAll(decoded);
+            } else {
+              attachmentItems.add(decoded);
+            }
+          } catch (_) {
+            attachmentItems.add(trimmed);
+          }
+        } else {
+          attachmentItems.add(trimmed);
+        }
+      }
+    }
+
+    for (final item in attachmentItems) {
+      if (item is Map<String, dynamic>) {
+        parsedAttachments.add(Attachment.fromJson(item));
+      } else if (item is Map) {
+        parsedAttachments.add(
+          Attachment.fromJson(Map<String, dynamic>.from(item)),
+        );
+      } else if (item is String) {
+        final normalized = item.trim().replaceAll('\\', '/');
+        final fileName = normalized.split('/').last.trim();
+        parsedAttachments.add(
+          Attachment(
+            id: '',
+            filename: fileName.isEmpty ? 'attachment' : fileName,
+            path: item.trim(),
+            uploadedAt: DateTime.now(),
+          ),
+        );
+      }
+    }
+
     return Order(
       id: json['_id']?.toString() ?? '',
       orderDate:
@@ -392,9 +442,7 @@ class Order {
       notes: json['notes']?.toString(),
       companyLogo: json['companyLogo']?.toString(),
 
-      attachments: (json['attachments'] as List<dynamic>? ?? [])
-          .map((e) => Attachment.fromJson(e))
-          .toList(),
+      attachments: parsedAttachments,
 
       createdById: json['createdBy'] is String
           ? json['createdBy']

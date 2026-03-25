@@ -381,6 +381,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const Divider(height: 1),
           ListTile(
+            leading: const Icon(
+              Icons.support_agent_rounded,
+              color: AppColors.primaryBlue,
+            ),
+            title: const Text('الدعم'),
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.support);
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text(
               'تسجيل الخروج',

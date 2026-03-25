@@ -6,6 +6,7 @@ import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/driver_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/providers/user_management_provider.dart';
+import 'package:order_tracker/utils/access_control.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/permission_definitions.dart';
 import 'package:provider/provider.dart';
@@ -37,7 +38,7 @@ const Map<String, String> _roleLabels = {
   'maintenance': 'فني صيانة مركبات',
   'Maintenance_Technician': 'عامل صيانة محطة',
   'maintenance_station': 'فني صيانة محطة',
-  'employee': 'موظف',
+  'employee': 'مسوق محطات',
   'viewer': 'للقراءة فقط',
   'station_boy': 'عامل محطة',
   'sales_manager_statiun': 'مدير مبيعات المحطات',
@@ -90,10 +91,18 @@ class UserManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final canManageUsers = user?.hasPermission('users_manage') ?? false;
+    final canViewUsers =
+        user?.hasAnyPermission(const [
+          'users_view',
+          'users_create',
+          'users_edit',
+          'users_delete',
+          'users_block',
+          'users_manage',
+        ]) ??
+        false;
 
-    // 🔐 صلاحيات الدخول
-    if (!canManageUsers) {
+    if (!canViewUsers) {
       return Scaffold(
         appBar: AppBar(
           title: const Text(
@@ -166,6 +175,16 @@ class _UserManagementViewState extends State<_UserManagementView> {
   }
 
   Future<void> _showUserForm({User? user}) async {
+    final authUser = context.read<AuthProvider>().user;
+    final canCreateUsers =
+        authUser?.hasAnyPermission(const ['users_create', 'users_manage']) ??
+        false;
+    final canEditUsers =
+        authUser?.hasAnyPermission(const ['users_edit', 'users_manage']) ??
+        false;
+    if (user == null && !canCreateUsers) return;
+    if (user != null && !canEditUsers) return;
+
     final provider = context.read<UserManagementProvider>();
     final stationProvider = context.read<StationProvider>();
     final driverProvider = context.read<DriverProvider>();
@@ -205,7 +224,11 @@ class _UserManagementViewState extends State<_UserManagementView> {
 
     String roleValue = user?.role ?? 'employee';
     final formKey = GlobalKey<FormState>();
-    final selectedPermissions = Set<String>.from(user?.permissions ?? []);
+    final selectedPermissions = Set<String>.from(
+      user?.permissions.isNotEmpty == true
+          ? user!.permissions
+          : defaultPermissionsForRole(roleValue),
+    );
 
     await showModalBottomSheet(
       isScrollControlled: true,
@@ -347,6 +370,9 @@ class _UserManagementViewState extends State<_UserManagementView> {
                             onChanged: (value) async {
                               if (value == null) return;
 
+                              final nextDefaults = defaultPermissionsForRole(
+                                value,
+                              );
                               setModalState(() {
                                 roleValue = value;
                                 selectedStationId = null;
@@ -354,6 +380,9 @@ class _UserManagementViewState extends State<_UserManagementView> {
                                 if (value != 'driver') {
                                   selectedDriverId = null;
                                 }
+                                selectedPermissions
+                                  ..clear()
+                                  ..addAll(nextDefaults);
                               });
 
                               if ((value == 'station_boy' ||
@@ -371,12 +400,6 @@ class _UserManagementViewState extends State<_UserManagementView> {
                                       .loadDriver(selectedDriverId!);
                                 }
                                 setModalState(() {
-                                  selectedPermissions
-                                    ..clear()
-                                    ..addAll(const [
-                                      'orders_view',
-                                      'orders_view_assigned_only',
-                                    ]);
                                   availableDrivers =
                                       currentDriver != null &&
                                           drivers.every(
@@ -536,26 +559,69 @@ class _UserManagementViewState extends State<_UserManagementView> {
                           ],
 
                           // ================= الصلاحيات =================
-                          _buildPermissionSection(
-                            title: 'صلاحيات الصفحات',
-                            permissions: pagePermissions,
-                            selectedPermissions: selectedPermissions,
-                            setModalState: setModalState,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'صلاحيات العرض والتحكم',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    selectedPermissions
+                                      ..clear()
+                                      ..addAll(defaultPermissionsForRole(roleValue));
+                                  });
+                                },
+                                icon: const Icon(Icons.restart_alt),
+                                label: const Text('تطبيق صلاحيات الدور'),
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    selectedPermissions
+                                      ..clear()
+                                      ..addAll(permissionKeys);
+                                  });
+                                },
+                                icon: const Icon(Icons.select_all),
+                                label: const Text('تحديد الكل'),
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  setModalState(selectedPermissions.clear);
+                                },
+                                icon: const Icon(Icons.clear_all),
+                                label: const Text('مسح الكل'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'يمكنك تعديل صلاحيات الدور يدويًا واختيار الصفحات التي يراها المستخدم وما يستطيع تنفيذه داخل النظام.',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 12,
+                            ),
                           ),
                           const SizedBox(height: 12),
-                          _buildPermissionSection(
-                            title: 'صلاحيات الخدمات',
-                            permissions: actionPermissions,
-                            selectedPermissions: selectedPermissions,
-                            setModalState: setModalState,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildPermissionSection(
-                            title: 'صلاحيات الإحصائيات',
-                            permissions: statsPermissions,
-                            selectedPermissions: selectedPermissions,
-                            setModalState: setModalState,
-                          ),
+                          ...permissionSections.expand((section) => [
+                            _buildPermissionSection(
+                              title: section.title,
+                              permissions: section.permissions,
+                              selectedPermissions: selectedPermissions,
+                              setModalState: setModalState,
+                            ),
+                            const SizedBox(height: 12),
+                          ]),
                           const SizedBox(height: 16),
 
                           // ================= كلمة المرور =================
@@ -756,6 +822,12 @@ class _UserManagementViewState extends State<_UserManagementView> {
   }
 
   Future<void> _confirmDelete(User user) async {
+    final authUser = context.read<AuthProvider>().user;
+    final canDeleteUsers =
+        authUser?.hasAnyPermission(const ['users_delete', 'users_manage']) ??
+        false;
+    if (!canDeleteUsers) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -793,6 +865,12 @@ class _UserManagementViewState extends State<_UserManagementView> {
   }
 
   Future<void> _toggleBlock(User user) async {
+    final authUser = context.read<AuthProvider>().user;
+    final canBlockUsers =
+        authUser?.hasAnyPermission(const ['users_block', 'users_manage']) ??
+        false;
+    if (!canBlockUsers) return;
+
     final provider = context.read<UserManagementProvider>();
 
     try {
@@ -865,6 +943,10 @@ class _UserManagementViewState extends State<_UserManagementView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<UserManagementProvider>();
+    final authUser = context.watch<AuthProvider>().user;
+    final canCreateUsers =
+        authUser?.hasAnyPermission(const ['users_create', 'users_manage']) ??
+        false;
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
     final isTablet = screenWidth >= 600 && screenWidth < 1200;
@@ -930,7 +1012,7 @@ class _UserManagementViewState extends State<_UserManagementView> {
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  if (isDesktop) ...[
+                  if (isDesktop && canCreateUsers) ...[
                     const SizedBox(width: 16),
                     ElevatedButton.icon(
                       onPressed: () => _showUserForm(),
@@ -1105,7 +1187,7 @@ class _UserManagementViewState extends State<_UserManagementView> {
         ),
       ),
       // زر إضافة مستخدم جديد (يظهر فقط على الجوال والتابلت)
-      floatingActionButton: !isDesktop
+      floatingActionButton: !isDesktop && canCreateUsers
           ? FloatingActionButton.extended(
               onPressed: () => _showUserForm(),
               backgroundColor: AppColors.primaryBlue,
@@ -1161,6 +1243,18 @@ class _UserManagementViewState extends State<_UserManagementView> {
   }
 
   Widget _buildDesktopUserItem(User user) {
+    final authUser = context.read<AuthProvider>().user;
+    final canEditUsers =
+        authUser?.hasAnyPermission(const ['users_edit', 'users_manage']) ??
+        false;
+    final canBlockUsers =
+        authUser?.hasAnyPermission(const ['users_block', 'users_manage']) ??
+        false;
+    final canDeleteUsers =
+        authUser?.hasAnyPermission(const ['users_delete', 'users_manage']) ??
+        false;
+    final displayPermissions = user.effectivePermissions;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -1331,7 +1425,7 @@ class _UserManagementViewState extends State<_UserManagementView> {
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: user.permissions
+              children: displayPermissions
                   .take(5) // عرض أول 5 صلاحيات فقط
                   .map(
                     (permission) => Container(
@@ -1362,39 +1456,44 @@ class _UserManagementViewState extends State<_UserManagementView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, size: 20),
-                  onPressed: () => _showUserForm(user: user),
-                  tooltip: 'تحرير المستخدم',
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+                if (canEditUsers) ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () => _showUserForm(user: user),
+                    tooltip: 'تحرير المستخدم',
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    user.isBlocked ? Icons.lock_open : Icons.lock,
-                    size: 20,
+                  const SizedBox(width: 8),
+                ],
+                if (canBlockUsers) ...[
+                  IconButton(
+                    icon: Icon(
+                      user.isBlocked ? Icons.lock_open : Icons.lock,
+                      size: 20,
+                    ),
+                    onPressed: () => _toggleBlock(user),
+                    tooltip: user.isBlocked
+                        ? 'إلغاء حظر المستخدم'
+                        : 'حظر المستخدم',
+                    style: IconButton.styleFrom(
+                      backgroundColor: user.isBlocked
+                          ? AppColors.successGreen.withOpacity(0.1)
+                          : AppColors.warningOrange.withOpacity(0.1),
+                    ),
                   ),
-                  onPressed: () => _toggleBlock(user),
-                  tooltip: user.isBlocked
-                      ? 'إلغاء حظر المستخدم'
-                      : 'حظر المستخدم',
-                  style: IconButton.styleFrom(
-                    backgroundColor: user.isBlocked
-                        ? AppColors.successGreen.withOpacity(0.1)
-                        : AppColors.warningOrange.withOpacity(0.1),
+                  const SizedBox(width: 8),
+                ],
+                if (canDeleteUsers)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    onPressed: () => _confirmDelete(user),
+                    tooltip: 'حذف المستخدم',
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.errorRed.withOpacity(0.1),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: () => _confirmDelete(user),
-                  tooltip: 'حذف المستخدم',
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.errorRed.withOpacity(0.1),
-                  ),
-                ),
               ],
             ),
           ),
@@ -1404,6 +1503,18 @@ class _UserManagementViewState extends State<_UserManagementView> {
   }
 
   Widget _buildMobileUserItem(User user) {
+    final authUser = context.read<AuthProvider>().user;
+    final canEditUsers =
+        authUser?.hasAnyPermission(const ['users_edit', 'users_manage']) ??
+        false;
+    final canBlockUsers =
+        authUser?.hasAnyPermission(const ['users_block', 'users_manage']) ??
+        false;
+    final canDeleteUsers =
+        authUser?.hasAnyPermission(const ['users_delete', 'users_manage']) ??
+        false;
+    final displayPermissions = user.effectivePermissions;
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
@@ -1467,65 +1578,70 @@ class _UserManagementViewState extends State<_UserManagementView> {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.edit, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('تعديل'),
-                        ],
+                if (canEditUsers || canBlockUsers || canDeleteUsers)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    itemBuilder: (context) => [
+                    if (canEditUsers)
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit, size: 20),
+                            const SizedBox(width: 8),
+                            const Text('تعديل'),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'toggle_block',
-                      child: Row(
-                        children: [
-                          Icon(
-                            user.isBlocked ? Icons.lock_open : Icons.lock,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(user.isBlocked ? 'إلغاء الحظر' : 'حظر'),
-                        ],
+                    if (canBlockUsers)
+                      PopupMenuItem(
+                        value: 'toggle_block',
+                        child: Row(
+                          children: [
+                            Icon(
+                              user.isBlocked ? Icons.lock_open : Icons.lock,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(user.isBlocked ? 'إلغاء الحظر' : 'حظر'),
+                          ],
+                        ),
                       ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.delete_outline,
-                            size: 20,
-                            color: Colors.red,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'حذف',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ],
+                    if (canDeleteUsers) ...[
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'حذف',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'edit':
-                        _showUserForm(user: user);
-                        break;
-                      case 'toggle_block':
-                        _toggleBlock(user);
-                        break;
-                      case 'delete':
-                        _confirmDelete(user);
-                        break;
-                    }
-                  },
-                ),
+                    ],
+                    ],
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'edit':
+                          _showUserForm(user: user);
+                          break;
+                        case 'toggle_block':
+                          _toggleBlock(user);
+                          break;
+                        case 'delete':
+                          _confirmDelete(user);
+                          break;
+                      }
+                    },
+                  ),
               ],
             ),
 
@@ -1575,7 +1691,7 @@ class _UserManagementViewState extends State<_UserManagementView> {
               ),
             ],
 
-            if (user.permissions.isNotEmpty) ...[
+            if (displayPermissions.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 'الصلاحيات:',
@@ -1589,7 +1705,7 @@ class _UserManagementViewState extends State<_UserManagementView> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: user.permissions
+                children: displayPermissions
                     .map(
                       (permission) => Chip(
                         label: Text(

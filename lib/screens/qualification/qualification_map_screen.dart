@@ -16,6 +16,8 @@ import 'package:order_tracker/utils/api_service.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/web_platform.dart' as web_platform;
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 
 class QualificationStationsMapScreen extends StatefulWidget {
   final QualificationStation? initialStation;
@@ -775,6 +777,524 @@ class _QualificationStationsMapScreenState
     );
   }
 
+  InputDecoration _surfaceInputDecoration({
+    required String hintText,
+    String? labelText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      labelText: labelText,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.84),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.70)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.70)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.4),
+      ),
+    );
+  }
+
+  IconData _statusIcon(QualificationStatus status) {
+    switch (status) {
+      case QualificationStatus.underReview:
+        return Icons.hourglass_top_rounded;
+      case QualificationStatus.negotiating:
+        return Icons.handshake_outlined;
+      case QualificationStatus.agreed:
+        return Icons.verified_rounded;
+      case QualificationStatus.notAgreed:
+        return Icons.block_rounded;
+    }
+  }
+
+  Widget _buildSummaryChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.darkGray,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernFilterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      showCheckmark: false,
+      labelStyle: TextStyle(
+        color: selected ? color : AppColors.darkGray,
+        fontWeight: FontWeight.w700,
+      ),
+      backgroundColor: Colors.white.withValues(alpha: 0.78),
+      selectedColor: color.withValues(alpha: 0.12),
+      side: BorderSide(
+        color: selected ? color.withValues(alpha: 0.34) : AppColors.silverLight,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      onSelected: (_) => onTap(),
+    );
+  }
+
+  Widget _buildModernStationSelector(List<QualificationStation> stations) {
+    if (stations.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final sorted = [...stations]..sort((a, b) => a.name.compareTo(b.name));
+
+    return DropdownButtonFormField<String>(
+      value: _selectedStationId,
+      isExpanded: true,
+      decoration: _surfaceInputDecoration(
+        hintText: 'اختر محطة للتركيز عليها',
+        labelText: 'المحطة المختارة',
+        prefixIcon: const Icon(Icons.place_outlined),
+      ),
+      items: sorted
+          .map(
+            (station) => DropdownMenuItem<String>(
+              value: station.id,
+              child: Text(station.name, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList(),
+      onChanged: (value) async {
+        if (value == null) return;
+        final selected = sorted.firstWhere((s) => s.id == value);
+        setState(() => _selectedStationId = value);
+        await _selectStation(selected);
+      },
+    );
+  }
+
+  Widget _buildModernSearchField() {
+    return TextField(
+      controller: _searchController,
+      decoration: _surfaceInputDecoration(
+        hintText: 'ابحث عن محطة أو مدينة أو منطقة',
+        labelText: 'البحث',
+        prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: _searchController.text.isEmpty
+            ? null
+            : IconButton(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {});
+                },
+                icon: const Icon(Icons.close_rounded),
+              ),
+      ),
+      onChanged: (_) => setState(() {}),
+    );
+  }
+
+  Widget _buildModernControlsCard({
+    required List<QualificationStation> allStations,
+    required List<QualificationStation> filteredStations,
+    required bool compact,
+  }) {
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'لوحة التحكم في الخريطة',
+                      style: TextStyle(
+                        color: AppColors.darkGray,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'فلترة المحطات، تتبع المسار، والتركيز السريع على أي موقع من شاشة واحدة.',
+                      style: TextStyle(
+                        color: AppColors.mediumGray,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'لوحة التحكم في الخريطة',
+                            style: TextStyle(
+                              color: AppColors.darkGray,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'فلترة المحطات، تتبع المسار، والتركيز السريع على أي موقع من شاشة واحدة.',
+                            style: TextStyle(
+                              color: AppColors.mediumGray,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _buildSummaryChip(
+                          icon: Icons.local_gas_station_rounded,
+                          label: 'إجمالي المحطات',
+                          value: '${allStations.length}',
+                          color: AppColors.primaryBlue,
+                        ),
+                        _buildSummaryChip(
+                          icon: Icons.filter_alt_outlined,
+                          label: 'نتائج الفلترة',
+                          value: '${filteredStations.length}',
+                          color: AppColors.secondaryTeal,
+                        ),
+                        _buildSummaryChip(
+                          icon: Icons.checklist_rounded,
+                          label: 'المحدد',
+                          value: '${_selectedIds.length}',
+                          color: AppColors.warningOrange,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+          if (compact) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _buildSummaryChip(
+                  icon: Icons.local_gas_station_rounded,
+                  label: 'إجمالي المحطات',
+                  value: '${allStations.length}',
+                  color: AppColors.primaryBlue,
+                ),
+                _buildSummaryChip(
+                  icon: Icons.filter_alt_outlined,
+                  label: 'نتائج الفلترة',
+                  value: '${filteredStations.length}',
+                  color: AppColors.secondaryTeal,
+                ),
+                _buildSummaryChip(
+                  icon: Icons.checklist_rounded,
+                  label: 'المحدد',
+                  value: '${_selectedIds.length}',
+                  color: AppColors.warningOrange,
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 18),
+          compact
+              ? Column(
+                  children: [
+                    _buildModernStationSelector(allStations),
+                    const SizedBox(height: 12),
+                    _buildModernSearchField(),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: _buildModernStationSelector(allStations)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildModernSearchField()),
+                  ],
+                ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildModernFilterChip(
+                label: 'الكل',
+                selected: _statusFilter == null,
+                color: AppColors.primaryBlue,
+                onTap: () => setState(() => _statusFilter = null),
+              ),
+              _buildModernFilterChip(
+                label: 'تحت الدراسة',
+                selected: _statusFilter == QualificationStatus.underReview,
+                color: Colors.amber.shade700,
+                onTap: () => setState(
+                  () => _statusFilter = QualificationStatus.underReview,
+                ),
+              ),
+              _buildModernFilterChip(
+                label: 'جاري التفاوض',
+                selected: _statusFilter == QualificationStatus.negotiating,
+                color: Colors.blue.shade700,
+                onTap: () => setState(
+                  () => _statusFilter = QualificationStatus.negotiating,
+                ),
+              ),
+              _buildModernFilterChip(
+                label: 'تم الاتفاق',
+                selected: _statusFilter == QualificationStatus.agreed,
+                color: AppColors.successGreen,
+                onTap: () =>
+                    setState(() => _statusFilter = QualificationStatus.agreed),
+              ),
+              _buildModernFilterChip(
+                label: 'لم يتم الاتفاق',
+                selected: _statusFilter == QualificationStatus.notAgreed,
+                color: AppColors.errorRed,
+                onTap: () => setState(
+                  () => _statusFilter = QualificationStatus.notAgreed,
+                ),
+              ),
+              if (_selectedIds.isNotEmpty)
+                _buildModernFilterChip(
+                  label: 'المحدد فقط (${_selectedIds.length})',
+                  selected: _showSelectedOnly,
+                  color: AppColors.warningOrange,
+                  onTap: () {
+                    setState(() => _showSelectedOnly = !_showSelectedOnly);
+                  },
+                ),
+              if (_locating)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                FilledButton.tonalIcon(
+                  onPressed: _ensureCurrentLocation,
+                  icon: const Icon(Icons.my_location_rounded),
+                  label: const Text('تحديد موقعي'),
+                ),
+              if (_selectedIds.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedIds.clear();
+                      _showSelectedOnly = false;
+                    });
+                  },
+                  icon: const Icon(Icons.clear_rounded),
+                  label: const Text('مسح التحديد'),
+                ),
+              OutlinedButton.icon(
+                onPressed: _loadInspections,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('تحديث البيانات'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveStationOverlay(QualificationStation station) {
+    final cachedRoute = _routeCache[station.id];
+    final statusColor = _statusColor(station.status);
+    final routeDistance = cachedRoute?.distanceKm != null
+        ? '${cachedRoute!.distanceKm!.toStringAsFixed(1)} كم'
+        : 'غير متاح';
+    final duration = cachedRoute?.durationMinutes != null
+        ? '${cachedRoute!.durationMinutes} دقيقة'
+        : 'غير متاح';
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: const BorderRadius.all(Radius.circular(24)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    station.name,
+                    style: const TextStyle(
+                      color: AppColors.darkGray,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_statusIcon(station.status), size: 16, color: statusColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        _statusLabel(station.status),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '${station.city} • ${station.region}',
+              style: const TextStyle(
+                color: AppColors.mediumGray,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (station.address.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                station.address,
+                style: const TextStyle(
+                  color: AppColors.mediumGray,
+                  height: 1.5,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _buildSummaryChip(
+                  icon: Icons.route_outlined,
+                  label: 'المسافة',
+                  value: routeDistance,
+                  color: AppColors.primaryBlue,
+                ),
+                _buildSummaryChip(
+                  icon: Icons.timer_outlined,
+                  label: 'المدة',
+                  value: duration,
+                  color: AppColors.secondaryTeal,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showStationDetails(station),
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('عرض التفاصيل'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _toggleSelected(station.id),
+                  icon: Icon(
+                    _selectedIds.contains(station.id)
+                        ? Icons.check_box_rounded
+                        : Icons.check_box_outline_blank_rounded,
+                  ),
+                  label: Text(
+                    _selectedIds.contains(station.id)
+                        ? 'إزالة من المحدد'
+                        : 'تحديد المحطة',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildWebMapsState() {
     final isWaiting = _checkingWebMaps && !_webMapsReady;
     final loadError = web_platform.googleMapsLoadError();
@@ -889,16 +1409,15 @@ class _QualificationStationsMapScreenState
     }
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: const Text('خريطة محطات التأهيل'),
         centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: _buildStationSelector(allStations),
-          ),
-        ),
         actions: [
           IconButton(
             tooltip: 'تحديث',
@@ -907,77 +1426,139 @@ class _QualificationStationsMapScreenState
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(padding: const EdgeInsets.all(16), child: _buildFilterBar()),
-          Expanded(
-            child: Container(
-              color: const Color(0xFFF6F8FF),
-              child: provider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : (!hasStations && _currentPosition == null)
-                  ? const Center(child: Text('لا توجد محطات للعرض'))
-                  : Stack(
-                      children: [
-                        if (kIsWeb && !_webMapsReady)
-                          _buildWebMapsState()
-                        else
-                          GoogleMap(
-                            initialCameraPosition: CameraPosition(
-                              target: initialCenter,
-                              zoom: 10,
-                            ),
-                            markers: markers,
-                            polylines: polylines,
-                            myLocationEnabled: true,
-                            myLocationButtonEnabled: false,
-                            zoomControlsEnabled: true,
-                            compassEnabled: true,
-                            onMapCreated: (controller) {
-                              _mapController = controller;
-                              final pending = _pendingFocusStation;
-                              if (pending != null) {
-                                _fitMapToSelection(pending);
-                                _pendingFocusStation = null;
-                              }
-                            },
+          const AppSoftBackground(),
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 940;
+
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isCompact ? 12 : 18,
+                    isCompact ? 12 : 18,
+                    isCompact ? 12 : 18,
+                    isCompact ? 12 : 18,
+                  ),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1480),
+                      child: Column(
+                        children: [
+                          _buildModernControlsCard(
+                            allStations: allStations,
+                            filteredStations: stations,
+                            compact: isCompact,
                           ),
-                        if (_routeLoading)
-                          Positioned(
-                            top: 12,
-                            left: 12,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: AppSurfaceCard(
+                              padding: const EdgeInsets.all(10),
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(30),
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: const [
-                                  SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('جاري تحديث المسار'),
-                                ],
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(24),
+                                child: provider.isLoading
+                                    ? const Center(
+                                        child: CircularProgressIndicator(),
+                                      )
+                                    : (!hasStations && _currentPosition == null)
+                                    ? const Center(
+                                        child: Text('لا توجد محطات للعرض'),
+                                      )
+                                    : Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: kIsWeb && !_webMapsReady
+                                                ? _buildWebMapsState()
+                                                : GoogleMap(
+                                                    initialCameraPosition:
+                                                        CameraPosition(
+                                                          target: initialCenter,
+                                                          zoom: 10,
+                                                        ),
+                                                    markers: markers,
+                                                    polylines: polylines,
+                                                    myLocationEnabled: true,
+                                                    myLocationButtonEnabled:
+                                                        false,
+                                                    zoomControlsEnabled: true,
+                                                    compassEnabled: true,
+                                                    onMapCreated: (controller) {
+                                                      _mapController =
+                                                          controller;
+                                                      final pending =
+                                                          _pendingFocusStation;
+                                                      if (pending != null) {
+                                                        _fitMapToSelection(
+                                                          pending,
+                                                        );
+                                                        _pendingFocusStation =
+                                                            null;
+                                                      }
+                                                    },
+                                                  ),
+                                          ),
+                                          if (_activeStation != null)
+                                            PositionedDirectional(
+                                              top: 16,
+                                              start: 16,
+                                              child: _buildActiveStationOverlay(
+                                                _activeStation!,
+                                              ),
+                                            ),
+                                          if (_routeLoading)
+                                            PositionedDirectional(
+                                              top: 16,
+                                              end: 16,
+                                              child: AppSurfaceCard(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 10,
+                                                    ),
+                                                borderRadius:
+                                                    const BorderRadius.all(
+                                                      Radius.circular(18),
+                                                    ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: const [
+                                                    SizedBox(
+                                                      width: 14,
+                                                      height: 14,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'جاري تحديث المسار',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                               ),
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
+                  ),
+                );
+              },
             ),
           ),
         ],

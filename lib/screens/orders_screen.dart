@@ -199,21 +199,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
                         _buildOrdersTab(
                           orderProvider.orders
-                              .where((o) => o.orderNumber.startsWith('CUS-'))
+                              .where((o) => o.orderSource.trim() == 'عميل')
                               .toList(),
                           isDriverUser: isDriverUser,
                         ),
 
                         _buildOrdersTab(
                           orderProvider.orders
-                              .where((o) => o.orderNumber.startsWith('SUP-'))
+                              .where((o) => o.orderSource.trim() == 'مورد')
                               .toList(),
                           isDriverUser: isDriverUser,
                         ),
 
                         _buildOrdersTab(
                           orderProvider.orders
-                              .where((o) => o.orderNumber.startsWith('MIX-'))
+                              .where((o) => o.orderSource.trim() == 'مدمج')
                               .toList(),
                           isDriverUser: isDriverUser,
                         ),

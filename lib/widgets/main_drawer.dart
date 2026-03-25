@@ -21,18 +21,33 @@ class MainDrawer extends StatelessWidget {
           'orders_create_supplier',
         ]) ??
         false;
-    final driverHomeRoute =
-        user?.role == 'driver' ? AppRoutes.driverHome : AppRoutes.orders;
-    final canAccessStationMaintenance = [
-      'owner',
-      'admin',
-      'manager',
-      'supervisor',
-      'maintenance',
-      'maintenance_car_management',
-      'maintenance_technician',
-      'Maintenance_Technician',
-    ].contains(user?.role);
+    final canViewInventory =
+        user?.hasAnyPermission(['inventory_view', 'inventory_manage']) ?? false;
+    final canViewActivities =
+        user?.hasAnyPermission(['activities_view']) ?? false;
+    final canViewTasks =
+        user?.hasAnyPermission(['tasks_view', 'tasks_view_all']) ?? false;
+    final canViewContracts =
+        user?.hasAnyPermission(['contracts_view', 'contracts_manage']) ?? false;
+    final driverHomeRoute = user?.role == 'driver'
+        ? AppRoutes.driverHome
+        : AppRoutes.orders;
+    final canAccessStationMaintenance =
+        [
+          'owner',
+          'admin',
+          'manager',
+          'supervisor',
+          'maintenance',
+          'maintenance_car_management',
+          'maintenance_technician',
+          'Maintenance_Technician',
+        ].contains(user?.role) ||
+        (user?.hasAnyPermission([
+              'station_maintenance_view',
+              'station_maintenance_manage',
+            ]) ??
+            false);
 
     return Drawer(
       child: Column(
@@ -82,16 +97,17 @@ class MainDrawer extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.warehouse_outlined),
-                  title: const Text('المخزون'),
-                  onTap: () {
-                    Navigator.popAndPushNamed(
-                      context,
-                      AppRoutes.inventoryDashboard,
-                    );
-                  },
-                ),
+                if (canViewInventory)
+                  ListTile(
+                    leading: const Icon(Icons.warehouse_outlined),
+                    title: const Text('المخزون'),
+                    onTap: () {
+                      Navigator.popAndPushNamed(
+                        context,
+                        AppRoutes.inventoryDashboard,
+                      );
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.dashboard_outlined),
                   title: const Text('لوحة التحكم'),
@@ -100,6 +116,8 @@ class MainDrawer extends StatelessWidget {
                       context,
                       user?.role == 'driver'
                           ? AppRoutes.driverHome
+                          : user?.role == 'employee'
+                          ? AppRoutes.marketingStations
                           : AppRoutes.dashboard,
                     );
                   },
@@ -107,7 +125,9 @@ class MainDrawer extends StatelessWidget {
                 if (hasPermission('orders_view'))
                   ListTile(
                     leading: const Icon(Icons.inventory_2_outlined),
-                    title: Text(user?.role == 'driver' ? 'صفحة السائق' : 'الطلبات'),
+                    title: Text(
+                      user?.role == 'driver' ? 'صفحة السائق' : 'الطلبات',
+                    ),
                     trailing: Badge.count(
                       count: 0,
                       textColor: Colors.white,
@@ -149,20 +169,22 @@ class MainDrawer extends StatelessWidget {
                       Navigator.popAndPushNamed(context, '/order/form');
                     },
                   ),
-                ListTile(
-                  leading: const Icon(Icons.history_outlined),
-                  title: const Text('الأنشطة'),
-                  onTap: () {
-                    Navigator.popAndPushNamed(context, '/activities');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.task_alt),
-                  title: const Text('المهام'),
-                  onTap: () {
-                    Navigator.popAndPushNamed(context, AppRoutes.tasks);
-                  },
-                ),
+                if (canViewActivities)
+                  ListTile(
+                    leading: const Icon(Icons.history_outlined),
+                    title: const Text('الأنشطة'),
+                    onTap: () {
+                      Navigator.popAndPushNamed(context, '/activities');
+                    },
+                  ),
+                if (canViewTasks)
+                  ListTile(
+                    leading: const Icon(Icons.task_alt),
+                    title: const Text('المهام'),
+                    onTap: () {
+                      Navigator.popAndPushNamed(context, AppRoutes.tasks);
+                    },
+                  ),
                 if (canAccessStationMaintenance)
                   ListTile(
                     leading: const Icon(Icons.home_repair_service_outlined),
@@ -174,7 +196,7 @@ class MainDrawer extends StatelessWidget {
                       );
                     },
                   ),
-                if (user?.role == 'owner' || user?.role == 'admin')
+                if (canViewContracts)
                   ListTile(
                     leading: const Icon(Icons.description_outlined),
                     title: const Text('إدارة العقود'),
@@ -217,10 +239,13 @@ class MainDrawer extends StatelessWidget {
                   ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.help_outline),
-                  title: const Text('مساعدة'),
+                  leading: const Icon(
+                    Icons.support_agent_rounded,
+                    color: AppColors.primaryBlue,
+                  ),
+                  title: const Text('الدعم'),
                   onTap: () {
-                    // TODO: Help page
+                    Navigator.popAndPushNamed(context, AppRoutes.support);
                   },
                 ),
                 ListTile(

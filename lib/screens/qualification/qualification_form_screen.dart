@@ -9,6 +9,8 @@ import 'package:order_tracker/providers/qualification_provider.dart';
 import 'package:order_tracker/models/qualification_models.dart';
 import 'package:order_tracker/screens/tasks/task_location_picker_screen.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 
 class QualificationStationFormScreen extends StatefulWidget {
   final QualificationStation? inspectionToEdit;
@@ -350,10 +352,380 @@ class _QualificationStationFormScreenState
     );
   }
 
+  Widget _surfaceSection({
+    required String title,
+    required Widget child,
+    Widget? trailing,
+  }) {
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _heroSection() {
+    final isEditing = widget.inspectionToEdit != null;
+    final statusColor = _statusColor(_status);
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
+      borderRadius: const BorderRadius.all(Radius.circular(30)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(22),
+            decoration: const BoxDecoration(
+              gradient: AppColors.appBarGradient,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isEditing
+                            ? 'تعديل محطة التأهيل'
+                            : 'إضافة محطة تأهيل جديدة',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'أدخل بيانات المحطة، حدّد موقعها، وأرفق الملفات اللازمة داخل نموذج واضح ومتجاوب.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.82),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.add_business_rounded,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 16, color: statusColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        _statusLabel(_status),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_selectedLatLng != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.16),
+                      ),
+                    ),
+                    child: Text(
+                      '${_selectedLatLng!.latitude.toStringAsFixed(5)}, ${_selectedLatLng!.longitude.toStringAsFixed(5)}',
+                      style: const TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                if (_existingAttachments.isNotEmpty || _newAttachments.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningOrange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: AppColors.warningOrange.withValues(alpha: 0.16),
+                      ),
+                    ),
+                    child: Text(
+                      '${_existingAttachments.length + _newAttachments.length} مرفق',
+                      style: const TextStyle(
+                        color: AppColors.warningOrange,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final statusColor = _statusColor(_status);
+    final detailsCard = _surfaceSection(
+      title: 'بيانات المحطة',
+      child: Column(
+        children: [
+          _buildStationFieldsGrid(),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _notesController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'ملاحظات',
+              alignLabelWithHint: true,
+              prefixIcon: Icon(Icons.sticky_note_2_outlined),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final locationCard = _surfaceSection(
+      title: 'تحديد الموقع',
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: statusColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: statusColor.withValues(alpha: 0.16)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.info_outline_rounded, size: 16, color: statusColor),
+            const SizedBox(width: 8),
+            Text(
+              _statusLabel(_status),
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _pickLocation,
+            icon: const Icon(Icons.map_outlined),
+            label: Text(
+              _selectedLatLng == null
+                  ? 'تحديد الموقع من الخريطة'
+                  : 'تعديل موقع المحطة',
+            ),
+          ),
+          if (_selectedLatLng != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.16),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.my_location_rounded,
+                        size: 18,
+                        color: AppColors.primaryBlue,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'الإحداثيات الحالية',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${_selectedLatLng!.latitude.toStringAsFixed(6)}, ${_selectedLatLng!.longitude.toStringAsFixed(6)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.darkGray,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final attachmentsCard = _surfaceSection(
+      title: 'المرفقات',
+      trailing: Text(
+        '${_existingAttachments.length + _newAttachments.length} ملف',
+        style: const TextStyle(
+          color: AppColors.mediumGray,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _pickAttachments,
+            icon: const Icon(Icons.attach_file_rounded),
+            label: Text(
+              _newAttachments.isEmpty
+                  ? 'إرفاق صور أو فيديو'
+                  : 'تمت إضافة ${_newAttachments.length} ملف جديد',
+            ),
+          ),
+          if (_existingAttachments.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'المرفقات الحالية',
+              style: TextStyle(
+                color: AppColors.mediumGray,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _existingAttachments.map((attachment) {
+                return InputChip(
+                  label: Text(_attachmentLabel(attachment.name)),
+                  onDeleted: () => _removeExistingAttachment(attachment),
+                );
+              }).toList(),
+            ),
+          ],
+          if (_newAttachments.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'المرفقات الجديدة',
+              style: TextStyle(
+                color: AppColors.mediumGray,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _newAttachments.map((file) {
+                return InputChip(
+                  label: Text(_attachmentLabel(file.name)),
+                  onDeleted: () => _removeNewAttachment(file),
+                );
+              }).toList(),
+            ),
+          ],
+          if (_existingAttachments.isEmpty && _newAttachments.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundGray.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Text(
+                'لا توجد مرفقات مضافة بعد',
+                style: TextStyle(color: AppColors.mediumGray),
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: Text(
           widget.inspectionToEdit == null
               ? 'إضافة محطة تأهيل'
@@ -361,166 +733,92 @@ class _QualificationStationFormScreenState
         ),
         centerTitle: true,
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(
-              'بيانات المحطة',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildStationFieldsGrid(),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات',
-                alignLabelWithHint: true,
-                prefixIcon: Icon(Icons.sticky_note_2_outlined),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'حالة التأهيل',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: _statusColor(_status).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _statusColor(_status)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.info_outline, color: _statusColor(_status)),
-                  const SizedBox(width: 8),
-                  Text(_statusLabel(_status)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'تحديد الموقع',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _pickLocation,
-              icon: const Icon(Icons.map_outlined),
-              label: Text(
-                _selectedLatLng == null
-                    ? 'تحديد الموقع من الخريطة'
-                    : 'تعديل موقع المحطة',
-              ),
-            ),
-            if (_selectedLatLng != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.primaryBlue.withOpacity(0.25),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Form(
+            key: _formKey,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1440),
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    const Text(
-                      'الإحداثيات',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    _heroSection(),
+                    const SizedBox(height: 16),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth >= 1100;
+                        if (!isWide) {
+                          return Column(
+                            children: [
+                              detailsCard,
+                              const SizedBox(height: 16),
+                              locationCard,
+                              const SizedBox(height: 16),
+                              attachmentsCard,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                children: [
+                                  detailsCard,
+                                  const SizedBox(height: 16),
+                                  attachmentsCard,
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(flex: 2, child: locationCard),
+                          ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${_selectedLatLng!.latitude.toStringAsFixed(6)}, '
-                      '${_selectedLatLng!.longitude.toStringAsFixed(6)}',
+                    const SizedBox(height: 20),
+                    AppSurfaceCard(
+                      padding: const EdgeInsets.all(18),
+                      borderRadius: const BorderRadius.all(Radius.circular(28)),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _saving ? null : _save,
+                          icon: _saving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined),
+                          label: Text(
+                            _saving ? 'جاري الحفظ...' : 'حفظ بيانات المحطة',
+                          ),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 28),
                   ],
                 ),
               ),
-            ],
-            const SizedBox(height: 20),
-            Text(
-              'المرفقات (اختياري)',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _pickAttachments,
-              icon: const Icon(Icons.attach_file),
-              label: Text(
-                _newAttachments.isEmpty
-                    ? 'إرفاق صور أو فيديو'
-                    : 'تم إضافة ${_newAttachments.length} ملف',
-              ),
-            ),
-            if (_existingAttachments.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _existingAttachments.map((attachment) {
-                  return InputChip(
-                    label: Text(_attachmentLabel(attachment.name)),
-                    onDeleted: () => _removeExistingAttachment(attachment),
-                  );
-                }).toList(),
-              ),
-            ],
-            if (_newAttachments.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _newAttachments.map((file) {
-                  return InputChip(
-                    label: Text(_attachmentLabel(file.name)),
-                    onDeleted: () => _removeNewAttachment(file),
-                  );
-                }).toList(),
-              ),
-            ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.save),
-                label: Text(_saving ? 'جاري الحفظ...' : 'حفظ بيانات المحطة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/station_models.dart';
@@ -931,6 +932,48 @@ class StationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'حدث خطأ في الاتصال بالسيرفر';
       _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> emailSessionReportPdf({
+    required String sessionId,
+    required Uint8List pdfBytes,
+    String? fileName,
+  }) async {
+    _error = null;
+    notifyListeners();
+
+    try {
+      final payload = <String, dynamic>{
+        'pdfBase64': base64Encode(pdfBytes),
+        if (fileName != null && fileName.trim().isNotEmpty)
+          'fileName': fileName.trim(),
+      };
+
+      final response = await http.post(
+        Uri.parse('${ApiEndpoints.baseUrl}/stations/sessions/$sessionId/report/email'),
+        headers: ApiService.headers,
+        body: json.encode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      try {
+        final decoded = json.decode(response.body);
+        _error = decoded is Map ? decoded['error']?.toString() : null;
+      } catch (_) {
+        _error = response.body;
+      }
+
+      _error = _error ?? 'فشل إرسال تقرير PDF';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'حدث خطأ أثناء إرسال تقرير PDF';
       notifyListeners();
       return false;
     }

@@ -3,6 +3,8 @@ import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:provider/provider.dart';
 
 class StationsListScreen extends StatefulWidget {
@@ -38,15 +40,34 @@ class _StationsListScreenState extends State<StationsListScreen> {
   Widget build(BuildContext context) {
     final stationProvider = Provider.of<StationProvider>(context);
     final stations = stationProvider.stations;
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? stations
+        : stations.where((station) {
+            final fuel = station.fuelTypes.join(' ').toLowerCase();
+            return station.stationName.toLowerCase().contains(query) ||
+                station.stationCode.toLowerCase().contains(query) ||
+                station.city.toLowerCase().contains(query) ||
+                station.location.toLowerCase().contains(query) ||
+                station.managerName.toLowerCase().contains(query) ||
+                fuel.contains(query);
+          }).toList();
 
     final bool web = isWeb(context);
     final bool tablet = isTablet(context);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: const Text('المحطات', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
+            tooltip: 'إضافة محطة',
             onPressed: () {
               Navigator.pushNamed(context, '/station/form');
             },
@@ -62,66 +83,104 @@ class _StationsListScreenState extends State<StationsListScreen> {
               },
               child: const Icon(Icons.add),
             ),
-      body: RefreshIndicator(
-        onRefresh: _loadStations,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Column(
-              children: [
-                // ================= Search =================
-                Padding(
-                  padding: EdgeInsets.all(web ? 12 : 16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'بحث عن محطة...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          RefreshIndicator(
+            onRefresh: _loadStations,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(web ? 12 : 16),
+                      child: AppSurfaceCard(
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(26),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'بحث عن محطة...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: query.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'مسح',
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () {
+                                      setState(() => _searchController.clear());
+                                    },
+                                  ),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.82),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.0),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.0),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide(
+                                color: AppColors.primaryBlue.withValues(
+                                  alpha: 0.28,
+                                ),
+                              ),
+                            ),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
                       ),
                     ),
-                    onChanged: (value) {
-                      // TODO: implement search
-                    },
-                  ),
+                    Expanded(
+                      child: stationProvider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : filtered.isEmpty
+                          ? const _EmptyState()
+                          : web || tablet
+                          ? GridView.builder(
+                              padding: EdgeInsets.all(web ? 12 : 16),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: web ? 3 : 2,
+                                    crossAxisSpacing: 14,
+                                    mainAxisSpacing: 14,
+                                    childAspectRatio: web ? 1.7 : 1.4,
+                                  ),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                return _buildStationCard(
+                                  filtered[index],
+                                  web,
+                                );
+                              },
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                return _buildStationCard(
+                                  filtered[index],
+                                  false,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-
-                // ================= List / Grid =================
-                Expanded(
-                  child: stationProvider.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : stations.isEmpty
-                      ? const _EmptyState()
-                      : web || tablet
-                      ? GridView.builder(
-                          padding: EdgeInsets.all(web ? 12 : 16),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: web ? 3 : 2,
-                                crossAxisSpacing: 14,
-                                mainAxisSpacing: 14,
-                                childAspectRatio: web ? 1.7 : 1.4,
-                              ),
-                          itemCount: stations.length,
-                          itemBuilder: (context, index) {
-                            return _buildStationCard(stations[index], web);
-                          },
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: stations.length,
-                          itemBuilder: (context, index) {
-                            return _buildStationCard(stations[index], false);
-                          },
-                        ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -129,36 +188,35 @@ class _StationsListScreenState extends State<StationsListScreen> {
   // ================= Station Card =================
 
   Widget _buildStationCard(Station station, bool web) {
-    return Card(
-      elevation: web ? 2 : 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.stationDetails,
-            arguments: station.id, // ⚠️ لازم Mongo _id
-          );
-        },
+    return AppSurfaceCard(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.stationDetails,
+          arguments: station.id,
+        );
+      },
+      borderRadius: const BorderRadius.all(Radius.circular(22)),
+      child: SizedBox(
+        height: double.infinity,
         child: Padding(
           padding: EdgeInsets.all(web ? 12 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ================= Header (ثابت) =================
               Row(
                 children: [
                   Container(
-                    padding: EdgeInsets.all(web ? 8 : 10),
+                    width: web ? 40 : 44,
+                    height: web ? 40 : 44,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withOpacity(0.1),
-                      shape: BoxShape.circle,
+                      gradient: AppColors.accentGradient,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(
-                      Icons.business,
-                      color: AppColors.primaryBlue,
-                      size: web ? 20 : 24,
+                    child: const Icon(
+                      Icons.local_gas_station_rounded,
+                      color: Colors.white,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -171,10 +229,12 @@ class _StationsListScreenState extends State<StationsListScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: web ? 15 : 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: web ? 16 : 18,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.darkGray,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           station.stationCode,
                           maxLines: 1,
@@ -182,6 +242,7 @@ class _StationsListScreenState extends State<StationsListScreen> {
                           style: TextStyle(
                             color: AppColors.mediumGray,
                             fontSize: web ? 12 : 14,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -190,12 +251,7 @@ class _StationsListScreenState extends State<StationsListScreen> {
                   _statusChip(station.isActive, web),
                 ],
               ),
-
-              const SizedBox(height: 6),
-              const Divider(height: 1),
-              const SizedBox(height: 6),
-
-              // ================= Body (Expandable) =================
+              const SizedBox(height: 10),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,

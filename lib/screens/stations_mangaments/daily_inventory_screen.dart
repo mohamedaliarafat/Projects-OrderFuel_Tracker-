@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:order_tracker/widgets/gradient_button.dart';
 import 'package:provider/provider.dart';
 
@@ -669,6 +671,8 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
 
     if (!mounted) return;
 
+    await provider.fetchCurrentStock(_selectedStationId!);
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('تم تسجيل التوريدات بنجاح'),
@@ -806,7 +810,13 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     final stations = stationProvider.stations;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: const Text(
           'إضافة توريد جديد',
           style: TextStyle(color: Colors.white),
@@ -820,33 +830,37 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
             ),
         ],
       ),
-      body: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isMobile = constraints.maxWidth < 600;
-            final isTablet =
-                constraints.maxWidth >= 600 && constraints.maxWidth < 900;
-            final isDesktop = constraints.maxWidth >= 900;
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                final isTablet =
+                    constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+                final isDesktop = constraints.maxWidth >= 900;
 
-            return Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile
-                      ? 12
-                      : isTablet
-                      ? 20
-                      : 32,
-                  vertical: 16,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                    maxWidth: isDesktop ? 1400 : 800,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                return Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile
+                          ? 12
+                          : isTablet
+                          ? 20
+                          : 32,
+                      vertical: 16,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                        maxWidth: isDesktop ? 1400 : 800,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       // ================= البيانات الأساسية =================
                       _buildGeneralInfoCard(isMobile, isTablet, stations),
                       const SizedBox(height: 20),
@@ -915,13 +929,15 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
                         isLoading: _isSubmitting || stationProvider.isLoading,
                       ),
                       const SizedBox(height: 40),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -931,20 +947,17 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
     bool isTablet,
     List<Station> stations,
   ) {
-    return Card(
-      elevation: 4,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(
-          isMobile
-              ? 16
-              : isTablet
-              ? 20
-              : 24,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AppSurfaceCard(
+      padding: EdgeInsets.all(
+        isMobile
+            ? 16
+            : isTablet
+            ? 20
+            : 24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             Text(
               'البيانات العامة',
               style: TextStyle(
@@ -1029,18 +1042,15 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildProfitLossSummary(bool isMobile, bool isTablet) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: AppSurfaceCard(
         padding: EdgeInsets.all(
           isMobile
               ? 16
@@ -1228,8 +1238,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
             ),
           ],
         ),
-      ),
-    );
+    ));
   }
 
   Widget _buildProfitStatTile({
@@ -1279,11 +1288,9 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
   }
 
   Widget _buildFuelStockOverview(bool isMobile, bool isTablet) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: AppSurfaceCard(
         padding: EdgeInsets.all(
           isMobile
               ? 16
@@ -1472,11 +1479,9 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
       (sum, entry) => sum + entry.postSalesBalance,
     );
 
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: AppSurfaceCard(
         padding: EdgeInsets.all(
           isMobile
               ? 16
@@ -1739,13 +1744,11 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
       );
     }
 
-    return Card(
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             Row(
               children: [
                 Icon(Icons.table_chart, color: AppColors.primaryBlue, size: 22),
@@ -1767,8 +1770,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
             ),
             const SizedBox(height: 16),
             SizedBox(height: 520, child: horizontalScrollable),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1904,14 +1906,12 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
         ? AppColors.successGreen
         : AppColors.errorRed;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 16 : 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AppSurfaceCard(
+      borderRadius: BorderRadius.circular(18),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             // Header with fuel type and prices
             Container(
               padding: const EdgeInsets.all(12),
@@ -2205,7 +2205,6 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
             ],
           ],
         ),
-      ),
     );
   }
 
@@ -2322,20 +2321,17 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
   }
 
   Widget _buildNotesCard(bool isMobile, bool isTablet) {
-    return Card(
-      elevation: 3,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(
-          isMobile
-              ? 16
-              : isTablet
-              ? 20
-              : 24,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AppSurfaceCard(
+      padding: EdgeInsets.all(
+        isMobile
+            ? 16
+            : isTablet
+            ? 20
+            : 24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             Row(
               children: [
                 Icon(Icons.note, color: AppColors.primaryBlue, size: 22),
@@ -2373,8 +2369,7 @@ class _DailyInventoryScreenState extends State<DailyInventoryScreen> {
                 style: const TextStyle(fontSize: 14),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

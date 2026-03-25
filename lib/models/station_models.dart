@@ -1359,7 +1359,7 @@ class DailyInventory {
   Map<String, dynamic> toCreateJson() {
     return {
       'stationId': stationId,
-      'inventoryDate': inventoryDate.toIso8601String(),
+      'inventoryDate': inventoryDate.toUtc().toIso8601String(),
       'fuelType': fuelType,
       'previousBalance': previousBalance,
       'receivedQuantity': receivedQuantity,

@@ -11,9 +11,10 @@ import 'package:order_tracker/providers/order_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/widgets/recent_orders_widget.dart';
-import 'package:order_tracker/widgets/stat_card.dart';
 import 'package:order_tracker/widgets/candlestick_chart_widget.dart';
 import 'package:order_tracker/widgets/overdue_orders_widget.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:order_tracker/widgets/chat_floating_button.dart';
 import 'package:order_tracker/utils/file_saver.dart';
 import 'dart:async';
@@ -23,7 +24,6 @@ import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 
 enum _StatsVisualizationMode {
@@ -469,6 +469,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return DateTime(date.year, date.month, date.day, hour, minute);
   }
 
+  String _userInitials(String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return 'U';
+    }
+
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
+
+    return parts.isEmpty ? 'U' : parts;
+  }
+
+  void _navigateFromMobileDrawer(BuildContext drawerContext, String route) {
+    Navigator.pop(drawerContext);
+    Future.microtask(() {
+      if (!mounted) return;
+      Navigator.pushNamed(context, route);
+    });
+  }
+
+  Future<void> _logoutFromMobileDrawer(
+    BuildContext drawerContext,
+    AuthProvider authProvider,
+  ) async {
+    Navigator.pop(drawerContext);
+    await Future<void>.delayed(const Duration(milliseconds: 140));
+    if (!mounted) return;
+    await _confirmLogout(context, authProvider);
+  }
+
   Widget _navItem({
     required IconData icon,
     required String title,
@@ -888,33 +922,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: isDesktop ? null : Colors.transparent,
+      drawer: isDesktop
+          ? null
+          : _buildMobileDrawer(
+              context,
+              authProvider: authProvider,
+              notificationProvider: notificationProvider,
+            ),
       appBar: isDesktop
           ? null
           : AppBar(
-              title: const Text(
-                AppStrings.dashboard,
-                style: TextStyle(color: Colors.white),
+              automaticallyImplyLeading: false,
+              toolbarHeight: 74,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              titleSpacing: 0,
+              leadingWidth: 72,
+              flexibleSpace: Container(
+                decoration: const BoxDecoration(
+                  gradient: AppColors.appBarGradient,
+                ),
               ),
-              actions: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, AppRoutes.notifications);
-                  },
-                  icon: Badge(
-                    isLabelVisible: notificationProvider.unreadCount > 0,
-                    label: Text(notificationProvider.unreadCount.toString()),
-                    backgroundColor: AppColors.errorRed,
-                    textColor: Colors.white,
-                    child: const Icon(Icons.notifications_outlined),
+              leading: Builder(
+                builder: (appBarContext) => Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 12),
+                  child: IconButton(
+                    onPressed: () => Scaffold.of(appBarContext).openDrawer(),
+                    tooltip: 'القائمة الجانبية',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.menu_rounded),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => _confirmLogout(context, authProvider),
-                  tooltip: 'تسجيل الدخول',
-                  icon: const Icon(Icons.logout),
-                ),
-                const SizedBox(width: 8),
-              ],
+              ),
+              title: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    AppStrings.dashboard,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    DateFormat('EEEE, d MMMM', 'ar').format(DateTime.now()),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.78),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
       floatingActionButton: const ChatFloatingButton(
         heroTag: 'dashboard_chat_fab',
@@ -941,74 +1005,728 @@ class _DashboardScreenState extends State<DashboardScreen> {
               statsCounts,
               statusData,
             )
-          : RefreshIndicator(
-              onRefresh: () async {
-                await orderProvider.fetchOrders();
-                await notificationProvider.fetchNotifications();
-                await _loadApproachingTimers();
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+          : Stack(
+              children: [
+                const AppSoftBackground(),
+                RefreshIndicator(
+                  color: AppColors.primaryBlue,
+                  displacement: 26,
+                  onRefresh: () async {
+                    await orderProvider.fetchOrders();
+                    await notificationProvider.fetchNotifications();
+                    await _loadApproachingTimers();
+                  },
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Builder(
+                          builder: (bodyContext) => _buildWelcomeCard(
+                            context,
+                            authProvider,
+                            unreadNotifications:
+                                notificationProvider.unreadCount,
+                            onOpenSidebar: () =>
+                                Scaffold.of(bodyContext).openDrawer(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Builder(
+                        //   builder: (bodyContext) => _buildMobileSidebarPrompt(
+                        //     bodyContext,
+                        //     unreadNotifications:
+                        //         notificationProvider.unreadCount,
+                        //   ),
+                        // ),
+                        const SizedBox(height: 24),
+
+                        if (!_loadingTimers && _approachingTimers.isNotEmpty)
+                          CountdownSection(
+                            timers: _approachingTimers,
+                            onViewAll: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.orders,
+                                arguments: {'showCountdown': true},
+                              );
+                            },
+                          ),
+
+                        if (!_loadingTimers && _approachingTimers.isNotEmpty)
+                          const SizedBox(height: 20),
+
+                        if (overdueOrders.isNotEmpty)
+                          OverdueOrdersWidget(
+                            orders: orders,
+                            onViewAll: () {
+                              Navigator.pushNamed(context, AppRoutes.orders);
+                            },
+                          ),
+
+                        if (overdueOrders.isNotEmpty)
+                          const SizedBox(height: 20),
+
+                        _buildStatisticsSection(
+                          context,
+                          orders,
+                          statsFilteredOrders,
+                          statsCounts,
+                        ),
+
+                        const SizedBox(height: 30),
+
+                        _buildChartSection(context, statusData),
+                        const SizedBox(height: 30),
+
+                        _buildRecentOrdersSection(context, orders),
+                        const SizedBox(height: 20),
+
+                        _buildPerformanceCard(
+                          totalOrders,
+                          completedOrders,
+                          supplierReady + mergedForLoading,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildMobileDrawer(
+    BuildContext context, {
+    required AuthProvider authProvider,
+    required NotificationProvider notificationProvider,
+  }) {
+    final user = authProvider.user;
+    final canViewOrders = user?.hasPermission('orders_view') ?? false;
+    final canCreateSupplierOrder =
+        user?.hasPermission('orders_create_supplier') ?? false;
+    final canCreateCustomerOrder =
+        user?.hasPermission('orders_create_customer') ?? false;
+    final canMergeOrders = user?.hasPermission('orders_merge') ?? false;
+    final canViewCustomers = user?.hasPermission('customers_view') ?? false;
+    final canViewSuppliers = user?.hasPermission('suppliers_view') ?? false;
+    final canViewDrivers = user?.hasPermission('drivers_view') ?? false;
+    final canViewTracking = user?.hasPermission('tracking_view') ?? false;
+    final canAccessSettings = user?.hasPermission('settings_access') ?? false;
+    final canViewUsers =
+        user?.hasAnyPermission(const [
+          'users_view',
+          'users_create',
+          'users_edit',
+          'users_delete',
+          'users_block',
+          'users_manage',
+        ]) ??
+        false;
+    final canViewReports = user?.hasPermission('reports_view') ?? false;
+    final canViewTasks =
+        user?.hasAnyPermission(const ['tasks_view', 'tasks_view_all']) ?? false;
+    final canViewInventory =
+        user?.hasAnyPermission(const ['inventory_view', 'inventory_manage']) ??
+        false;
+    final canViewFuelSales =
+        user?.hasAnyPermission(const [
+          'fuel_sales_view',
+          'fuel_sales_manage',
+        ]) ??
+        false;
+    final canViewMarketing =
+        user?.hasAnyPermission(const [
+          'marketing_stations_view',
+          'marketing_stations_manage',
+        ]) ??
+        false;
+    final canViewPeriodicMaintenance =
+        user?.hasAnyPermission(const [
+          'maintenance_periodic_view',
+          'maintenance_periodic_manage',
+        ]) ??
+        false;
+    final canViewQualification =
+        user?.hasAnyPermission(const [
+          'qualification_view',
+          'qualification_manage',
+        ]) ??
+        false;
+    final canViewHr =
+        user?.hasAnyPermission(const ['hr_view', 'hr_manage']) ?? false;
+    final canViewActivities = user?.hasPermission('activities_view') ?? false;
+    final canViewAuthDevices =
+        user?.hasPermission('auth_devices_view') ?? false;
+    final canViewBlockedDevices =
+        user?.hasPermission('blocked_devices_view') ?? false;
+    final canAccessStationMaintenance = [
+      'owner',
+      'admin',
+      'manager',
+      'supervisor',
+      'maintenance',
+      'maintenance_car_management',
+      'maintenance_technician',
+      'Maintenance_Technician',
+    ].contains(user?.role);
+
+    final orderItems = <_DashboardDrawerItemData>[
+      if (canViewOrders)
+        _DashboardDrawerItemData(
+          icon: Icons.list_alt_rounded,
+          title: 'الطلبات',
+          color: AppColors.primaryBlue,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.orders),
+        ),
+      if (canCreateSupplierOrder)
+        _DashboardDrawerItemData(
+          icon: Icons.add_business_rounded,
+          title: 'إنشاء طلب مورد',
+          color: AppColors.successGreen,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.supplierOrderForm),
+        ),
+      if (canCreateCustomerOrder)
+        _DashboardDrawerItemData(
+          icon: Icons.person_add_alt_1_rounded,
+          title: 'إنشاء طلب عميل',
+          color: AppColors.successGreen,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.customerOrderForm),
+        ),
+      if (canMergeOrders)
+        _DashboardDrawerItemData(
+          icon: Icons.merge_type_rounded,
+          title: 'دمج الطلبات',
+          color: AppColors.secondaryTeal,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.mergeOrders),
+        ),
+    ];
+
+    final partyItems = <_DashboardDrawerItemData>[
+      if (canViewCustomers)
+        _DashboardDrawerItemData(
+          icon: Icons.groups_rounded,
+          title: 'العملاء',
+          color: AppColors.secondaryTeal,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.customers),
+        ),
+      if (canViewSuppliers)
+        _DashboardDrawerItemData(
+          icon: Icons.business_center_rounded,
+          title: 'الموردين',
+          color: AppColors.primaryBlue,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.suppliers),
+        ),
+      if (canViewDrivers)
+        _DashboardDrawerItemData(
+          icon: Icons.drive_eta_rounded,
+          title: 'السائقين',
+          color: AppColors.warningOrange,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.drivers),
+        ),
+      if (canViewTracking)
+        _DashboardDrawerItemData(
+          icon: Icons.location_searching_rounded,
+          title: 'المتابعة',
+          color: AppColors.infoBlue,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.tracking),
+        ),
+    ];
+
+    final operationsItems = <_DashboardDrawerItemData>[
+      if (canViewInventory)
+        _DashboardDrawerItemData(
+          icon: Icons.warehouse_outlined,
+          title: 'المخزون',
+          color: AppColors.primaryDarkBlue,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.inventoryDashboard),
+        ),
+      if (canViewTasks)
+        _DashboardDrawerItemData(
+          icon: Icons.task_alt_rounded,
+          title: 'المهام',
+          color: AppColors.warningOrange,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.tasks),
+        ),
+      if (canViewFuelSales)
+        _DashboardDrawerItemData(
+          icon: Icons.local_gas_station_rounded,
+          title: 'مبيعات المحطات',
+          color: AppColors.successGreen,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.mainHome),
+        ),
+      if (canViewMarketing)
+        _DashboardDrawerItemData(
+          icon: Icons.campaign_outlined,
+          title: 'تسويق المحطات',
+          color: AppColors.secondaryTeal,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.marketingStations),
+        ),
+      if (canViewPeriodicMaintenance)
+        _DashboardDrawerItemData(
+          icon: Icons.directions_car_filled_rounded,
+          title: 'الصيانة الدورية',
+          color: AppColors.warningOrange,
+          onTap: () => _navigateFromMobileDrawer(
+            context,
+            AppRoutes.maintenanceDashboard,
+          ),
+        ),
+      if (canAccessStationMaintenance)
+        _DashboardDrawerItemData(
+          icon: Icons.home_repair_service_rounded,
+          title: 'تطوير وصيانة المحطات',
+          color: AppColors.primaryBlue,
+          onTap: () => _navigateFromMobileDrawer(
+            context,
+            AppRoutes.stationMaintenanceDashboard,
+          ),
+        ),
+      if (canViewQualification)
+        _DashboardDrawerItemData(
+          icon: Icons.verified_outlined,
+          title: 'مواقع المحطات',
+          color: AppColors.primaryBlue,
+          onTap: () => _navigateFromMobileDrawer(
+            context,
+            AppRoutes.qualificationDashboard,
+          ),
+        ),
+      if (canViewHr)
+        _DashboardDrawerItemData(
+          icon: Icons.people_alt_rounded,
+          title: 'الموارد البشرية',
+          color: AppColors.successGreen,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.hrDashboard),
+        ),
+      if (canViewActivities)
+        _DashboardDrawerItemData(
+          icon: Icons.local_activity_rounded,
+          title: 'الأنشطة',
+          color: AppColors.warningOrange,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.activities),
+        ),
+      if (canViewReports)
+        _DashboardDrawerItemData(
+          icon: Icons.analytics_outlined,
+          title: 'التقارير',
+          color: AppColors.primaryDarkBlue,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.reports),
+        ),
+    ];
+
+    final accountItems = <_DashboardDrawerItemData>[
+      _DashboardDrawerItemData(
+        icon: Icons.notifications_outlined,
+        title: 'الإشعارات',
+        color: AppColors.accentBlue,
+        badge: notificationProvider.unreadCount,
+        onTap: () =>
+            _navigateFromMobileDrawer(context, AppRoutes.notifications),
+      ),
+      _DashboardDrawerItemData(
+        icon: Icons.person_outline_rounded,
+        title: 'الملف الشخصي',
+        color: AppColors.infoBlue,
+        onTap: () => _navigateFromMobileDrawer(context, AppRoutes.profile),
+      ),
+      if (canViewUsers)
+        _DashboardDrawerItemData(
+          icon: Icons.manage_accounts_outlined,
+          title: 'إدارة المستخدمين',
+          color: AppColors.successGreen,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.userManagement),
+        ),
+      if (canViewAuthDevices)
+        _DashboardDrawerItemData(
+          icon: Icons.devices_outlined,
+          title: 'إدارة الأجهزة',
+          color: AppColors.primaryBlue,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.authDevices),
+        ),
+      if (canViewBlockedDevices)
+        _DashboardDrawerItemData(
+          icon: Icons.phonelink_lock_outlined,
+          title: 'الأجهزة المحظورة',
+          color: AppColors.errorRed,
+          onTap: () =>
+              _navigateFromMobileDrawer(context, AppRoutes.blockedDevices),
+        ),
+      if (canAccessSettings)
+        _DashboardDrawerItemData(
+          icon: Icons.settings_outlined,
+          title: 'الإعدادات',
+          color: AppColors.mediumGray,
+          onTap: () => _navigateFromMobileDrawer(context, AppRoutes.settings),
+        ),
+      _DashboardDrawerItemData(
+        icon: Icons.logout_rounded,
+        title: 'تسجيل خروج',
+        color: AppColors.errorRed,
+        onTap: () => _logoutFromMobileDrawer(context, authProvider),
+      ),
+    ];
+
+    return Drawer(
+      width: math.min(MediaQuery.of(context).size.width * 0.88, 340),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF8FAFF), Color(0xFFF2F5FC)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.appBarGradient,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(26),
+                    bottomRight: Radius.circular(26),
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildWelcomeCard(context, authProvider),
-                    const SizedBox(height: 20),
-
-                    if (!_loadingTimers && _approachingTimers.isNotEmpty)
-                      CountdownSection(
-                        timers: _approachingTimers,
-                        onViewAll: () {
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.orders,
-                            arguments: {'showCountdown': true},
-                          );
-                        },
-                      ),
-
-                    if (!_loadingTimers && _approachingTimers.isNotEmpty)
-                      const SizedBox(height: 20),
-
-                    if (overdueOrders.isNotEmpty)
-                      OverdueOrdersWidget(
-                        orders: orders,
-                        onViewAll: () {
-                          Navigator.pushNamed(context, AppRoutes.orders);
-                        },
-                      ),
-
-                    if (overdueOrders.isNotEmpty) const SizedBox(height: 20),
-
-                    _buildStatisticsSection(
-                      context,
-                      orders,
-                      statsFilteredOrders,
-                      statsCounts,
+                    Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.22),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _userInitials(user?.name),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.name ?? 'المستخدم',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user != null && user.company.isNotEmpty
+                                    ? user.company
+                                    : user?.email ?? '',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.78),
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-
-                    const SizedBox(height: 30),
-
-                    _buildQuickNavigation(context),
-                    const SizedBox(height: 30),
-
-                    _buildChartSection(context, statusData),
-                    const SizedBox(height: 30),
-
-                    _buildRecentOrdersSection(context, orders),
-                    const SizedBox(height: 20),
-
-                    _buildPerformanceCard(
-                      totalOrders,
-                      completedOrders,
-                      supplierReady + mergedForLoading,
-                    ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 14),
+                    // Text(
+                    //   'كل أقسام التنقل على الجوال أصبحت داخل القائمة الجانبية.',
+                    //   style: TextStyle(
+                    //     color: Colors.white.withValues(alpha: 0.86),
+                    //     fontSize: 12,
+                    //     height: 1.45,
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
+                  children: [
+                    _buildMobileDrawerSection(
+                      title: 'لوحة التحكم',
+                      items: [
+                        _DashboardDrawerItemData(
+                          icon: Icons.dashboard_customize_rounded,
+                          title: 'الرئيسية',
+                          color: AppColors.primaryBlue,
+                          onTap: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    if (orderItems.isNotEmpty)
+                      _buildMobileDrawerSection(
+                        title: 'الطلبات',
+                        items: orderItems,
+                      ),
+                    if (partyItems.isNotEmpty)
+                      _buildMobileDrawerSection(
+                        title: 'الأطراف والمتابعة',
+                        items: partyItems,
+                      ),
+                    if (operationsItems.isNotEmpty)
+                      _buildMobileDrawerSection(
+                        title: 'التشغيل',
+                        items: operationsItems,
+                      ),
+                    _buildMobileDrawerSection(
+                      title: 'الحساب',
+                      items: accountItems,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileDrawerSection({
+    required String title,
+    required List<_DashboardDrawerItemData> items,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.76)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.primaryDarkBlue,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
             ),
+          ),
+          ...items.map(_buildMobileDrawerTile),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDrawerTile(_DashboardDrawerItemData item) {
+    final badge = item.badge;
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: item.color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(item.icon, color: item.color, size: 20),
+      ),
+      title: Text(
+        item.title,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (badge != null && badge > 0)
+            Container(
+              margin: const EdgeInsetsDirectional.only(end: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.errorRed,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                badge.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          Icon(Icons.chevron_left_rounded, color: item.color),
+        ],
+      ),
+      onTap: item.onTap,
+    );
+  }
+
+  // Widget _buildMobileSidebarPrompt(
+  //   BuildContext context, {
+  //   required int unreadNotifications,
+  // }) {
+  //   return AppSurfaceCard(
+  //     borderRadius: const BorderRadius.all(Radius.circular(24)),
+  //     padding: const EdgeInsets.all(18),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Row(
+  //           children: [
+  //             Container(
+  //               width: 46,
+  //               height: 46,
+  //               decoration: BoxDecoration(
+  //                 borderRadius: BorderRadius.circular(14),
+  //                 gradient: const LinearGradient(
+  //                   colors: [AppColors.accentBlue, AppColors.secondaryTeal],
+  //                 ),
+  //               ),
+  //               child: const Icon(
+  //                 Icons.space_dashboard_rounded,
+  //                 color: Colors.white,
+  //               ),
+  //             ),
+  //             const SizedBox(width: 12),
+  //             // Expanded(
+  //             //   child: Column(
+  //             //     crossAxisAlignment: CrossAxisAlignment.start,
+  //             //     children: [
+  //             //       const Text(
+  //             //         'التنقل أصبح جانبيًا',
+  //             //         style: TextStyle(
+  //             //           fontSize: 16,
+  //             //           fontWeight: FontWeight.w800,
+  //             //           color: AppColors.primaryDarkBlue,
+  //             //         ),
+  //             //       ),
+  //             //       const SizedBox(height: 4),
+  //             //       Text(
+  //             //         'كل انتقالات الجوال داخل القائمة الجانبية لواجهة أبسط وأنظف.',
+  //             //         style: TextStyle(
+  //             //           fontSize: 12,
+  //             //           height: 1.5,
+  //             //           color: Colors.grey.shade700,
+  //             //         ),
+  //             //       ),
+  //             //     ],
+  //             //   ),
+  //             // ),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 14),
+  //         Wrap(
+  //           spacing: 8,
+  //           runSpacing: 8,
+  //           children: [
+  //             _buildSidebarInfoChip(
+  //               icon: Icons.notifications_active_outlined,
+  //               label: unreadNotifications > 0
+  //                   ? '$unreadNotifications إشعار جديد'
+  //                   : 'لا توجد إشعارات جديدة',
+  //               color: unreadNotifications > 0
+  //                   ? AppColors.errorRed
+  //                   : AppColors.primaryBlue,
+  //             ),
+  //             _buildSidebarInfoChip(
+  //               icon: Icons.swipe_rounded,
+  //               label: 'افتح القائمة من الأعلى',
+  //               color: AppColors.secondaryTeal,
+  //             ),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 16),
+  //         SizedBox(
+  //           width: double.infinity,
+  //           child: FilledButton.icon(
+  //             onPressed: () => Scaffold.of(context).openDrawer(),
+  //             style: FilledButton.styleFrom(
+  //               backgroundColor: AppColors.primaryBlue,
+  //               foregroundColor: Colors.white,
+  //               padding: const EdgeInsets.symmetric(vertical: 14),
+  //               shape: RoundedRectangleBorder(
+  //                 borderRadius: BorderRadius.circular(16),
+  //               ),
+  //             ),
+  //             icon: const Icon(Icons.menu_open_rounded),
+  //             label: const Text(
+  //               'فتح القائمة الجانبية',
+  //               style: TextStyle(fontWeight: FontWeight.w700),
+  //             ),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildSidebarInfoChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1044,7 +1762,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final canViewSuppliers = user?.hasPermission('suppliers_view') ?? false;
     final canViewDrivers = user?.hasPermission('drivers_view') ?? false;
     final canAccessSettings = user?.hasPermission('settings_access') ?? false;
-    final canManageUsers = user?.hasPermission('users_manage') ?? false;
+    final canViewUsers =
+        user?.hasAnyPermission(const [
+          'users_view',
+          'users_create',
+          'users_edit',
+          'users_delete',
+          'users_block',
+          'users_manage',
+        ]) ??
+        false;
     bool canSeeStat(String key) => user?.hasPermission(key) ?? false;
     final statsFilteredOrders = _filterOrdersForStats(orderProvider.orders);
     final candlestickData = _buildCandlestickData(statsFilteredOrders);
@@ -1109,7 +1836,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     canViewSuppliers: canViewSuppliers,
                     canViewDrivers: canViewDrivers,
                     canAccessSettings: canAccessSettings,
-                    canManageUsers: canManageUsers,
+                    canViewUsers: canViewUsers,
                   ),
                 ),
               ),
@@ -4803,7 +5530,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         backgroundColor: AppColors.successGreen,
                       ),
                     );
-                    // هنا يمكنك إضافة كود إعادة الجدولة الفعلي
                   },
                   child: const Text('تأكيد'),
                 ),
@@ -4815,7 +5541,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // دالة لإلغاء الطلب
   void _cancelOrder(BuildContext context, OrderTimer timer) {
     showDialog(
       context: context,
@@ -4838,7 +5563,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   backgroundColor: AppColors.errorRed,
                 ),
               );
-              // هنا يمكنك إضافة كود الإلغاء الفعلي
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.errorRed,
@@ -4851,7 +5575,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // دالة مساعدة للحصول على نص نوع الطلب
   String _getOrderSourceText(String orderSource) {
     switch (orderSource) {
       case 'مورد':
@@ -4863,7 +5586,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // دالة مساعدة للحصول على لون نوع الطلب
   Color _getOrderSourceColor(String orderSource) {
     switch (orderSource) {
       case 'مورد':
@@ -4879,7 +5601,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Color _getStatusBadgeColor(String status) {
     if (_isCanceledStatus(status)) {
-      return AppColors.errorRed; // 🔴 ملغي = أحمر
+      return AppColors.errorRed;
     }
     if (_isWarehouseStatus(status)) {
       return Colors.blue.shade700;
@@ -4923,12 +5645,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required bool canViewSuppliers,
     required bool canViewDrivers,
     required bool canAccessSettings,
-    required bool canManageUsers,
+    required bool canViewUsers,
   }) {
-    final isAdminOrOwner =
-        authProvider.user?.role == 'owner' ||
-        authProvider.user?.role == 'admin';
-    final isOwner = authProvider.user?.role == 'owner';
+    final user = authProvider.user;
+    final canViewFuelSales =
+        user?.hasAnyPermission(['fuel_sales_view', 'fuel_sales_manage']) ??
+        false;
+    final canViewMarketing =
+        user?.hasAnyPermission([
+          'marketing_stations_view',
+          'marketing_stations_manage',
+        ]) ??
+        false;
+    final canViewQualification =
+        user?.hasAnyPermission([
+          'qualification_view',
+          'qualification_manage',
+        ]) ??
+        false;
+    final canViewPeriodicMaintenance =
+        user?.hasAnyPermission([
+          'maintenance_periodic_view',
+          'maintenance_periodic_manage',
+        ]) ??
+        false;
+    final canViewCustodyDocuments =
+        user?.hasAnyPermission([
+          'custody_documents_view',
+          'custody_documents_manage',
+        ]) ??
+        false;
+    final canViewActivities = user?.hasPermission('activities_view') ?? false;
+    final canViewTasks =
+        user?.hasAnyPermission(['tasks_view', 'tasks_view_all']) ?? false;
+    final canViewInventory =
+        user?.hasAnyPermission(['inventory_view', 'inventory_manage']) ?? false;
+    final canViewContracts =
+        user?.hasAnyPermission(['contracts_view', 'contracts_manage']) ?? false;
+    final canViewHr = user?.hasAnyPermission(['hr_view', 'hr_manage']) ?? false;
+    final canViewArchive =
+        user?.hasAnyPermission(['archive_view', 'archive_manage']) ?? false;
+    final canViewAuthDevices =
+        user?.hasPermission('auth_devices_view') ?? false;
+    final canViewBlockedDevices =
+        user?.hasPermission('blocked_devices_view') ?? false;
     final canAccessStationMaintenance = [
       'owner',
       'admin',
@@ -5011,13 +5771,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       //     title: 'إدارة محطات الوقود',
       //     onTap: () => Navigator.pushNamed(context, AppRoutes.fuelStations),
       //   ),
-      if (isAdminOrOwner)
+      if (canViewFuelSales)
         _buildDesktopFolderItem(
           icon: Icons.local_gas_station,
           title: 'إدارة مبيعات محطات الوقود',
           onTap: () => Navigator.pushNamed(context, AppRoutes.mainHome),
         ),
-      if (isAdminOrOwner)
+      if (canViewMarketing)
         _buildDesktopFolderItem(
           icon: Icons.campaign_outlined,
           title: 'تسويق المحطات',
@@ -5027,14 +5787,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     final qualificationChildren = <Widget>[
-      if (isAdminOrOwner)
+      if (canViewQualification)
         _buildDesktopFolderItem(
           icon: Icons.verified_outlined,
           title: 'مواقع تحت الدراسة',
           onTap: () =>
               Navigator.pushNamed(context, AppRoutes.qualificationDashboard),
         ),
-      if (isAdminOrOwner)
+      if (canViewQualification)
         _buildDesktopFolderItem(
           icon: Icons.map_outlined,
           title: 'خريطة المواقع',
@@ -5043,7 +5803,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     final maintenanceChildren = <Widget>[
-      if (isAdminOrOwner)
+      if (canViewPeriodicMaintenance)
         _buildDesktopFolderItem(
           icon: Icons.directions_car,
           title: 'صيانة المركبات الدورية',
@@ -5059,13 +5819,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             AppRoutes.stationMaintenanceDashboard,
           ),
         ),
-      if (isOwner)
+      if (canViewCustodyDocuments)
         _buildDesktopFolderItem(
           icon: Icons.assignment_turned_in,
           title: 'سندات العهدة',
           onTap: () => Navigator.pushNamed(context, AppRoutes.custodyDocuments),
         ),
-      if (isAdminOrOwner)
+      if (canViewActivities)
         _buildDesktopFolderItem(
           icon: Icons.local_activity,
           title: 'الأنشطة',
@@ -5074,34 +5834,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     final tasksChildren = <Widget>[
-      _buildDesktopFolderItem(
-        icon: Icons.task_alt,
-        title: 'المهام',
-        onTap: () => Navigator.pushNamed(context, AppRoutes.tasks),
-      ),
+      if (canViewTasks)
+        _buildDesktopFolderItem(
+          icon: Icons.task_alt,
+          title: 'المهام',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.tasks),
+        ),
     ];
 
     final inventoryChildren = <Widget>[
-      _buildDesktopFolderItem(
-        icon: Icons.warehouse_outlined,
-        title: 'لوحة المخزون',
-        onTap: () => Navigator.pushNamed(context, AppRoutes.inventoryDashboard),
-      ),
-      _buildDesktopFolderItem(
-        icon: Icons.receipt_long_outlined,
-        title: 'فاتورة مخزون جديدة',
-        onTap: () =>
-            Navigator.pushNamed(context, AppRoutes.inventoryInvoiceForm),
-      ),
-      _buildDesktopFolderItem(
-        icon: Icons.inventory_2_outlined,
-        title: 'عرض المخزون',
-        onTap: () => Navigator.pushNamed(context, AppRoutes.inventoryStock),
-      ),
+      if (canViewInventory)
+        _buildDesktopFolderItem(
+          icon: Icons.warehouse_outlined,
+          title: 'لوحة المخزون',
+          onTap: () =>
+              Navigator.pushNamed(context, AppRoutes.inventoryDashboard),
+        ),
+      if (canViewInventory)
+        _buildDesktopFolderItem(
+          icon: Icons.receipt_long_outlined,
+          title: 'فاتورة مخزون جديدة',
+          onTap: () =>
+              Navigator.pushNamed(context, AppRoutes.inventoryInvoiceForm),
+        ),
+      if (canViewInventory)
+        _buildDesktopFolderItem(
+          icon: Icons.inventory_2_outlined,
+          title: 'عرض المخزون',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.inventoryStock),
+        ),
     ];
 
     final contractsChildren = <Widget>[
-      if (isAdminOrOwner)
+      if (canViewContracts)
         _buildDesktopFolderItem(
           icon: Icons.description_outlined,
           title: 'إدارة العقود',
@@ -5111,7 +5876,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     final hrChildren = <Widget>[
-      if (isAdminOrOwner)
+      if (canViewHr)
         _buildDesktopFolderItem(
           icon: Icons.people_alt,
           title: 'إدارة الموارد البشرية',
@@ -5120,7 +5885,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     final archiveChildren = <Widget>[
-      if (isAdminOrOwner)
+      if (canViewArchive)
         _buildDesktopFolderItem(
           icon: Icons.inventory_2_outlined,
           title: 'الأرشفة (وارد / صادر)',
@@ -5140,19 +5905,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: 'الملف الشخصي',
         onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
       ),
-      if (canManageUsers)
+      if (canViewUsers)
         _buildDesktopFolderItem(
           icon: Icons.person_add,
           title: 'إدارة المستخدمين',
           onTap: () => Navigator.pushNamed(context, AppRoutes.userManagement),
         ),
-      if (isOwner)
+      if (canViewAuthDevices)
         _buildDesktopFolderItem(
           icon: Icons.devices_outlined,
           title: 'إدارة الأجهزة',
           onTap: () => Navigator.pushNamed(context, AppRoutes.authDevices),
         ),
-      if (isAdminOrOwner)
+      if (canViewBlockedDevices)
         _buildDesktopFolderItem(
           icon: Icons.phonelink_lock_outlined,
           title: 'الأجهزة المحظورة',
@@ -5621,13 +6386,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                if (authProvider.user?.role == 'owner') ...[
+                if (authProvider.user?.hasAnyPermission(const [
+                      'users_view',
+                      'users_create',
+                      'users_edit',
+                      'users_delete',
+                      'users_block',
+                      'users_manage',
+                    ]) ??
+                    false) ...[
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.userManagement);
                     },
                     icon: const Icon(Icons.person_add_alt_1),
-                    label: const Text('إنشاء مستخدم جديد'),
+                    label: const Text('إدارة المستخدمين'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.successGreen,
                       foregroundColor: Colors.white,
@@ -5779,76 +6552,144 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // المكونات المشتركة للموبايل والكمبيوتر
   // ============================================
 
-  Widget _buildWelcomeCard(BuildContext context, AuthProvider authProvider) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                gradient: AppColors.accentGradient,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.3),
-                    blurRadius: 8,
-                    spreadRadius: 2,
-                  ),
-                ],
+  Widget _buildWelcomeCard(
+    BuildContext context,
+    AuthProvider authProvider, {
+    required int unreadNotifications,
+    required VoidCallback onOpenSidebar,
+  }) {
+    final user = authProvider.user;
+    final dateLabel = DateFormat('EEEE, d MMMM y', 'ar').format(DateTime.now());
+
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
+      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              gradient: AppColors.appBarGradient,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(28),
+                topRight: Radius.circular(28),
               ),
-              child: Center(
-                child: Text(
-                  authProvider.user?.name
-                          .split(' ')
-                          .map((n) => n.isNotEmpty ? n[0] : '')
-                          .take(2)
-                          .join('')
-                          .toUpperCase() ??
-                      'U',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _userInitials(user?.name),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'مرحبًا ${user?.name ?? ''}',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dateLabel,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.78),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: onOpenSidebar,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.menu_open_rounded),
+                ),
+              ],
             ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (user != null && user.company.isNotEmpty)
                   Text(
-                    'مرحباً ${authProvider.user?.name ?? ''}',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryBlue,
+                    user.company,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDarkBlue,
                     ),
                   ),
+                if (user != null && user.email.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    authProvider.user?.company ?? '',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.mediumGray,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    authProvider.user?.email ?? '',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.lightGray),
+                    user.email,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                 ],
-              ),
+                const SizedBox(height: 14),
+                // Text(
+                //   'واجهة الجوال أصبحت أخف، والتنقل الآن من القائمة الجانبية بدل شبكة الأيقونات.',
+                //   style: TextStyle(
+                //     height: 1.55,
+                //     color: Colors.grey.shade700,
+                //     fontSize: 12.5,
+                //   ),
+                // ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildSidebarInfoChip(
+                      icon: Icons.notifications_outlined,
+                      label: unreadNotifications > 0
+                          ? '$unreadNotifications إشعار غير مقروء'
+                          : 'الإشعارات محدثة',
+                      color: unreadNotifications > 0
+                          ? AppColors.errorRed
+                          : AppColors.successGreen,
+                    ),
+                    // _buildSidebarInfoChip(
+                    //   icon: Icons.mobile_friendly_rounded,
+                    //   label: 'وضع الجوال المحسّن',
+                    //   color: AppColors.primaryBlue,
+                    // ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -7314,7 +8155,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final canViewDrivers = user?.hasPermission('drivers_view') ?? false;
     final canViewTracking = user?.hasPermission('tracking_view') ?? false;
     final canAccessSettings = user?.hasPermission('settings_access') ?? false;
-    final canManageUsers = user?.hasPermission('users_manage') ?? false;
+    final canViewInventory =
+        user?.hasAnyPermission(const ['inventory_view', 'inventory_manage']) ??
+        false;
+    final canViewUsers =
+        user?.hasAnyPermission(const [
+          'users_view',
+          'users_create',
+          'users_edit',
+          'users_delete',
+          'users_block',
+          'users_manage',
+        ]) ??
+        false;
+    final canViewTasks =
+        user?.hasAnyPermission(const ['tasks_view', 'tasks_view_all']) ?? false;
+    final canViewPeriodicMaintenance =
+        user?.hasAnyPermission(const [
+          'maintenance_periodic_view',
+          'maintenance_periodic_manage',
+        ]) ??
+        false;
+    final canViewFuelSales =
+        user?.hasAnyPermission(const [
+          'fuel_sales_view',
+          'fuel_sales_manage',
+        ]) ??
+        false;
+    final canViewMarketing =
+        user?.hasAnyPermission(const [
+          'marketing_stations_view',
+          'marketing_stations_manage',
+        ]) ??
+        false;
+    final canViewQualification =
+        user?.hasAnyPermission(const [
+          'qualification_view',
+          'qualification_manage',
+        ]) ??
+        false;
+    final canViewHr =
+        user?.hasAnyPermission(const ['hr_view', 'hr_manage']) ?? false;
+    final canViewCustodyDocuments =
+        user?.hasAnyPermission(const [
+          'custody_documents_view',
+          'custody_documents_manage',
+        ]) ??
+        false;
+    final canViewActivities = user?.hasPermission('activities_view') ?? false;
+    final canViewBlockedDevices =
+        user?.hasPermission('blocked_devices_view') ?? false;
+    final canViewAuthDevices =
+        user?.hasPermission('auth_devices_view') ?? false;
     final canViewReports = user?.hasPermission('reports_view') ?? false;
     final canAccessStationMaintenance = [
       'owner',
@@ -7353,13 +8245,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.primaryBlue,
                 onTap: () => Navigator.pushNamed(context, AppRoutes.orders),
               ),
-            _navItem(
-              icon: Icons.warehouse_outlined,
-              title: 'المخزون',
-              color: AppColors.primaryDarkBlue,
-              onTap: () =>
-                  Navigator.pushNamed(context, AppRoutes.inventoryDashboard),
-            ),
+            if (canViewInventory)
+              _navItem(
+                icon: Icons.warehouse_outlined,
+                title: 'المخزون',
+                color: AppColors.primaryDarkBlue,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.inventoryDashboard),
+              ),
             if (canCreateSupplierOrder)
               _navItem(
                 icon: Icons.add_circle_outline,
@@ -7412,8 +8305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.infoBlue,
                 onTap: () => Navigator.pushNamed(context, AppRoutes.tracking),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewPeriodicMaintenance)
               _navItem(
                 icon: Icons.directions_car,
                 title: 'صيانة المركبات الدورية',
@@ -7423,12 +8315,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   AppRoutes.maintenanceDashboard,
                 ),
               ),
-            _navItem(
-              icon: Icons.directions_car,
-              title: 'المهام',
-              color: AppColors.warningOrange,
-              onTap: () => Navigator.pushNamed(context, AppRoutes.tasks),
-            ),
+            if (canViewTasks)
+              _navItem(
+                icon: Icons.directions_car,
+                title: 'المهام',
+                color: AppColors.warningOrange,
+                onTap: () => Navigator.pushNamed(context, AppRoutes.tasks),
+              ),
             if (canAccessStationMaintenance)
               _navItem(
                 icon: Icons.home_repair_service_outlined,
@@ -7448,16 +8341,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             //     onTap: () =>
             //         Navigator.pushNamed(context, AppRoutes.fuelStations),
             //   ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewFuelSales)
               _navItem(
                 icon: Icons.local_gas_station,
                 title: 'إدارة مبيعات محطات الوقود',
                 color: AppColors.successGreen,
                 onTap: () => Navigator.pushNamed(context, AppRoutes.mainHome),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewMarketing)
               _navItem(
                 icon: Icons.campaign_outlined,
                 title: 'تسويق المحطات',
@@ -7465,8 +8356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.marketingStations),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewQualification)
               _navItem(
                 icon: Icons.verified_outlined,
                 title: 'مواقع المحطات ',
@@ -7476,8 +8366,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   AppRoutes.qualificationDashboard,
                 ),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewHr)
               _navItem(
                 icon: Icons.people,
                 title: 'إدارة الموارد البشرية',
@@ -7485,8 +8374,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.hrDashboard),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewCustodyDocuments)
               _navItem(
                 icon: Icons.assignment_turned_in,
                 title: 'سندات العهدة',
@@ -7494,8 +8382,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.custodyDocuments),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewActivities)
               _navItem(
                 icon: Icons.local_activity,
                 title: 'الأنشطة',
@@ -7529,7 +8416,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.mediumGray,
                 onTap: () => Navigator.pushNamed(context, AppRoutes.settings),
               ),
-            if (canManageUsers)
+            if (canViewUsers)
               _navItem(
                 icon: Icons.person_add,
                 title: 'إدارة المستخدمين',
@@ -7537,8 +8424,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.userManagement),
               ),
-            if (authProvider.user?.role == 'owner' ||
-                authProvider.user?.role == 'admin')
+            if (canViewBlockedDevices)
               _navItem(
                 icon: Icons.phonelink_lock_outlined,
                 title: 'الأجهزة المحظورة',
@@ -7546,7 +8432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.blockedDevices),
               ),
-            if (authProvider.user?.role == 'owner')
+            if (canViewAuthDevices)
               _navItem(
                 icon: Icons.devices_outlined,
                 title: 'إدارة الأجهزة',
@@ -8175,6 +9061,22 @@ class CountdownCard extends StatelessWidget {
         return AppColors.primaryBlue;
     }
   }
+}
+
+class _DashboardDrawerItemData {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+  final int? badge;
+
+  const _DashboardDrawerItemData({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+    this.badge,
+  });
 }
 
 class StatsCounts {

@@ -38,6 +38,8 @@ import 'package:order_tracker/localization/app_localizations.dart';
 import 'package:order_tracker/utils/app_navigation.dart';
 import 'package:order_tracker/utils/app_routes.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/utils/role_route_guard_observer.dart';
+import 'package:order_tracker/utils/role_route_policy.dart';
 
 /// 🔑 Navigator Key (ضروري لـ Flutter Web + iframe)
 final NavigationLoadingObserver appNavigationObserver =
@@ -148,7 +150,7 @@ class MyApp extends StatelessWidget {
 
       routes: AppRoutes.routes,
       onGenerateRoute: AppRoutes.onGenerateRoute,
-      navigatorObservers: [appNavigationObserver],
+      navigatorObservers: [appNavigationObserver, RoleRouteGuardObserver()],
 
       // 🔔 Notifications
       builder: (context, child) {
@@ -199,6 +201,8 @@ String _roleHomeRoute(String? role) {
       return AppRoutes.maintenanceDashboard;
     case 'maintenance_station':
       return AppRoutes.stationMaintenanceTechnician;
+    case 'employee':
+      return AppRoutes.marketingStations;
     case 'finance_manager':
       return AppRoutes.custodyDashboard;
     case 'sales_manager_statiun':
@@ -218,6 +222,9 @@ String getInitialRoute(AuthProvider auth) {
 
     if (auth.isAuthenticated && auth.user != null) {
       if (_publicRoutes.contains(deepLinkPath)) {
+        return _roleHomeRoute(auth.user!.role);
+      }
+      if (!isRouteAllowedForRole(role: auth.user?.role, routeName: deepLink)) {
         return _roleHomeRoute(auth.user!.role);
       }
       return deepLink;

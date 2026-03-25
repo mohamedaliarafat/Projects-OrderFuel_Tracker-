@@ -22,6 +22,32 @@ class OrderProvider with ChangeNotifier {
   int _totalOrders = 0;
   Map<String, Order> _ordersCache = {};
 
+  int _intOrFallback(dynamic value, int fallback) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  Map<String, dynamic>? _extractPagination(dynamic payload) {
+    if (payload is! Map) return null;
+    final map = Map<String, dynamic>.from(payload as Map);
+
+    final direct = map['pagination'];
+    if (direct is Map) {
+      return Map<String, dynamic>.from(direct);
+    }
+
+    final nested = map['data'];
+    if (nested is Map) {
+      final nestedMap = Map<String, dynamic>.from(nested);
+      final nestedPagination = nestedMap['pagination'];
+      if (nestedPagination is Map) {
+        return Map<String, dynamic>.from(nestedPagination);
+      }
+    }
+
+    return null;
+  }
+
   Map<String, String> _multipartHeaders() {
     final headers = Map<String, String>.from(ApiService.headers);
     headers.remove('Content-Type');
@@ -77,7 +103,14 @@ class OrderProvider with ChangeNotifier {
       final map = Map<String, dynamic>.from(value as Map);
       final hasOrderShape =
           (map.containsKey('_id') || map.containsKey('id')) &&
-          map.containsKey('orderNumber');
+          (map.containsKey('orderDate') ||
+              map.containsKey('orderSource') ||
+              map.containsKey('mergeStatus') ||
+              map.containsKey('loadingDate') ||
+              map.containsKey('arrivalDate') ||
+              map.containsKey('status') ||
+              map.containsKey('supplierName') ||
+              map.containsKey('customerName'));
 
       if (hasOrderShape) {
         try {
@@ -189,27 +222,19 @@ class OrderProvider with ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = json.decode(utf8.decode(response.bodyBytes));
 
-        List<dynamic> ordersData = [];
-        if (data['orders'] is List) {
-          ordersData = data['orders'];
-        } else if (data['data'] is List) {
-          ordersData = data['data'];
-        } else if (data is List) {
-          ordersData = data;
-        }
-
-        _orders = ordersData.map((e) => Order.fromJson(e)).toList();
+        _orders = _parseOrdersFromPayload(data);
 
         // تحديث الكاش
         for (var order in _orders) {
           _ordersCache[order.id] = order;
         }
 
-        _currentPage = data['pagination']?['page'] ?? 1;
-        _totalPages = data['pagination']?['pages'] ?? 1;
-        _totalOrders = data['pagination']?['total'] ?? _orders.length;
+        final pagination = _extractPagination(data);
+        _currentPage = _intOrFallback(pagination?['page'], page);
+        _totalPages = _intOrFallback(pagination?['pages'], 1);
+        _totalOrders = _intOrFallback(pagination?['total'], _orders.length);
 
         // Apply filters locally if needed
         _applyLocalFilters();

@@ -52,6 +52,7 @@ import 'package:order_tracker/screens/order/supplier_order/supplier_order_form_s
 import 'package:order_tracker/screens/order_details_screen.dart';
 import 'package:order_tracker/screens/orders_screen.dart';
 import 'package:order_tracker/screens/profile_screen.dart';
+import 'package:order_tracker/screens/support_screen.dart';
 import 'package:order_tracker/screens/register_screen.dart';
 import 'package:order_tracker/screens/reports/customer_report_screen.dart';
 import 'package:order_tracker/screens/reports/driver_report_screen.dart';
@@ -168,6 +169,7 @@ class AppRoutes {
   static const activities = '/activities';
   static const profile = '/profile';
   static const settings = '/settings';
+  static const support = '/support';
   static const notifications = '/notifications';
   static const String suppliers = '/suppliers';
   static const String supplierForm = '/supplier/form';
@@ -350,6 +352,7 @@ class AppRoutes {
     activities: (_) => const ActivitiesScreen(),
     profile: (_) => const ProfileScreen(),
     settings: (_) => const SettingsScreen(),
+    support: (_) => const SupportScreen(),
     notifications: (_) => const NotificationsScreen(),
     fuelStations: (context) => const FuelStationsScreen(),
     fuelStationForm: (context) => const FuelStationFormScreen(),

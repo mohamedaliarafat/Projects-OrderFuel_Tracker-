@@ -7,6 +7,8 @@ import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
 import 'package:order_tracker/utils/file_saver.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:order_tracker/widgets/stations/fuel_price_card.dart';
 import 'package:order_tracker/widgets/stations/pump_card.dart';
 import 'package:pdf/pdf.dart';
@@ -364,13 +366,45 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
     final web = isWeb(context);
 
     if (stationProvider.isLoading && station == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            AppSoftBackground(),
+            Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      );
     }
 
     if (station == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('تفاصيل المحطة')),
-        body: const Center(child: Text('المحطة غير موجودة')),
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          ),
+          title: const Text('تفاصيل المحطة'),
+          centerTitle: true,
+        ),
+        body: Stack(
+          children: const [
+            AppSoftBackground(),
+            Center(
+              child: AppSurfaceCard(
+                child: Text(
+                  'المحطة غير موجودة',
+                  style: TextStyle(
+                    color: AppColors.mediumGray,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -387,7 +421,13 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
           }
 
           return Scaffold(
+            backgroundColor: Colors.transparent,
             appBar: AppBar(
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              flexibleSpace: Container(
+                decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+              ),
               title: Text(
                 station.stationName,
                 style: const TextStyle(
@@ -542,15 +582,10 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
                   _tabController?.animateTo(index);
                 },
 
-                // ✅ لون الخط تحت التاب (المؤشر)
-                indicatorColor: Colors.red,
+                indicatorColor: Colors.white,
                 indicatorWeight: 3,
-
-                // ✅ لون التاب المختار
-                labelColor: Colors.red,
-
-                // ✅ لون التابات غير المختارة
-                unselectedLabelColor: Colors.red.withOpacity(0.6),
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
 
                 // (اختياري) شكل الخط
                 labelStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -563,17 +598,26 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
               ),
             ),
 
-            body: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: TabBarView(
-                  children: [
-                    _buildOverviewTab(station),
-                    _buildPumpsTab(station),
-                    _buildSessionsTab(sessions),
-                  ],
+            body: Stack(
+              children: [
+                const AppSoftBackground(),
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1200),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: TabBarView(
+                        children: [
+                          _buildOverviewTab(station),
+                          _buildPumpsTab(station),
+                          _buildSessionsTab(sessions),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
             floatingActionButton: _selectedTab == 1 && !web
                 ? FloatingActionButton(
@@ -609,23 +653,23 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
       required Widget child,
       double? titleFont,
     }) {
-      return Card(
-        child: Padding(
-          padding: EdgeInsets.all(cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: titleFont ?? titleSize,
-                  fontWeight: FontWeight.bold,
-                ),
+      return AppSurfaceCard(
+        padding: EdgeInsets.all(cardPadding),
+        borderRadius: const BorderRadius.all(Radius.circular(26)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: titleFont ?? titleSize,
+                fontWeight: FontWeight.w900,
+                color: AppColors.primaryBlue,
               ),
-              SizedBox(height: web ? 10 : 15),
-              child,
-            ],
-          ),
+            ),
+            SizedBox(height: web ? 10 : 15),
+            child,
+          ],
         ),
       );
     }
@@ -724,66 +768,60 @@ class _StationDetailsScreenState extends State<StationDetailsScreen> {
     // ================= Pumps Summary Content =================
     final pumpsSummary = SizedBox(
       height: web ? 280 : 320,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// العنوان + العدد (ثابت)
-              Row(
-                children: [
-                  const Text(
-                    'المضخات',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  Chip(label: Text('${station.pumps.length}')),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              /// 🔴 ده كان سبب المشكلة
-              /// ✅ لازم Expanded
-              Expanded(
-                child: station.pumps.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'لا توجد المضخات',
-                          style: TextStyle(color: AppColors.mediumGray),
-                        ),
-                      )
-                    : Scrollbar(
-                        thumbVisibility: true,
-                        controller: _pumpsScrollController,
-                        child: ListView.separated(
-                          controller: _pumpsScrollController,
-                          primary: false,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: station.pumps.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 6),
-                          itemBuilder: (context, index) {
-                            return PumpCard(pump: station.pumps[index]);
-                          },
-                        ),
-                      ),
-              ),
-
-              /// زر (ثابت)
-              if (station.pumps.length > 3)
-                Align(
-                  alignment: Alignment.center,
-                  child: TextButton(
-                    onPressed: () {
-                      _tabController?.animateTo(1);
-                    },
-                    child: const Text('عرض جميع المضخات'),
+      child: AppSurfaceCard(
+        padding: const EdgeInsets.all(16),
+        borderRadius: const BorderRadius.all(Radius.circular(26)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'المضخات',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primaryBlue,
                   ),
                 ),
-            ],
-          ),
+                const Spacer(),
+                Chip(label: Text('${station.pumps.length}')),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: station.pumps.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'لا توجد المضخات',
+                        style: TextStyle(color: AppColors.mediumGray),
+                      ),
+                    )
+                  : Scrollbar(
+                      thumbVisibility: true,
+                      controller: _pumpsScrollController,
+                      child: ListView.separated(
+                        controller: _pumpsScrollController,
+                        primary: false,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: station.pumps.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          return PumpCard(pump: station.pumps[index]);
+                        },
+                      ),
+                    ),
+            ),
+            if (station.pumps.length > 3)
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: () {
+                    _tabController?.animateTo(1);
+                  },
+                  child: const Text('عرض جميع المضخات'),
+                ),
+              ),
+          ],
         ),
       ),
     );

@@ -12,6 +12,8 @@ import 'package:order_tracker/models/station_models.dart';
 import 'package:order_tracker/providers/auth_provider.dart';
 import 'package:order_tracker/providers/station_provider.dart';
 import 'package:order_tracker/utils/constants.dart';
+import 'package:order_tracker/widgets/app_soft_background.dart';
+import 'package:order_tracker/widgets/app_surface_card.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -1433,13 +1435,42 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     final session = stationProvider.selectedSession;
 
     if (stationProvider.isLoading && session == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            AppSoftBackground(),
+            Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      );
     }
 
     if (session == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('تفاصيل الجلسة')),
-        body: const Center(child: Text('الجلسة غير موجودة')),
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+          ),
+          title: const Text(
+            'تفاصيل الجلسة',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+        body: Stack(
+          children: const [
+            AppSoftBackground(),
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: AppSurfaceCard(child: Text('الجلسة غير موجودة')),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -1453,7 +1484,13 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
         sessionTotals.liters > 0 || actualSales > 0 || _isFuelPriceLoading;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.appBarGradient),
+        ),
         title: Text(
           'الجلسة ${session.sessionNumber}',
           style: const TextStyle(color: Colors.white),
@@ -1601,31 +1638,35 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
         ],
       ),
 
-      body: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isMobile = constraints.maxWidth < 600;
-            final isTablet =
-                constraints.maxWidth >= 600 && constraints.maxWidth < 900;
-            final isDesktop = constraints.maxWidth >= 900;
+      body: Stack(
+        children: [
+          const AppSoftBackground(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                final isTablet =
+                    constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+                final isDesktop = constraints.maxWidth >= 900;
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile
-                    ? 12
-                    : isTablet
-                    ? 24
-                    : 32,
-                vertical: 16,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                  maxWidth: isDesktop ? 1200 : 750,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                return SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile
+                        ? 12
+                        : isTablet
+                        ? 24
+                        : 32,
+                    vertical: 16,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                      maxWidth: isDesktop ? 1200 : 750,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                     // Session Info Card
                     _buildSessionInfoCard(session, isMobile, isTablet),
                     const SizedBox(height: 20),
@@ -1684,12 +1725,14 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
                       _buildPumpBreakdownCard(session, isMobile, isTablet),
 
                     const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1701,8 +1744,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     bool isMobile,
     bool isTablet,
   ) {
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -1869,8 +1912,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
         )
         .toList();
 
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -2317,8 +2360,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
 
     final grouped = _groupByPumpAndFuel(readings);
 
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -2642,8 +2685,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
 
     if (closingReadings.isEmpty) return const SizedBox.shrink();
 
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -2682,8 +2725,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
               children: closingReadings.map((reading) {
                 return SizedBox(
                   width: isMobile ? double.infinity : 300,
-                  child: Card(
-                    elevation: 2,
+                  child: AppSurfaceCard(
+                    padding: EdgeInsets.zero,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(
@@ -2735,8 +2778,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
       pumpsMap.putIfAbsent(n.pumpNumber, () => []).add(n);
     }
 
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -2927,8 +2970,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     bool isMobile,
     bool isTablet,
   ) {
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -3036,11 +3079,13 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
 
     double grandTotal = 0;
 
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      margin: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 16, vertical: 16),
-      child: Padding(
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 8 : 16,
+        vertical: 16,
+      ),
+      child: AppSurfaceCard(
+        borderRadius: BorderRadius.circular(18),
         padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3205,11 +3250,10 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     bool isMobile,
     bool isTablet,
   ) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      child: Padding(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: AppSurfaceCard(
+        borderRadius: BorderRadius.circular(16),
         padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3348,37 +3392,34 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     Color color,
     IconData icon,
   ) {
-    return Card(
-      elevation: 2,
-      color: color.withOpacity(0.05),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                color: AppColors.mediumGray,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
+    return AppSurfaceCard(
+      color: color.withValues(alpha: 0.06),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.mediumGray,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              textAlign: TextAlign.center,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -3445,8 +3486,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     bool isMobile,
     bool isTablet,
   ) {
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -3508,8 +3549,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
       (sum, e) => sum + e.amount,
     );
 
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -3653,8 +3694,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
   }
 
   Widget _buildBalanceCard(PumpSession session, bool isMobile, bool isTablet) {
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -3719,8 +3760,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
   }
 
   Widget _buildNotesCard(PumpSession session, bool isMobile, bool isTablet) {
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
@@ -3782,8 +3823,8 @@ class _SessionDetailsScreenState extends State<SessionDetailsScreen> {
     final pumps = session.pumps ?? [];
     if (pumps.isEmpty) return const SizedBox.shrink();
 
-    return Card(
-      elevation: 4,
+    return AppSurfaceCard(
+      padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(
