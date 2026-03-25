@@ -30,6 +30,7 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: |
+          flutter clean
           flutter pub get
 
       - name: Generate iOS app icons
@@ -39,7 +40,9 @@ workflows:
 
       - name: Install CocoaPods dependencies
         script: |
-          find ios -name "Podfile" -execdir pod install \;
+          cd ios
+          pod install
+          cd ..
 
       - name: Set up code signing
         script: |
@@ -72,5 +75,6 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+        submit_to_app_store: false
         beta_groups:
           - Internal Testers
