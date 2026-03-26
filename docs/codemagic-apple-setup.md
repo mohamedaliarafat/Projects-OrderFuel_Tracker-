@@ -9,17 +9,26 @@
 - `scripts/generate_ios_app_icons.sh` generates `ios/Runner/Assets.xcassets/AppIcon.appiconset`.
 - The iOS bundle identifier is set to `com.albuhaira.nipras`.
 
-## Replace these placeholders
+## Update identifiers (if needed)
 
-- In `codemagic.yaml`, replace `YOUR_APP_STORE_CONNECT_KEY_NAME` with the App Store Connect key name you save in Codemagic UI.
-- In `codemagic.yaml`, replace `APP_STORE_APPLE_ID` with the numeric Apple ID of the app from App Store Connect.
+- Bundle identifier: `com.albuhaira.nipras` (in `codemagic.yaml`).
+- App Store Apple ID: `6759683802` (in `codemagic.yaml`).
 
 ## Add these items in Codemagic UI
 
 - App Store Connect API key:
-  Add the `.p8` key, `Key ID`, and `Issuer ID` in Codemagic Team settings under Apple Developer Portal integration.
+  Add the `.p8` key, `Key ID`, and `Issuer ID` in Codemagic Team settings (App Store Connect integration).
 - iOS signing files:
-  Upload or fetch the `Apple Distribution` certificate and the `App Store` provisioning profile in Codemagic code signing settings.
+  Upload or fetch the `Apple Distribution` certificate and the needed provisioning profile in Codemagic code signing settings:
+  - App Store/TestFlight: `App Store` provisioning profile.
+  - Direct device install: `Ad Hoc` provisioning profile (must include device UDIDs).
+
+## Direct iPhone install (Ad Hoc)
+
+- Add the iPhone UDID to your Apple Developer account (Devices).
+- Create an `Ad Hoc` provisioning profile for the app id `com.albuhaira.nipras` that includes the device UDID(s).
+- Upload the `Apple Distribution` certificate + the `Ad Hoc` provisioning profile to Codemagic.
+- Run the `ios-ad-hoc-ipa` workflow and download `build/ios/ipa/*.ipa` from artifacts.
 
 ## Current icon source
 
@@ -30,4 +39,4 @@
 ## Important note before first release
 
 - The first App Store version often still needs App Store Connect metadata to be complete manually, such as screenshots, category, and privacy information.
-- After that, `ios-app-store-release` is ready to build the `IPA` and send it directly to App Store Connect (then install via TestFlight).
+- To upload to TestFlight later, uncomment the `publishing` block in `codemagic.yaml` under `ios-app-store-release`.
