@@ -69,6 +69,19 @@ workflows:
             --build-number="$NEXT_BUILD_NUMBER" \
             --export-options-plist=/Users/builder/export_options.plist
 
+      - name: Normalize IPA filename (ASCII)
+        script: |
+          set -e
+
+          IPA_DIR="build/ios/ipa"
+          IPA_SRC="$(ls -1 "$IPA_DIR"/*.ipa | head -n 1)"
+          IPA_DST="$IPA_DIR/order_tracker.ipa"
+
+          if [ "$IPA_SRC" != "$IPA_DST" ]; then
+            mv "$IPA_SRC" "$IPA_DST"
+            echo "Renamed IPA to: $IPA_DST"
+          fi
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
