@@ -75,11 +75,9 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
       - flutter_drive.log
 
-    # Publishing (disabled): do not upload to Apple / App Store Connect.
-    # Uncomment this block to enable TestFlight/App Store upload again.
-    # publishing:
-    #   app_store_connect:
-    #     auth: integration
+    publishing:
+      app_store_connect:
+        auth: integration
 
   ios-ad-hoc-ipa:
     name: iOS Ad Hoc IPA (Direct Install)
