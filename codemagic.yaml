@@ -67,7 +67,7 @@ workflows:
 
           flutter build ipa --release \
             --build-number="$NEXT_BUILD_NUMBER" \
-            --export-method=app-store
+            --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -142,7 +142,7 @@ workflows:
 
           flutter build ipa --release \
             --build-number="$NEXT_BUILD_NUMBER" \
-            --export-method=ad-hoc
+            --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
