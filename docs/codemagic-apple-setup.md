@@ -2,7 +2,9 @@
 
 ## What is ready
 
-- `codemagic.yaml` builds a signed iOS `IPA`.
+- `codemagic.yaml` builds a signed iOS `IPA` (downloadable from build artifacts).
+- `ios-app-store-release` uploads the build to App Store Connect (TestFlight).
+- `ios-ad-hoc-ipa` builds an Ad Hoc `IPA` for direct device installation (requires an Ad Hoc provisioning profile with your device UDIDs).
 - `codemagic.yaml` regenerates the iOS icons before each build.
 - `scripts/generate_ios_app_icons.sh` generates `ios/Runner/Assets.xcassets/AppIcon.appiconset`.
 - The iOS bundle identifier is set to `com.albuhaira.nipras`.
@@ -28,4 +30,4 @@
 ## Important note before first release
 
 - The first App Store version often still needs App Store Connect metadata to be complete manually, such as screenshots, category, and privacy information.
-- After that, the workflow is ready to build the `IPA` and send it directly to App Store Connect.
+- After that, `ios-app-store-release` is ready to build the `IPA` and send it directly to App Store Connect (then install via TestFlight).
