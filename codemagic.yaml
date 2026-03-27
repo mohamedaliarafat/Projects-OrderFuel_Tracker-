@@ -53,12 +53,37 @@ workflows:
           set -e
 
           PUBSPEC_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed -E 's/.*\+([0-9]+)$/\1/')
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || true)
+          # IMPORTANT:
+          # - App Store "live" build numbers can lag behind TestFlight uploads.
+          # - Using the App Store build number can cause duplicate CFBundleVersion uploads.
+          # Prefer TestFlight build numbers when available.
+          LATEST_TESTFLIGHT_BUILD_NUMBER="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)"
+          LATEST_APP_STORE_BUILD_NUMBER="$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)"
 
-          if [ -n "$LATEST_BUILD_NUMBER" ]; then
-            NEXT_BUILD_NUMBER=$(($LATEST_BUILD_NUMBER + 1))
-          else
-            NEXT_BUILD_NUMBER="${PUBSPEC_BUILD_NUMBER:-1}"
+          LATEST_BUILD_NUMBER=""
+          if [ -n "$LATEST_TESTFLIGHT_BUILD_NUMBER" ]; then
+            LATEST_BUILD_NUMBER="$LATEST_TESTFLIGHT_BUILD_NUMBER"
+          elif [ -n "$LATEST_APP_STORE_BUILD_NUMBER" ]; then
+            LATEST_BUILD_NUMBER="$LATEST_APP_STORE_BUILD_NUMBER"
+          fi
+
+          LATEST_CANDIDATE=0
+          PUBSPEC_CANDIDATE=0
+
+          if echo "$LATEST_BUILD_NUMBER" | grep -Eq '^[0-9]+$'; then
+            LATEST_CANDIDATE=$((LATEST_BUILD_NUMBER + 1))
+          fi
+          if echo "$PUBSPEC_BUILD_NUMBER" | grep -Eq '^[0-9]+$'; then
+            PUBSPEC_CANDIDATE="$PUBSPEC_BUILD_NUMBER"
+          fi
+
+          NEXT_BUILD_NUMBER="$LATEST_CANDIDATE"
+          if [ "$PUBSPEC_CANDIDATE" -gt "$NEXT_BUILD_NUMBER" ]; then
+            NEXT_BUILD_NUMBER="$PUBSPEC_CANDIDATE"
+          fi
+
+          if [ "$NEXT_BUILD_NUMBER" -le 0 ]; then
+            NEXT_BUILD_NUMBER="$(date +%s)"
           fi
 
           echo "Using iOS build number: $NEXT_BUILD_NUMBER"
